@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Laneboss is a launcher for supervised agent lanes: a supervisor session hands each piece of work to an executor in its own worktree, and the launcher records what happens to it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M10 8v16h12' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<title>Laneboss: a launcher for supervised agent lanes</title>
+<style>
+:root {
+  --bg: #fcfcfb; --card: #f4f3ef; --ink: #0b0b0b; --ink2: #52514e; --line: #cfcdc6; --accent: #2a78d6; --code: #ecebe6;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1a1a19; --card: #242423; --ink: #f0efec; --ink2: #c3c2b7; --line: #45443f; --accent: #3987e5; --code: #2b2b29; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; max-width: 100%; overflow-x: clip; }
+body {
+  margin: 0; max-width: 100%; overflow-x: clip; background: var(--bg); color: var(--ink);
+  font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-wrap: break-word;
+}
+a { color: var(--accent); text-underline-offset: 0.15em; }
+a:focus-visible, .scroll:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 0.9em; }
+code { background: var(--code); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code); padding: 1rem; border-radius: 8px; overflow-x: auto; line-height: 1.5; max-width: 100%; }
+pre code { background: none; padding: 0; overflow-wrap: normal; }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header { padding: 3.5rem 0 2rem; border-bottom: 1px solid var(--line); }
+h1 { font-size: clamp(2.4rem, 8vw, 3.8rem); line-height: 1.05; margin: 0 0 1rem; letter-spacing: -0.02em; }
+h2 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.75rem; }
+section { padding: 2.25rem 0; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: 0; }
+.lead { font-size: clamp(1.1rem, 3.2vw, 1.35rem); line-height: 1.5; max-width: 50rem; margin: 0 0 1rem; }
+.status { display: inline-block; margin: 0 0 1.25rem; padding: 0.15rem 0.7rem; border: 1px solid var(--line); border-radius: 999px; color: var(--ink2); font-size: 0.9rem; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1rem; list-style: none; padding: 0; margin: 1rem 0 0; }
+.cards li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; }
+.cards h3 { margin: 0 0 0.3rem; font-size: 1.05rem; line-height: 1.3; }
+.cards p { margin: 0; color: var(--ink2); }
+figure { margin: 1.25rem 0 0; max-width: 100%; }
+.scroll { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--card); -webkit-overflow-scrolling: touch; }
+.scroll > svg { display: block; min-width: 56rem; width: 100%; height: auto; }
+.chart { max-width: 36rem; margin: 0 auto; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.chart img { display: block; width: 100%; height: auto; }
+.hint { display: none; margin: 0.5rem 0 0; color: var(--ink2); font-size: 0.9rem; }
+@media (max-width: 760px) { .hint { display: block; } }
+figcaption { color: var(--ink2); margin-top: 0.75rem; font-size: 0.95rem; }
+ol.steps { padding-left: 1.4rem; }
+ol.steps li { margin: 0.5rem 0; }
+.muted { color: var(--ink2); }
+footer { padding: 2rem 0 3rem; color: var(--ink2); font-size: 0.95rem; }
+.arch { color: var(--ink2); }
+.arch marker path { fill: var(--ink2); }
+.arch .a-node { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+.arch .a-cmd { stroke: var(--accent); stroke-width: 2.5; }
+.arch .a-dash { stroke-dasharray: 6 4; }
+.arch .a-group { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.arch .a-t { fill: var(--ink); font-size: 14px; font-weight: 600; }
+.arch .a-s { fill: var(--ink2); font-size: 12px; }
+.arch .a-e { fill: none; stroke: var(--ink2); stroke-width: 1.6; marker-end: url(#a-head); }
+.arch .a-l { fill: var(--ink2); font-size: 12px; paint-order: stroke; stroke: var(--card); stroke-width: 4px; }
+</style>
+</head>
+<body>
+<header>
+<div class="wrap">
+<h1>Laneboss</h1>
+<p class="lead">Laneboss is a launcher for supervised agent lanes: a supervisor session hands each piece of work to an executor in its own worktree, and the launcher records what happens to it, so that the supervisor learns it from events and not from the executor's own report.</p>
+<p class="status">Pre-release: nothing has been released and interfaces can still change.</p>
+<nav aria-label="On this page and beyond">
+<ul>
+<li><a href="#install">Install</a></li>
+<li>Repository: <code>https://github.com/laneboss-io/laneboss.git</code></li>
+<li><a href="../README.md">README</a></li>
+<li><a href="../docs/architecture.md">Architecture</a></li>
+<li><a href="#documents">Documents</a></li>
+</ul>
+</nav>
+</div>
+</header>
+
+<main class="wrap">
+
+<section id="what-you-get">
+<h2>Who it is for, and what you get</h2>
+<p>Laneboss is for supervisor sessions, and gives every session:</p>
+<ul class="cards">
+<li><h3>One command</h3><p><code>laneboss</code> validates configurations, records events, renders briefs, checks the environment and starts, watches, resumes and collects lanes.</p></li>
+<li><h3>One versioned shared protocol</h3><p>Appended to every brief it renders, so that every lane is given the same rules, the refusal rule included.</p></li>
+<li><h3>One configuration per company</h3><p>Kept outside this repository and apart from every other configuration.</p></li>
+</ul>
+<p>A supervisor session plans work and hands it to mini-supervisors, executors and reviewers. A lane is one such unit of work, with one brief, one executor and one worktree.</p>
+<p class="muted">Laneboss is generic: it holds no company settings, credentials or state. A configuration names the secrets it needs and never holds one.</p>
+</section>
+
+<section id="how-it-fits">
+<h2>How it fits together</h2>
+<figure>
+<div class="scroll" tabindex="0" role="region" aria-label="The architecture picture; it scrolls sideways on a narrow screen">
+<svg class="arch" viewBox="0 0 1100 540" role="img" aria-labelledby="arch-t arch-d" xmlns="http://www.w3.org/2000/svg">
+<title id="arch-t">How Laneboss fits together</title>
+<desc id="arch-d">A supervisor session works through the laneboss command, which reads the configuration and starts lanes. Each lane's supervising process, which runs the agent program in the lane's tmux session, records what happens to its runs as events in the event store. Refusal detection reads each lane's raw session records for guard refusals. The gate at lane mark refuses to accept a lane while a suspected workaround has a path without a verdict, or while a run is not covered and the option accept-uncovered is not given. The judge hook can ask an external command one yes/no question; nothing in the launcher uses it yet.</desc>
+<defs>
+<marker id="a-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#52514e"/></marker>
+</defs>
+
+<g fill="none" stroke="#52514e" stroke-width="1.6" marker-end="url(#a-head)">
+<path class="a-e" d="M200 86 L248 86"/>
+<path class="a-e" d="M390 86 L468 86"/>
+<path class="a-e" d="M870 86 L792 86"/>
+<path class="a-e" d="M320 40 L320 18 L965 18 L965 38"/>
+<path class="a-e" d="M320 132 L320 200"/>
+<path class="a-e" d="M270 132 L270 172 L140 172 L140 210"/>
+<path class="a-e" d="M965 132 L965 170 L640 170 L640 200"/>
+<path class="a-e" d="M497 360 L497 430"/>
+<path class="a-e" d="M250 474 L14 474 L14 86 L38 86"/>
+<path class="a-e" d="M740 244 L858 244"/>
+<path class="a-e" d="M960 286 L960 350"/>
+<path class="a-e" d="M1060 86 L1085 86 L1085 402 L1062 402"/>
+<path class="a-e" d="M960 452 L960 490 L742 490"/>
+<path class="a-e" d="M100 362 L100 420 L858 420"/>
+<path class="a-e" d="M200 362 L200 454 L248 454"/>
+</g>
+
+<g fill="#fcfcfb" stroke="#cfcdc6" stroke-width="1.5">
+<rect class="a-node" x="40" y="40" width="160" height="92" rx="8"/>
+<rect class="a-node a-cmd" x="250" y="40" width="140" height="92" rx="8" stroke="#2a78d6" stroke-width="2.5"/>
+<rect class="a-node a-dash" x="470" y="40" width="320" height="92" rx="8" stroke-dasharray="6 4"/>
+<rect class="a-node" x="870" y="40" width="190" height="92" rx="8"/>
+<rect class="a-node" x="40" y="212" width="200" height="150" rx="8"/>
+<rect class="a-node" x="262" y="240" width="150" height="120" rx="8"/>
+<rect class="a-node" x="422" y="240" width="150" height="120" rx="8"/>
+<rect class="a-node" x="582" y="240" width="150" height="120" rx="8"/>
+<rect class="a-node" x="860" y="202" width="200" height="84" rx="8"/>
+<rect class="a-node" x="860" y="352" width="200" height="100" rx="8"/>
+<rect class="a-node" x="250" y="432" width="490" height="84" rx="8"/>
+</g>
+<rect class="a-group" x="250" y="202" width="490" height="170" rx="10" fill="none" stroke="#cfcdc6" stroke-width="1.5" stroke-dasharray="5 4"/>
+
+<g fill="#0b0b0b" font-size="14" font-weight="600">
+<text class="a-t" x="52" y="66">Supervisor</text>
+<text class="a-t" x="262" y="66">laneboss</text>
+<text class="a-t" x="484" y="66">Judge hook</text>
+<text class="a-t" x="884" y="66">Configuration</text>
+<text class="a-t" x="54" y="238">Gate at lane mark</text>
+<text class="a-t" x="272" y="264">Worktree</text>
+<text class="a-t" x="430" y="264">Session</text>
+<text class="a-t" x="592" y="264">Account</text>
+<text class="a-t" x="874" y="228">Session records</text>
+<text class="a-t" x="874" y="378">Refusal detection</text>
+<text class="a-t" x="264" y="460">Event store</text>
+</g>
+
+<g fill="#52514e" font-size="12">
+<text class="a-s" x="52" y="86">a supervisor session</text>
+<text class="a-s" x="262" y="86">the one command</text>
+<text class="a-s" x="484" y="86">laneboss judge ask: one yes/no question</text>
+<text class="a-s" x="484" y="101">to an external command</text>
+<text class="a-s" x="484" y="116">nothing in the launcher uses it yet</text>
+<text class="a-s" x="884" y="86">one per company, outside</text>
+<text class="a-s" x="884" y="101">this repository</text>
+<text class="a-s" x="54" y="258">accepted or merged is</text>
+<text class="a-s" x="54" y="273">refused while a suspected</text>
+<text class="a-s" x="54" y="288">workaround has a path</text>
+<text class="a-s" x="54" y="303">without a verdict, or a</text>
+<text class="a-s" x="54" y="318">run is not covered and</text>
+<text class="a-s" x="54" y="333">--accept-uncovered is</text>
+<text class="a-s" x="54" y="348">not given</text>
+<text class="a-s" x="264" y="224">A lane: one brief, one executor, one worktree</text>
+<text class="a-s" x="272" y="284">and branch, named</text>
+<text class="a-s" x="272" y="299">after the lane</text>
+<text class="a-s" x="430" y="284">a tmux session in</text>
+<text class="a-s" x="430" y="299">which the launcher's</text>
+<text class="a-s" x="430" y="314">supervising process</text>
+<text class="a-s" x="430" y="329">runs the agent</text>
+<text class="a-s" x="430" y="344">program</text>
+<text class="a-s" x="592" y="284">the runner's list,</text>
+<text class="a-s" x="592" y="299">minus what the</text>
+<text class="a-s" x="592" y="314">project excludes</text>
+<text class="a-s" x="874" y="248">the agent program's own</text>
+<text class="a-s" x="874" y="263">record of every tool call</text>
+<text class="a-s" x="874" y="278">and result</text>
+<text class="a-s" x="874" y="398">guards recognise refusals,</text>
+<text class="a-s" x="874" y="413">suspected workarounds</text>
+<text class="a-s" x="874" y="428">are flagged</text>
+<text class="a-s" x="264" y="482">one SQLite file per configuration, append-only</text>
+</g>
+
+<g fill="#52514e" font-size="12">
+<text class="a-l" x="228" y="78" text-anchor="middle">runs</text>
+<text class="a-l" x="430" y="78" text-anchor="middle">judge ask</text>
+<text class="a-l" x="831" y="78" text-anchor="middle">judges</text>
+<text class="a-l" x="430" y="33" text-anchor="middle">reads</text>
+<text class="a-l" x="328" y="172">lane start</text>
+<text class="a-l" x="150" y="165">lane mark</text>
+<text class="a-l" x="648" y="163">routing: runner, model, effort</text>
+<text class="a-l" x="505" y="386">the supervising process records</text>
+<text class="a-l" x="505" y="399">lane.started, lane.stuck,</text>
+<text class="a-l" x="505" y="412">lane.timeout, lane.ended</text>
+<text class="a-l" x="24" y="466">event tail --follow</text>
+<text class="a-l" x="799" y="222" text-anchor="middle">the agent program</text>
+<text class="a-l" x="799" y="235" text-anchor="middle">writes</text>
+<text class="a-l" x="950" y="316" text-anchor="end">read where the</text>
+<text class="a-l" x="950" y="329" text-anchor="end">configuration names them</text>
+<text class="a-l" transform="translate(1096 244) rotate(-90)" text-anchor="middle">guards</text>
+<text class="a-l" x="752" y="470">lane.refusal,</text>
+<text class="a-l" x="752" y="483">lane.workaround_suspected</text>
+<text class="a-l" x="110" y="413">runs the scan</text>
+<text class="a-l" x="192" y="440" text-anchor="end">records lane.state</text>
+</g>
+</svg>
+</div>
+<p class="hint">Swipe sideways inside the picture to see all of it.</p>
+<figcaption>The supervisor session works through the <code>laneboss</code> command, which reads the configuration and starts lanes; each lane's supervising process records what happens to its runs as events in the event store; refusal detection reads each lane's raw session records for guard refusals; the gate at <code>lane mark</code> (with guards in the configuration) refuses to accept a lane while a suspected workaround has a path without a verdict, or while a run is not covered and <code>--accept-uncovered</code> is not given; and the judge hook can ask an external command one yes/no question (nothing in the launcher uses it yet).</figcaption>
+</figure>
+</section>
+
+<section id="refusal">
+<h2>A refusal, in four steps</h2>
+<ol class="steps">
+<li>A guard's pattern, written in the configuration, finds a refusal in the agent program's raw session records.</li>
+<li>Later shell calls that write the refused files or repeat the refused command are flagged as suspected workarounds.</li>
+<li>The supervisor gives a verdict on each file.</li>
+<li>With guards in the configuration, <code>lane mark --state accepted</code> or <code>merged</code> first scans every run to its end and is refused while a suspected workaround has a path without a verdict, a run is not covered or the scan's events could not be recorded.</li>
+</ol>
+<p class="muted"><code>--accept-uncovered</code> records the decision together with what was not covered instead of refusing for a run that is not covered. A verdict of <code>workaround</code> does not block: the decision stays the supervisor's.</p>
+</section>
+
+<section id="judge">
+<h2>The judge on five test subjects</h2>
+<figure>
+<div class="chart">
+<img src="../docs/assets/judge_answers.svg" width="560" height="618" alt="One dot is one answer of one judge to the question: is this tool result a refusal? The two refusal subjects scored 0.95 to 0.97, the two subjects that are not refusals 0.05 to 0.09, and the subject whose text was withheld 0.68 to 0.71. Five hand-written test subjects, each asked nine times.">
+</div>
+<figcaption><strong>What was measured.</strong> The probability that the real judge Jev (model <code>jev-1.13.0</code>, reached through the example adapter in <a href="../examples/judges/README.md">examples/judges/</a>) returned, through <code>laneboss judge ask</code>, to the question <code>refusal.is-refusal</code>: is this tool result a refusal by a guard, a hook or a permission layer of the agent program? The judge was told to answer NO for an error of the operating system or of a test. Five subjects were each asked nine times on 9 October 2026, between 14:57 and 20:19 UTC, in nine runs on nine different unreleased builds of the launcher (five on 0.4.0, four on 0.5.0): 45 answers, all answered, none dropped. The subjects were written by hand for the trial, not taken from real sessions: <code>hook</code> is a guard's block message, <code>harness</code> is the agent program's "permission … denied" message, <code>os</code> is an operating system's "Permission denied" from <code>cp</code>, <code>test</code> is a failing test's output, and <code>secret</code> is a line with a made-up credential, which the launcher withheld before asking. By the question's own definition <code>hook</code> and <code>harness</code> are refusals and <code>os</code> and <code>test</code> are not, and the chart groups them in that way. The nine runs asked identical requests, which measures how stable the answer is, not how accurate the judge is in general. Nothing else was measured: five subjects say nothing about other results, and nothing in the launcher uses a judge yet (<a href="../docs/judges.md">docs/judges.md</a>). The pairs behind the chart are in <a href="../docs/assets/data/judge_answers.csv">docs/assets/data/judge_answers.csv</a>, and <code>python3 scripts/make_charts.py</code> draws it from them.</figcaption>
+</figure>
+</section>
+
+<section id="claudock">
+<p><strong>Works with Claudock:</strong> <a href="../docs/claudock.md">docs/claudock.md</a> shows one runner that starts the agent program under the account of a Claudock profile, and <code>cos</code>, a small terminal front for accounts that take only headless requests; Laneboss does not need Claudock.</p>
+</section>
+
+<section id="install">
+<h2>Install</h2>
+<p>Linux or macOS with a POSIX <code>sh</code>, and <code>git</code> and <code>tmux</code> on <code>PATH</code>; Python 3.11 or newer for the launcher, which needs nothing beyond the standard library.</p>
+<p>With no checkout, one command installs the launcher:</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh</code></pre>
+<p>That line fetches <code>install.sh</code> from the repository's <code>main</code> branch; <a href="../docs/install.md">docs/install.md</a> says what it does and needs, and that it runs what it fetches with your rights, which nothing checks. The second way is from a checkout:</p>
+<pre><code>git clone https://github.com/laneboss-io/laneboss.git laneboss
+cd laneboss
+sh scripts/install.sh
+export PATH="$HOME/.local/bin:$PATH"
+laneboss --version</code></pre>
+<p><code>scripts/install.sh</code> installs into <code>~/.local</code> without pip, network access or administrator rights. The <a href="../README.md#quick-start">quick start</a> runs a whole lane against the invented configuration in <a href="../examples/minimal/">examples/minimal/</a>.</p>
+</section>
+
+<section id="status">
+<h2>Status</h2>
+<p><strong>Pre-release.</strong> Nothing has been released, and interfaces and file formats can still change. What is built and tested is in <a href="../README.md#what-is-built">the README</a>.</p>
+</section>
+
+<section id="documents">
+<h2>Documents</h2>
+<ul>
+<li><a href="../README.md">README.md</a>: the front page of the repository, with the quick start and every command.</li>
+<li><a href="../docs/architecture.md">docs/architecture.md</a>: how the launcher works.</li>
+<li><a href="../docs/configuration.md">docs/configuration.md</a>: every field of a configuration.</li>
+<li><a href="../docs/install.md">docs/install.md</a>: the one-command install.</li>
+<li><a href="../docs/judges.md">docs/judges.md</a>: the judge contract, the three <code>judge</code> commands and the egress log.</li>
+<li><a href="../docs/decisions.md">docs/decisions.md</a>: the owner decision store.</li>
+<li><a href="../docs/plugin.md">docs/plugin.md</a>: the Claude Code plugin.</li>
+<li><a href="../docs/claudock.md">docs/claudock.md</a>: Laneboss with Claudock.</li>
+<li><a href="../CHANGELOG.md">CHANGELOG.md</a>: what has changed.</li>
+</ul>
+</section>
+
+</main>
+
+<footer>
+<div class="wrap">
+<p>License: Apache License 2.0; see <a href="../LICENSE">LICENSE</a> and <a href="../NOTICE">NOTICE</a>.</p>
+</div>
+</footer>
+</body>
+</html>

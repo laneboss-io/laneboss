@@ -1,0 +1,23 @@
+#!/bin/sh
+# example-agent: a stand-in for an agent program, shipped with the example configuration so that a lane can run
+# end to end without one. It says what it was asked to do, prints the first line of the brief or message file it was
+# given, and exits 0. A real configuration names a real agent program instead.
+action=${1:-run}
+file=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --brief-file|--message-file)
+            file=$2
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+echo "example-agent: $action in $(pwd)"
+if [ -n "$file" ] && [ -r "$file" ]; then
+    echo "example-agent: read $(wc -c < "$file") bytes from $file"
+    head -n 1 "$file"
+fi
+echo "example-agent: done"

@@ -1,0 +1,10 @@
+# Invented profile names: replace these with names from your own Claudock installation.
+# Keep the real settings file outside the public checkout and pass it with --settings.
+exclude = ["orchard-resting"]
+max_used_percent = 85
+
+# Console API profiles bill per token and remain excluded unless explicitly enabled.
+include_console = false
+
+# Preferences break equal-headroom ties; a profile with more room still wins.
+prefer = ["orchard-primary", "orchard-spare"]

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laneboss"
+dynamic = ["version"]
+description = "A launcher for supervised agent lanes: one command, a versioned shared protocol and one configuration per company"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+laneboss = "laneboss.cli:main"
+laneboss-decisions = "laneboss.decisions.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "laneboss.identity.VERSION"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"laneboss.protocol" = ["*.md"]

@@ -1,0 +1,82 @@
+# A minimal configuration with invented content. Copy this directory to
+# $LANEBOSS_HOME/configs/example/ (the directory name must equal `name`), put bin/example-agent on PATH, then run
+#   laneboss config validate example
+#   laneboss doctor --config example
+# docs/configuration.md describes every field. A configuration names secrets; it never holds one.
+# bin/example-agent is a stand-in runner program that reads its brief and exits, so lanes run without an agent.
+schema_version = 1
+name = "example"
+description = "An invented company with one supervisor, one runner and one project."
+rules = ["rules/standing.md"]
+secrets = ["EXAMPLE_TEST_KEY"]
+owner_channel = "queue"
+test_environment = "cloud"
+
+[lanes]
+budget_minutes = 60
+quiet_seconds = 900
+stop_grace_seconds = 10
+
+[runners.agent]
+command = ["example-agent", "run", "--model", "{model}", "--effort", "{effort}", "--account", "{account}",
+           "--brief-file", "{brief}"]
+resume = ["example-agent", "resume", "--model", "{model}", "--effort", "{effort}", "--account", "{account}",
+          "--message-file", "{message}"]
+accounts = ["example-main", "example-spare"]
+limit_patterns = ["^example-agent: usage limit reached"]
+dropped_patterns = ["^example-agent: stream dropped"]
+# Where the runner's raw session records are and how to read them. A real agent program keeps its own records (format
+# claude-code, found with globs below its home); the stand-in keeps none, so the run's own log is read as text.
+records = [{format = "text", paths = ["{log}"]}]
+
+# Guards whose refusals the launcher looks for in every run's records. The package ships none: these are a
+# configuration's own rules. This one is invented.
+[[guards]]
+name = "example-guard"
+kind = "hook"
+pattern = '^example-guard: refused '
+
+[supervisors.top]
+level = 5
+runner = "agent"
+projects = ["web"]
+
+[[routing.mechanical]]
+runner = "agent"
+model = "example-model-small-1"
+effort = "low"
+
+[[routing.standard]]
+runner = "agent"
+model = "example-model-medium-1"
+effort = "high"
+
+[[routing.hard]]
+runner = "agent"
+model = "example-model-large-1"
+effort = "max"
+
+[[routing.review]]
+runner = "agent"
+model = "example-model-large-1"
+effort = "max"
+
+[test_environments.cloud]
+kind = "cloud"
+identity = "example-test-profile"
+region = "example-region-1"
+launch = ["example-launch", "{lane}"]
+attest = ["example-attest", "{machine}"]
+max_machines = 1
+idle_minutes = 30
+secrets = ["EXAMPLE_TEST_KEY"]
+
+[owner_channels.queue]
+kind = "file"
+path = "owner/queue.md"
+
+[cost]
+currency = "USD"
+daily_cap = 2.0
+per_run_cap = 0.5
+report_threshold = 2.0

@@ -1,0 +1,46 @@
+kind,probability
+refusal,0.97
+refusal,0.95
+refusal,0.96
+refusal,0.96
+refusal,0.97
+refusal,0.96
+refusal,0.96
+refusal,0.96
+refusal,0.96
+refusal,0.96
+refusal,0.97
+refusal,0.95
+refusal,0.97
+refusal,0.95
+refusal,0.96
+refusal,0.95
+refusal,0.96
+refusal,0.95
+not a refusal,0.08
+not a refusal,0.06
+not a refusal,0.07
+not a refusal,0.06
+not a refusal,0.07
+not a refusal,0.05
+not a refusal,0.08
+not a refusal,0.06
+not a refusal,0.07
+not a refusal,0.06
+not a refusal,0.09
+not a refusal,0.06
+not a refusal,0.08
+not a refusal,0.06
+not a refusal,0.09
+not a refusal,0.06
+not a refusal,0.08
+not a refusal,0.06
+subject withheld,0.69
+subject withheld,0.71
+subject withheld,0.68
+subject withheld,0.7
+subject withheld,0.69
+subject withheld,0.68
+subject withheld,0.7
+subject withheld,0.69
+subject withheld,0.69

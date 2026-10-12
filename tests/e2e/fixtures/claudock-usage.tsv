@@ -1,0 +1,11 @@
+PROFILE	PLAN	WINDOW	USED_PERCENT	RESETS_UTC
+orchard-max	Max 99×	9-hour session	44.75	2099-01-01T01:00:00Z
+orchard-max	Max 99×	Weekly · all models	49.50	2099-01-01T05:00:00Z
+orchard-max	Max 99×	Weekly · Fable	71.25	2099-01-01T05:00:00Z
+orchard-unknown	Max 99×	9-hour session	99.99	unknown
+orchard-unknown	Max 99×	Weekly · all models	11.99	2099-01-01T05:00:00Z
+orchard-unknown	Max 99×	Weekly · Fable	10.00	2099-01-01T05:00:00Z
+orchard-team	Team Premium	9-hour session	21.00	2099-01-01T01:00:00Z
+orchard-team	Team Premium	Weekly · all models	35.50	2099-01-01T05:00:00Z
+orchard-team	Team Premium	Weekly · Fable	60.00	2099-01-01T05:00:00Z
+orchard-console	Console API	Credit · $97.50 of $100.00 left	2.50	-

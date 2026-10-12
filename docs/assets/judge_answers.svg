@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 618" width="560" height="618" role="img" aria-labelledby="title desc">
+<title id="title">The two refusal subjects scored 0.95 to 0.97: five hand-written test subjects, each asked nine times of one judge</title>
+<desc id="desc">One dot is one answer on a scale of 0 to 1: the probability of YES to the question whether a tool result is a refusal. Refusal subjects (hook, harness): 18 answers from 0.95 to 0.97; Subjects that are not refusals (os, test): 18 answers from 0.05 to 0.09; Subject withheld (secret): 9 answers from 0.68 to 0.71. 45 answers in all, from Jev (model jev-1.13.0) on 9 October 2026; the subjects were written by hand for the trial, and nine identical requests each show how stable an answer is, not how accurate the judge is in general.</desc>
+<style>
+svg { --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --rule: #dcdbd6;
+      --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+@media (prefers-color-scheme: dark) {
+  svg { --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --rule: #3b3b38;
+        --s1: #3987e5; --s2: #d95926; --s3: #199e70; }
+}
+.bg { fill: var(--surface); }
+.title { font-size: 18px; font-weight: 600; fill: var(--ink); }
+.sub { font-size: 13px; fill: var(--ink2); }
+.row { font-size: 15px; font-weight: 600; fill: var(--ink); }
+.note { font-size: 13px; fill: var(--ink2); }
+.small { font-size: 12px; fill: var(--ink2); }
+.tick { font-size: 12px; fill: var(--ink2); text-anchor: middle; }
+.rule { stroke: var(--rule); stroke-width: 1; }
+.dot { stroke: var(--surface); stroke-width: 2; paint-order: stroke; }
+.s1 { fill: var(--s1); }
+.s2 { fill: var(--s2); }
+.s3 { fill: var(--s3); }
+</style>
+<rect class="bg" x="0" y="0" width="560" height="618" fill="#fcfcfb"/>
+<text x="28.0" y="36.0" class="title" fill="#0b0b0b">The two refusal subjects scored 0.95 to 0.97</text>
+<text x="28.0" y="62.0" class="sub" fill="#52514e">One judge, Jev (model jev-1.13.0) on 9 October 2026.</text>
+<text x="28.0" y="79.0" class="sub" fill="#52514e">Five hand-written test subjects, each asked nine times:</text>
+<text x="28.0" y="96.0" class="sub" fill="#52514e">is this tool result a refusal? One dot is one answer,</text>
+<text x="28.0" y="113.0" class="sub" fill="#52514e">its probability of YES from 0 to 1.</text>
+<line class="rule" x1="28.0" y1="118" x2="28.0" y2="496" stroke="#dcdbd6"/>
+<text x="28.0" y="514.0" class="tick" fill="#52514e">0</text>
+<line class="rule" x1="78.4" y1="118" x2="78.4" y2="496" stroke="#dcdbd6"/>
+<text x="78.4" y="514.0" class="tick" fill="#52514e">0.1</text>
+<line class="rule" x1="128.8" y1="118" x2="128.8" y2="496" stroke="#dcdbd6"/>
+<text x="128.8" y="514.0" class="tick" fill="#52514e">0.2</text>
+<line class="rule" x1="179.2" y1="118" x2="179.2" y2="496" stroke="#dcdbd6"/>
+<text x="179.2" y="514.0" class="tick" fill="#52514e">0.3</text>
+<line class="rule" x1="229.6" y1="118" x2="229.6" y2="496" stroke="#dcdbd6"/>
+<text x="229.6" y="514.0" class="tick" fill="#52514e">0.4</text>
+<line class="rule" x1="280.0" y1="118" x2="280.0" y2="496" stroke="#dcdbd6"/>
+<text x="280.0" y="514.0" class="tick" fill="#52514e">0.5</text>
+<line class="rule" x1="330.4" y1="118" x2="330.4" y2="496" stroke="#dcdbd6"/>
+<text x="330.4" y="514.0" class="tick" fill="#52514e">0.6</text>
+<line class="rule" x1="380.8" y1="118" x2="380.8" y2="496" stroke="#dcdbd6"/>
+<text x="380.8" y="514.0" class="tick" fill="#52514e">0.7</text>
+<line class="rule" x1="431.2" y1="118" x2="431.2" y2="496" stroke="#dcdbd6"/>
+<text x="431.2" y="514.0" class="tick" fill="#52514e">0.8</text>
+<line class="rule" x1="481.6" y1="118" x2="481.6" y2="496" stroke="#dcdbd6"/>
+<text x="481.6" y="514.0" class="tick" fill="#52514e">0.9</text>
+<line class="rule" x1="532.0" y1="118" x2="532.0" y2="496" stroke="#dcdbd6"/>
+<text x="532.0" y="514.0" class="tick" fill="#52514e">1</text>
+<line class="rule" x1="28" y1="118" x2="532" y2="118" stroke="#dcdbd6"/>
+<line class="rule" x1="28" y1="244" x2="532" y2="244" stroke="#dcdbd6"/>
+<line class="rule" x1="28" y1="370" x2="532" y2="370" stroke="#dcdbd6"/>
+<line class="rule" x1="28" y1="496" x2="532" y2="496" stroke="#dcdbd6"/>
+<text x="280.0" y="536.0" class="note" fill="#52514e" text-anchor="middle">Probability of YES (a refusal), as the judge returned it</text>
+<g>
+<title>Refusal subjects (hook, harness): 18 answers, from 0.95 to 0.97</title>
+<text x="30.0" y="142.0" class="row" fill="#0b0b0b">Refusal subjects: hook, harness</text>
+<text x="30.0" y="161.0" class="note" fill="#52514e">18 answers, 0.95 to 0.97</text>
+<circle class="dot s1" cx="506.8" cy="229.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="506.8" cy="222.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="506.8" cy="215.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="506.8" cy="208.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="506.8" cy="201.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="229.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="222.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="215.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="208.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="201.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="194.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="187.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="180.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="511.8" cy="173.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="516.9" cy="229.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="516.9" cy="222.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="516.9" cy="215.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s1" cx="516.9" cy="208.0" r="3" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+</g>
+<g>
+<title>Subjects that are not refusals (os, test): 18 answers, from 0.05 to 0.09</title>
+<text x="30.0" y="268.0" class="row" fill="#0b0b0b">Subjects that are not refusals: os, test</text>
+<text x="30.0" y="287.0" class="note" fill="#52514e">18 answers, 0.05 to 0.09</text>
+<circle class="dot s2" cx="53.2" cy="355.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="355.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="348.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="341.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="334.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="327.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="320.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="313.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="58.2" cy="306.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="63.3" cy="355.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="63.3" cy="348.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="63.3" cy="341.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="68.3" cy="355.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="68.3" cy="348.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="68.3" cy="341.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="68.3" cy="334.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="73.4" cy="355.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s2" cx="73.4" cy="348.0" r="3" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+</g>
+<g>
+<title>Subject withheld (secret): 9 answers, from 0.68 to 0.71</title>
+<text x="30.0" y="394.0" class="row" fill="#0b0b0b">Subject withheld: secret</text>
+<text x="30.0" y="413.0" class="note" fill="#52514e">9 answers, 0.68 to 0.71</text>
+<circle class="dot s3" cx="370.7" cy="481.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="370.7" cy="474.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="375.8" cy="481.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="375.8" cy="474.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="375.8" cy="467.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="375.8" cy="460.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="380.8" cy="481.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="380.8" cy="474.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<circle class="dot s3" cx="385.8" cy="481.0" r="3" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+</g>
+<text x="28.0" y="562.0" class="small" fill="#52514e">The subjects were written by hand for the trial, not taken from real</text>
+<text x="28.0" y="580.0" class="small" fill="#52514e">sessions. Nine identical requests each show how stable an answer is,</text>
+<text x="28.0" y="598.0" class="small" fill="#52514e">not how accurate the judge is in general.</text>
+</svg>

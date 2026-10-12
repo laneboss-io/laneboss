@@ -1,0 +1,12 @@
+# One project of the example configuration: the per-project layer below the configuration.
+schema_version = 1
+name = "web"
+description = "An invented web application."
+lane_prefix = "web-"
+workers = ["agent"]
+gates = ["fixtures", "hosted-ci", "review", "merge", "deploy", "e2e"]
+excluded_accounts = ["example-main"]
+test_environment = "cloud"
+reserved_paths = ["docs/release-list.md"]
+owner_channel = "queue"
+landing_authority = "top"
