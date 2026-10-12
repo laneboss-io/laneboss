@@ -71,7 +71,9 @@ FINGERPRINT_QUERIES = (
     "FROM models",
     "SELECT count(*), group_concat(record_id || ':' || which_text || ':' || model || ':' || text_sha256 || ':' || "
     "vector_sha256 || ':' || entry_sha256, ';') FROM vectors",
-    "SELECT count(*), group_concat(id || ':' || source_sha256, ';') FROM lane_records",
+    "SELECT count(*), group_concat(id || ':' || source_sha256 || ':' || created_utc || ':' || "
+    "coalesce(level, '') || ':' || coalesce(instance, ''), ';') FROM lane_records",
+    "SELECT count(*), group_concat(id || ':' || entry_sha256, ';') FROM feedback",
 )
 
 
@@ -492,6 +494,9 @@ class Resident:
         name: such a search takes the ordinary way, its error included."""
         if arguments.mode in ("vector", "hybrid") and provider is None:
             return None
+        # A live clock changes time scores even on an unchanged store. Only explicitly fixed clocks are cacheable.
+        if getattr(arguments, "rank", None) == "time" and getattr(arguments, "now", None) is None:
+            return None
         words = tuple(sorted((name, tuple(value) if isinstance(value, list) else value)
                              for name, value in vars(arguments).items()
                              if name not in ("command", "db", "config")))
@@ -581,6 +586,7 @@ class Resident:
         held = 0 if snapshot is None else sum(1 for table in list(snapshot.tables.values())
                                               if not isinstance(table, Exception))
         return {"pid": os.getpid(), "builds": self.builds, "cache": cache, "answers": answers,
+                "store_id": hashlib.sha256(os.path.realpath(self.path).encode("utf-8")).hexdigest(),
                 "schema_version": SCHEMA_VERSION, "records": len(snapshot.rows()) if snapshot is not None else 0,
                 "vector_models": held}
 

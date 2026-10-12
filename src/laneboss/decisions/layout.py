@@ -5,14 +5,14 @@ name, type, table and the stored text must all be equal, and no other object may
 the previous release wrote. The older layout is schema_version 1 before the egress hash chain. Version 2 is
 version 1 unchanged plus the first_written table and the triggers that keep rows from being replaced. Version 3 is
 version 2 unchanged plus the lane_records table, the keyword index over its text and the triggers that make its
-rows append-only.
+rows append-only. Version 4 appends nullable level and instance columns and adds append-only feedback events.
 """
 
-SCHEMA_VERSION = 3
-PREVIOUS_SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
+PREVIOUS_SCHEMA_VERSION = 3
 # Every schema version this code can still open for the migrate command; nothing below the current version is
 # opened by any other command, and nothing is ever upgraded automatically.
-MIGRATABLE_VERSIONS = (1, 2)
+MIGRATABLE_VERSIONS = (1, 2, 3)
 
 RECORDS = """CREATE TABLE records (
     row_id INTEGER PRIMARY KEY,
@@ -184,6 +184,38 @@ VERSION_3_ADDITIONS = (
     ("table", "lane_keyword_index", "lane_keyword_index", LANE_KEYWORD_INDEX),
 ) + tuple(("trigger", name, table, sql) for name, table, sql in LANE_GUARDS)
 
+# ALTER TABLE appends columns without rewriting existing JSON, hashes, answers, ids or timestamps. NULL means
+# legacy/unscoped, and such rows are excluded by scoped history searches. All earlier triggers remain in place.
+VERSION_4_ALTERS = tuple("ALTER TABLE {} ADD COLUMN {}".format(table, column)
+                         for table in ("records", "lane_records")
+                         for column in ("level INTEGER", "instance TEXT"))
+FEEDBACK = """CREATE TABLE feedback (
+    id INTEGER PRIMARY KEY,
+    case_id TEXT NOT NULL,
+    event TEXT NOT NULL CHECK(event IN ('merged', 'accepted', 'abandoned', 'refusal', 'cited')),
+    at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    entry_sha256 TEXT NOT NULL UNIQUE,
+    UNIQUE(case_id, event, source)
+)"""
+FEEDBACK_GUARDS = (
+    ("feedback_no_delete", "feedback", guard("feedback_no_delete", "DELETE", "feedback", "feedback is never deleted")),
+    ("feedback_no_update", "feedback", guard("feedback_no_update", "UPDATE", "feedback", "feedback never changes")),
+    ("feedback_no_replace", "feedback", guard(
+        "feedback_no_replace", "INSERT", "feedback", "feedback is written once and never replaced",
+        "EXISTS (SELECT 1 FROM feedback WHERE id = NEW.id OR entry_sha256 = NEW.entry_sha256 "
+        "OR (case_id = NEW.case_id AND event = NEW.event AND source = NEW.source))")),
+)
+VERSION_4_ADDITIONS = (
+    ("table", "feedback", "feedback", FEEDBACK),
+    ("index", "feedback_case", "feedback", "CREATE INDEX feedback_case ON feedback(case_id, at)"),
+    ("index", "records_scope", "records", "CREATE INDEX records_scope ON records(level, instance)"),
+    ("index", "lane_records_scope", "lane_records", "CREATE INDEX lane_records_scope ON lane_records(level, instance)"),
+    ("trigger", "records_fixed_scope", "records", guard(
+        "records_fixed_scope", "UPDATE", "records", "record scope never changes",
+        "NEW.level IS NOT OLD.level OR NEW.instance IS NOT OLD.instance")),
+) + tuple(("trigger", name, table, sql) for name, table, sql in FEEDBACK_GUARDS)
+
 
 def layout(statements, lane=False):
     """Expected objects keyed by (type, name): SQLite lets a trigger share an index's or a table's name, so a name
@@ -204,6 +236,13 @@ OLDER = dict(VERSION_1)
 OLDER[("table", "egress_log")] = ("egress_log", OLDER_EGRESS_LOG)
 VERSION_2 = layout(VERSION_1_STATEMENTS + VERSION_2_ADDITIONS)
 VERSION_3 = layout(VERSION_1_STATEMENTS + VERSION_2_ADDITIONS + VERSION_3_ADDITIONS, lane=True)
+VERSION_4 = dict(VERSION_3)
+# SQLite's ADD COLUMN preserves the old SQL up to the closing parenthesis and appends ', <definition>'.
+for _table, _definition in (("records", RECORDS), ("lane_records", LANE_RECORDS)):
+    VERSION_4[("table", _table)] = (_table, _definition[:-1] + ", level INTEGER, instance TEXT)")
+VERSION_4.update({(kind, name): (table, sql) for kind, name, table, sql in VERSION_4_ADDITIONS})
+VERSION_4[("index", "sqlite_autoindex_feedback_1")] = ("feedback", None)
+VERSION_4[("index", "sqlite_autoindex_feedback_2")] = ("feedback", None)
 
 
 def stored_objects(connection):

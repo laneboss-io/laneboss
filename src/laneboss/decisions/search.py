@@ -13,6 +13,7 @@ import sqlite3
 
 from .embed import embed_query, provider_from_config
 from .schema import InvalidInput, SIDES, timestamp
+from .ranking import weighted
 
 
 class Ranked:
@@ -89,6 +90,9 @@ class Reader:
         """The rows of a query on the lane records' keyword index."""
         return self.store.connection.execute(sql, parameters)
 
+    def feedback(self):
+        return self.store.feedback()
+
     def vector_ranking(self, query, eligible, provider, depth):
         """The records with a current vector of the provider's model, by cosine similarity to the query's vector.
         `depth` is how many records of the top the caller will look at, or None for all of them: this reader
@@ -109,6 +113,16 @@ def date_bound(value, upper=False):
     return timestamp(value, "search date")
 
 
+def scope_matches(record, arguments):
+    level, instance = getattr(arguments, "level", None), getattr(arguments, "instance", None)
+    if getattr(arguments, "scope", "intersection") == "own-or-level":
+        if level is None or instance is None:
+            raise InvalidInput("own-or-level scope requires both level and instance")
+        return record.get("level") == level or record.get("instance") == instance
+    return ((level is None or record.get("level") == level)
+            and (instance is None or record.get("instance") == instance))
+
+
 def filtered_records(reader, arguments):
     start = date_bound(arguments.date_from)
     end = date_bound(arguments.date_to, upper=True)
@@ -117,6 +131,8 @@ def filtered_records(reader, arguments):
         raise InvalidInput("date-from must not be after date-to")
     eligible = {}
     for row, record in reader.records():
+        if not scope_matches(record, arguments):
+            continue
         if arguments.status:
             if record["status"] not in arguments.status:
                 continue
@@ -157,7 +173,7 @@ def lane_eligible(arguments):
 def filtered_lane_records(reader, arguments):
     if not lane_eligible(arguments):
         return {}
-    return {record["id"]: (record, row) for row, record in reader.lane_records()}
+    return {record["id"]: (record, row) for row, record in reader.lane_records() if scope_matches(record, arguments)}
 
 
 def quoted(term):
@@ -346,6 +362,11 @@ def search(store, arguments, reader=None, provider=None):
     the answer by is the provider that answered); where it is None, the configuration is read here, as the command
     reads it."""
     reader = Reader(store) if reader is None else reader
+    if getattr(arguments, "scope", None) == "own-or-level":
+        if getattr(arguments, "level", None) is None or getattr(arguments, "instance", None) is None:
+            raise InvalidInput("own-or-level scope requires both level and instance")
+    if getattr(arguments, "rank", None) != "time" and (getattr(arguments, "now", None) or getattr(arguments, "half_life", None)):
+        raise InvalidInput("now and half-life require --rank time")
     eligible = filtered_records(reader, arguments)
     lane_records = filtered_lane_records(reader, arguments)
     query = arguments.query
@@ -359,7 +380,16 @@ def search(store, arguments, reader=None, provider=None):
         result = Ranked(ranking, grouped, {identifier: 1.0 for identifier in ranking})
     else:
         keyword = vector = None
-        if arguments.mode in ("keyword", "hybrid"):
+        if arguments.mode == "keyword" and getattr(arguments, "rank", None) == "time" and not query.strip():
+            # SessionStart may precede any instruction. Enumerate scoped history with equal relevance, then time
+            # and feedback decide the order. Ordinary keyword searches keep their existing empty-query behavior.
+            matches = [{"id": identifier, "index": "keyword:history", "text": "question", "field": "id", "score": 1.0}
+                       for identifier in eligible]
+            matches += [{"id": identifier, "index": "keyword:history", "text": "lane", "field": "lane_id", "score": 1.0}
+                        for identifier in lane_records]
+            ranking, grouped = rank_records(matches)
+            keyword = Ranked(ranking, grouped, {identifier: 1.0 for identifier in ranking})
+        elif arguments.mode in ("keyword", "hybrid"):
             keyword = Ranked(*keyword_ranking(reader, query, eligible, lane_records))
         if arguments.mode in ("vector", "hybrid"):
             if provider is None:
@@ -367,22 +397,38 @@ def search(store, arguments, reader=None, provider=None):
             if not query.strip():
                 raise InvalidInput("vector and hybrid queries cannot be empty")
             vector = reader.vector_ranking(query, eligible, provider,
-                                           None if arguments.mode == "hybrid" else arguments.limit)
+                                           None if arguments.mode == "hybrid" or getattr(arguments, "rank", None) == "time"
+                                           else arguments.limit)
         if arguments.mode == "hybrid":
             result = Fused([keyword, vector])
         else:
             result = keyword if arguments.mode == "keyword" else vector
+    ranking, scores, details = result.ranking, None, None
+    if getattr(arguments, "rank", None) == "time":
+        ranking, scores, details = weighted(result, eligible, lane_records, reader.feedback(), arguments)
+    selected = ranking[:arguments.limit]
+    if details is not None and getattr(arguments, "cautions", 0):
+        cautions = [identifier for identifier in ranking if details[identifier]["do_not_repeat"]]
+        reserved = cautions[:min(arguments.cautions, arguments.limit)]
+        remaining = [identifier for identifier in ranking if identifier not in reserved]
+        chosen = set(reserved + remaining[:arguments.limit - len(reserved)])
+        selected = [identifier for identifier in ranking if identifier in chosen]
     hits = []
-    for identifier in result.ranking[:arguments.limit]:
+    for identifier in selected:
         evidence = result.matches(identifier)
         if arguments.mode == "hybrid":
             strongest = next((match for match in evidence if match["index"].startswith("vector:")), evidence[0])
         else:
             strongest = evidence[0]
-        common = {"score": result.score(identifier),
+        common = {"score": scores[identifier] if scores is not None else result.score(identifier),
                   "index": arguments.mode if arguments.mode == "hybrid" else strongest["index"],
                   "matched_text": strongest["text"],
                   "matches": [{key: value for key, value in match.items() if key != "id"} for match in evidence]}
+        if details is not None:
+            common["ranking"] = details[identifier]
+            common["do_not_repeat"] = details[identifier]["do_not_repeat"]
+            if common["do_not_repeat"]:
+                common["warning"] = "do not repeat"
         if identifier in eligible:
             common["record"] = reader.hit_record(eligible[identifier][0])
         else:

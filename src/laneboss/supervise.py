@@ -681,7 +681,14 @@ class Run:
 
     def catch_up(self):
         """Exit status 0 only when every event is in the store, in a pending file or kept as refused."""
-        return 0 if self.recorder.finish() == 0 else 1
+        status = 0 if self.recorder.finish() == 0 else 1
+        if status == 0 and os.environ.get(env_name("INSTANCE")):
+            # Phase A binds org lanes by instance before launch. The end event and final log range are saved here,
+            # and no launcher lock is held. A history failure is logged and never changes the lane's exit status.
+            from .decisions.lane import lane_end
+            receipt = lane_end(self.configuration.name, self.lane, directory=self.spec.get("cwd"))
+            note("run {}: history ingest {}".format(self.run, json.dumps(receipt, sort_keys=True)))
+        return status
 
 
 def main(arguments):

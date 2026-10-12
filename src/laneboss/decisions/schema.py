@@ -7,7 +7,8 @@ import json
 import re
 
 
-KINDS = {"decision", "answer", "instruction", "preference", "correction", "question_from_owner"}
+KINDS = {"decision", "answer", "instruction", "preference", "correction", "question_from_owner",
+         "owner-decision", "ledger", "report", "board", "bulletin"}
 STATUSES = {"in_force", "superseded", "withdrawn", "fulfilled"}
 SIDES = {"q_text": "question", "d_text": "decision"}
 
@@ -18,6 +19,7 @@ SIDES = {"q_text": "question", "d_text": "decision"}
 LANE_PARTS = ("report", "events", "attachment")
 LANE_RECORD_KEYS = {
     "id", "config", "lane", "part", "source_path", "source_sha256", "text", "created_utc", "ingested_utc",
+    "level", "instance",
 }
 CONFIG_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
 LANE_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
@@ -27,6 +29,7 @@ RECORD_KEYS = {
     "id", "kind", "schema_version", "asked_at", "answered_at", "project", "area", "topics",
     "question", "answer", "scope", "status", "supersedes", "superseded_by",
     "status_before_superseded", "outcome", "provenance",
+    "level", "instance",
 }
 QUESTION_KEYS = {"text", "background", "asked_by", "options", "recommendation", "default_if_unanswered"}
 OPTION_KEYS = {"label", "text"}
@@ -40,6 +43,19 @@ ACTION_KEYS = {"at", "text"}
 PROVENANCE_KEYS = {"recorded_by", "recorded_at", "sources"}
 SOURCE_KEYS = {"path", "line", "sha256_of_line", "line_text"}
 ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
+INSTANCE_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+FEEDBACK_EVENTS = {"merged": 1, "accepted": 1, "abandoned": -1, "refusal": -1, "cited": 1}
+
+
+def validate_scope(value):
+    """Unscoped legacy rows remain intact; a new scope must name both its level and instance."""
+    level, instance = value.get("level"), value.get("instance")
+    if level is None and instance is None:
+        return
+    if type(level) is not int or level not in (3, 4, 5, 6):
+        raise InvalidInput("level must be an integer from 3 to 6")
+    if not isinstance(instance, str) or INSTANCE_PATTERN.fullmatch(instance) is None:
+        raise InvalidInput("instance must match [A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
 
 class InvalidInput(Exception):
@@ -172,6 +188,7 @@ def validate_record(original):
         raise InvalidInput("record must be an object")
     value = copy.deepcopy(original)
     reject_unknown(value, RECORD_KEYS, "record")
+    validate_scope(value)
     for field in ("id", "kind", "asked_at", "answered_at", "project", "area", "topics",
                   "question.text", "question.background", "answer.verbatim", "answer.channel",
                   "scope.applies_to", "status", "provenance", "provenance.recorded_by",
@@ -324,6 +341,7 @@ def validate_lane_record(original):
         raise InvalidInput("lane record must be an object")
     value = copy.deepcopy(original)
     reject_unknown(value, LANE_RECORD_KEYS, "lane record")
+    validate_scope(value)
     for field in ("id", "config", "lane", "part", "source_path", "source_sha256", "text", "created_utc",
                   "ingested_utc"):
         required(value, field)

@@ -143,9 +143,14 @@ def build_attachments(config, lane, paths, ingest_time):
     return built
 
 
-def ingest_lane(store, configuration_name, lane, attachments=()):
+def ingest_lane(store, configuration_name, lane, attachments=(), org_dir=None, instance=None):
     """Read the lane's final report, its events and every attached file, write one lane record for each, append
     `lane.ingested` to the launcher's store with the receipt, and return the receipt."""
+    identity, org = {}, None
+    if org_dir is not None or instance is not None:
+        from .orgcontext import discover
+        org, identity, _, _ = discover(org_dir=org_dir, instance=instance)
+        org.check_store(store.connection.execute("PRAGMA database_list").fetchone()[2])
     configuration = config.load(configuration_name)
     zones = config.Zones(configuration)
     problems = zones.problems()
@@ -175,29 +180,84 @@ def ingest_lane(store, configuration_name, lane, attachments=()):
                 store_path = event_store.path
             finally:
                 event_store.close()
-        latest_event = lane_events[-1] if lane_events else None
         ingest_time = utc_now()
         # Every source is read and built before anything is written, so a refusal leaves the store untouched. The
         # events source holds the lane's own events and not the lane.ingested receipts: the receipt of an earlier
         # ingest names the rows this one is about to compare, so keeping it would change the events text on every
         # ingest and the same lane could never be ingested twice without adding a row.
         history = [event for event in lane_events if event["kind"] != INGESTED]
-        sources = [build_report(configuration_name, lane, state, runrecord.every(state, lane), latest_event, ingest_time),
-                   build_events(configuration_name, lane, history, store_path, latest_event, ingest_time)]
+        runs = runrecord.every(state, lane)
+        latest_run = max((record["run"] for record in runs), default=None)
+        report_event = next((event for event in reversed(history) if event["kind"] == "lane.ended"
+                             and event["payload"].get("run") == latest_run), None)
+        # A later ingest receipt or supervisor mark must not make an old report younger.
+        history_event = history[-1] if history else None
+        sources = [build_report(configuration_name, lane, state, runs, report_event, ingest_time),
+                   build_events(configuration_name, lane, history, store_path, history_event, ingest_time)]
         sources += build_attachments(configuration_name, lane, attachments, ingest_time)
+        for record in sources:
+            record.update(identity)
         rows = []
         added = existing = 0
-        for record in sources:
-            if store.insert_lane_record(record):
-                added += 1
-            else:
-                existing += 1
-            rows.append({"id": record["id"], "sha256": record["source_sha256"]})
+        with store.history_transaction():
+            for record in sources:
+                if store.insert_lane_record(record):
+                    added += 1
+                else:
+                    existing += 1
+                rows.append({"id": record["id"], "sha256": record["source_sha256"]})
+            # Outcome sources identify immutable launcher events, so a repeat ingest never counts one twice.
+            for event in history:
+                reward = None
+                if event["kind"] == "lane.state":
+                    reward = event["payload"].get("state")
+                elif event["kind"] == "lane.merged":
+                    reward = "merged"
+                elif event["kind"] == "lane.refusal":
+                    reward = "refusal"
+                if reward in ("accepted", "merged", "abandoned", "refusal"):
+                    reference = "lane:{}/{}:event:{}".format(configuration_name, lane, event["seq"])
+                    for record in sources:
+                        store.append_feedback(record["id"], reward, reference, event_time(event))
+            if org is not None:
+                from .curated import citations
+                report = sources[0]
+                citations(store, org, report["text"], "report:" + report["source_path"] + ":" + report["source_sha256"],
+                          report["created_utc"], identity)
         receipt = {"lane": lane, "rows_added": added, "rows_existing": existing, "rows": rows}
         append_ingested(configuration, zones, state, lane, receipt)
         return receipt
     finally:
         state.close()
+
+
+def lane_end(configuration_name, lane, org_dir=None, instance=None, db=None, directory=None):
+    """Launcher seam: call after the log end offset is saved and lane.ended is durably appended, outside locks.
+
+    The caller records this receipt in its watch log, and ignores its `ok` flag for the lane's exit status. Call
+    again after accepted/merged/abandoned marks to ingest feedback. This function never raises an ingest failure.
+    """
+    store = None
+    result = None
+    try:
+        from .orgcontext import discover
+        from .store import Store
+        org, identity, _, _ = discover(directory=directory, org_dir=org_dir, instance=instance)
+        destination = org.db if db is None else db
+        org.check_store(destination)
+        store = Store(destination)
+        receipt = ingest_lane(store, configuration_name, lane, (), str(org.root), identity["instance"])
+        result = {"ok": True, **receipt}
+    except Exception as error:
+        # Explicitly observable failure, as required by the launcher contract; no fabricated success or verdict.
+        result = {"ok": False, "lane": lane, "ingest_error": type(error).__name__}
+    finally:
+        if store is not None:
+            try:
+                store.close()
+            except Exception as error:
+                result = {"ok": False, "lane": lane, "ingest_error": type(error).__name__}
+    return result
 
 
 def append_ingested(configuration, zones, state, lane, receipt):

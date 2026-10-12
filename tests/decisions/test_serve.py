@@ -351,7 +351,7 @@ class AnswerBoundsTest(unittest.TestCase):
 KNOWN_STANDARD = frozenset({
     "argparse", "base64", "collections", "copy", "datetime", "errno", "hashlib", "http", "json", "math", "operator",
     "os", "pathlib", "re", "signal", "socket", "socketserver", "sqlite3", "stat", "struct", "sys", "threading", "time",
-    "urllib",
+    "urllib", "contextlib", "fcntl", "selectors", "subprocess", "tomllib", "uuid", "unicodedata",
 })
 
 

@@ -69,7 +69,7 @@ class StorageProblemTest(StoreCase):
                 self.assertTrue(fresh.is_file())
                 self.assertEqual(fresh.stat().st_size, 0)
                 self.assertFalse(Path(str(fresh) + "-journal").exists())
-                self.assertEqual(self.json_cli("init", db=fresh), {"ok": True, "schema_version": 3})
+                self.assertEqual(self.json_cli("init", db=fresh), {"ok": True, "schema_version": 4})
                 self.json_cli("verify", db=fresh)
 
     def test_limited_init_of_an_empty_file(self):
@@ -80,7 +80,7 @@ class StorageProblemTest(StoreCase):
         self.assertIn("nothing was changed", result.stderr)
         self.assertNotIn("created", result.stderr)
         self.assertEqual(existing.stat().st_size, 0)
-        self.assertEqual(self.json_cli("init", db=existing), {"ok": True, "schema_version": 3})
+        self.assertEqual(self.json_cli("init", db=existing), {"ok": True, "schema_version": 4})
 
     def test_embed_names_stored_batches(self):
         for number in range(30, 34):

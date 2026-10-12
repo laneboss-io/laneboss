@@ -2,6 +2,7 @@
 
 import base64
 import copy
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import re
@@ -12,11 +13,12 @@ import math
 from urllib.parse import quote
 
 from .layout import (
-    MIGRATABLE_VERSIONS, OLDER, PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION, VERSION_1, VERSION_1_STATEMENTS, VERSION_2,
-    VERSION_2_ADDITIONS, VERSION_3, VERSION_3_ADDITIONS, difference, stored_objects,
+    MIGRATABLE_VERSIONS, OLDER, SCHEMA_VERSION, VERSION_1, VERSION_1_STATEMENTS, VERSION_2,
+    VERSION_2_ADDITIONS, VERSION_3, VERSION_3_ADDITIONS, VERSION_4, VERSION_4_ALTERS, VERSION_4_ADDITIONS,
+    difference, stored_objects,
 )
 from .schema import (
-    AccessProblem, IntegrityError, InvalidInput, SIDES, canonical, mark_superseded, mark_superseding, parse_json,
+    AccessProblem, FEEDBACK_EVENTS, IntegrityError, InvalidInput, SIDES, canonical, mark_superseded, mark_superseding, parse_json,
     projections, sha256, timestamp, utc_now, validate_lane_record, validate_outcome, validate_record,
 )
 
@@ -24,6 +26,7 @@ from .schema import (
 RECORD_COLUMNS = (
     "id", "record_json", "record_sha256", "verbatim", "verbatim_sha256",
     "q_text", "d_text", "q_sha256", "d_sha256", "project", "area", "kind", "status", "answered_utc",
+    "level", "instance",
 )
 VECTOR_COLUMNS = (
     "record_id", "which_text", "model", "dimension", "text", "text_sha256",
@@ -36,8 +39,10 @@ EGRESS_COLUMNS = (
 MODEL_COLUMNS = ("model", "provider", "dimension", "entry_sha256")
 LANE_RECORD_COLUMNS = (
     "id", "config", "lane", "part", "source_path", "source_sha256", "text", "created_utc", "ingested_utc",
+    "level", "instance",
 )
 HASH_PATTERN = re.compile("[0-9a-f]{64}")
+FEEDBACK_COLUMNS = ("case_id", "event", "at", "source", "entry_sha256")
 
 # The `format` value of an export manifest. Export writes EXPORT_FORMAT. Code from before the project had its name wrote
 # EARLIER_EXPORT_FORMAT into every export it made. Those files are rebuild points that must stay importable, so import
@@ -212,7 +217,8 @@ def read_only_uri(path):
 
 
 class Store:
-    def __init__(self, path, initialize=False, migrating=False, progress=None, readonly=False, shared=False):
+    def __init__(self, path, initialize=False, migrating=False, progress=None, readonly=False, shared=False,
+                 timeout=10, write_required=False):
         # The caller may pass its own Progress to learn what this constructor did before it failed: no Store exists
         # to ask when it raises. A read-only store cannot be initialised and writes nothing; a shared store may be
         # used from several threads, which then have to take turns.
@@ -235,14 +241,19 @@ class Store:
                 pass
             except PermissionError as error:
                 raise AccessProblem("cannot create the database file: its directory is not writable") from error
+        # Commands requiring a write lock refuse an unwritable file before reading its schema or recovery journal.
+        # This applies to every version, including old stores awaiting migration.
+        if write_required and not os.access(path, os.W_OK):
+            raise AccessProblem("this command needs write permission on the database file")
         if readonly:
-            self.connection = sqlite3.connect(read_only_uri(path), timeout=10, uri=True,
+            self.connection = sqlite3.connect(read_only_uri(path), timeout=timeout, uri=True,
                                               check_same_thread=not shared)
         else:
-            self.connection = sqlite3.connect(str(path), timeout=10, check_same_thread=not shared)
+            self.connection = sqlite3.connect(str(path), timeout=timeout, check_same_thread=not shared)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         version = self.connection.execute("PRAGMA user_version").fetchone()[0]
+        self.legacy_scope = migrating and version in MIGRATABLE_VERSIONS
         accepted = (SCHEMA_VERSION,) + MIGRATABLE_VERSIONS if migrating else (SCHEMA_VERSION,)
         if initialize and version == 0:
             tables = self.connection.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
@@ -252,6 +263,8 @@ class Store:
             statements = "".join(
                 sql + ";\n" for kind, name, table, sql in
                 VERSION_1_STATEMENTS + VERSION_2_ADDITIONS + VERSION_3_ADDITIONS)
+            statements += "".join(sql + ";\n" for sql in VERSION_4_ALTERS)
+            statements += "".join(sql + ";\n" for kind, name, table, sql in VERSION_4_ADDITIONS)
             try:
                 self.connection.executescript(
                     "BEGIN IMMEDIATE;\n" + statements + "PRAGMA user_version = {};\nCOMMIT;".format(SCHEMA_VERSION))
@@ -279,6 +292,7 @@ class Store:
             record["answer"]["sha256"], question_text, decision_text,
             sha256(question_text), sha256(decision_text), record["project"], record["area"],
             record["kind"], record["status"], timestamp(record["answered_at"], "answered_at").isoformat(),
+            record.get("level"), record.get("instance"),
         )
 
     def checked_record(self, row):
@@ -288,7 +302,11 @@ class Store:
             if record != original:
                 raise InvalidInput("required derived record metadata is missing or incorrect")
             for column, expected in zip(RECORD_COLUMNS, self._record_values(record)):
-                if row[column] != expected:
+                # Migration verifies each old layout before adding its next columns. Missing scope columns on
+                # that old layout are NULL, without changing the original JSON or its first-written hash.
+                if column not in row.keys() and not (column in ("level", "instance") and getattr(self, "legacy_scope", False)):
+                    raise InvalidInput("missing stored column: " + column)
+                if (row[column] if column in row.keys() else None) != expected:
                     raise InvalidInput(column + " does not match the record")
             return record
         except (InvalidInput, KeyError, TypeError, ValueError, UnicodeError) as error:
@@ -345,7 +363,9 @@ class Store:
     def checked_lane_record(self, row):
         """The stored lane record, checked: every field and the id built from the source hash must agree."""
         try:
-            original = {column: row[column] for column in LANE_RECORD_COLUMNS}
+            if not getattr(self, "legacy_scope", False) and any(column not in row.keys() for column in ("level", "instance")):
+                raise InvalidInput("missing lane record scope columns")
+            original = {column: row[column] for column in LANE_RECORD_COLUMNS if column in row.keys()}
             record = validate_lane_record(original)
             if record != original:
                 raise InvalidInput("required lane record metadata is missing or incorrect")
@@ -366,25 +386,77 @@ class Store:
         self.connection.execute("INSERT INTO lane_keyword_index(rowid, id, text) VALUES (?, ?, ?)",
                                 (row_id, record["id"], record["text"]))
 
+    @contextmanager
+    def history_transaction(self):
+        """Own one write transaction or join the caller's, without committing its partially written batch."""
+        own = not self.connection.in_transaction
+        if own:
+            self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            if own:
+                self.connection.commit()
+        except BaseException:
+            if own:
+                self.connection.rollback()
+            raise
+
     def insert_lane_record(self, original):
         """Append one lane record. True when it was written, False when its id is already stored with the same
         source hash: ingesting the same source twice adds nothing."""
         record = validate_lane_record(original)
-        with self.connection:
-            self.connection.execute("BEGIN IMMEDIATE")
+        with self.history_transaction():
             row = self.connection.execute(
-                "SELECT source_sha256 FROM lane_records WHERE id = ?", (record["id"],)).fetchone()
+                "SELECT * FROM lane_records WHERE id = ?", (record["id"],)).fetchone()
             if row is not None:
-                if row[0] != record["source_sha256"]:
+                previous = self.checked_lane_record(row)
+                if previous["source_sha256"] != record["source_sha256"]:
                     raise IntegrityError("lane record {} already exists with a different source hash".format(
                         record["id"]))
+                if any(previous.get(field) != record.get(field) for field in ("level", "instance")):
+                    raise InvalidInput("a lane record's scope cannot be changed by re-ingest")
                 return False
             cursor = self.connection.execute(
                 "INSERT INTO lane_records ({}) VALUES ({})".format(
                     ",".join(LANE_RECORD_COLUMNS), ",".join("?" for column in LANE_RECORD_COLUMNS)),
-                tuple(record[column] for column in LANE_RECORD_COLUMNS))
+                tuple(record.get(column) for column in LANE_RECORD_COLUMNS))
             self._index_lane_record(record, cursor.lastrowid)
         return True
+
+    def append_feedback(self, identifier, event, source, at=None):
+        """Append an auditable outcome, never change a case. The same case/event/source retains its first time."""
+        if event not in FEEDBACK_EVENTS:
+            raise InvalidInput("unsupported feedback event")
+        if not isinstance(source, str) or not source.strip() or "\x00" in source:
+            raise InvalidInput("feedback source must be nonempty text without NUL")
+        moment = utc_now() if at is None else at
+        timestamp(moment, "feedback.at")
+        value = {"case_id": identifier, "event": event, "at": moment, "source": source}
+        value["entry_sha256"] = entry_hash(value)
+        with self.history_transaction():
+            if not (self.connection.execute("SELECT 1 FROM records WHERE id = ?", (identifier,)).fetchone()
+                    or self.connection.execute("SELECT 1 FROM lane_records WHERE id = ?", (identifier,)).fetchone()):
+                raise InvalidInput("feedback case does not exist")
+            existing = self.connection.execute("SELECT * FROM feedback WHERE case_id = ? AND event = ? AND source = ?",
+                                               (identifier, event, source)).fetchone()
+            if existing is not None:
+                return {"added": False, **self.checked_feedback(existing)}
+            self._insert_mapping("feedback", FEEDBACK_COLUMNS, value)
+        return {"added": True, **value}
+
+    def checked_feedback(self, row):
+        value = {column: row[column] for column in FEEDBACK_COLUMNS}
+        check_entry(value, "feedback")
+        if value["event"] not in FEEDBACK_EVENTS or not isinstance(value["source"], str) or not value["source"].strip():
+            raise IntegrityError("feedback: invalid event or source")
+        try:
+            timestamp(value["at"], "feedback.at")
+        except InvalidInput as error:
+            raise IntegrityError(str(error)) from error
+        return value
+
+    def feedback(self):
+        return [self.checked_feedback(row) for row in self.connection.execute("SELECT * FROM feedback ORDER BY id")]
 
     def add(self, original):
         record = validate_record(original)
@@ -514,9 +586,12 @@ class Store:
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'first_written'").fetchone()
         has_lane_records = connection.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'lane_records'").fetchone()
+        has_feedback = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'feedback'").fetchone()
         return {
             "schema_version": connection.execute("PRAGMA user_version").fetchone()[0],
             "records": records,
+            "feedback_events": connection.execute("SELECT count(*) FROM feedback").fetchone()[0] if has_feedback else 0,
             "lane_records": connection.execute("SELECT count(*) FROM lane_records").fetchone()[0]
             if has_lane_records else 0,
             "lane_record_triggers": sorted(row[0] for row in connection.execute(
@@ -541,9 +616,8 @@ class Store:
         }
 
     def migrate(self):
-        """Verify a version 1 or version 2 store completely, add the objects the next version introduced and stamp
-        the current version, in one transaction. Every step is verified before the next: a version-1 store is made
-        version 2 first, and then version 3, so a failure in the middle leaves the store as it was."""
+        """Verify each old layout before adding the next version's objects, and stamp version 4 at the end.
+        One transaction preserves all original content and hashes, including on a failed intermediate step."""
         version = self.connection.execute("PRAGMA user_version").fetchone()[0]
         if version == SCHEMA_VERSION:
             return self._unchanged_version(version)
@@ -569,25 +643,30 @@ class Store:
                 mismatch = difference(stored_objects(self.connection), VERSION_2)
                 if mismatch:
                     raise IntegrityError("migration produced an unexpected layout: " + mismatch)
-                version = PREVIOUS_SCHEMA_VERSION
+                version = 2
                 stored = stored_objects(self.connection)
-            mismatch = difference(stored, VERSION_2)
-            if mismatch:
-                raise IntegrityError("schema definition mismatch: " + mismatch)
-            verified = self._verify_snapshot(VERSION_2)
-            for kind, name, table, sql in VERSION_3_ADDITIONS:
+            if version == 2:
+                verified = self._verify_snapshot(VERSION_2)
+                for kind, name, table, sql in VERSION_3_ADDITIONS:
+                    self.connection.execute(sql)
+                version = 3
+            verified = self._verify_snapshot(VERSION_3)
+            for sql in VERSION_4_ALTERS:
                 self.connection.execute(sql)
+            for kind, name, table, sql in VERSION_4_ADDITIONS:
+                self.connection.execute(sql)
+            self._verify_snapshot(VERSION_4)
             self.connection.execute("PRAGMA user_version = {}".format(SCHEMA_VERSION))
-            mismatch = difference(stored_objects(self.connection), VERSION_3)
+            mismatch = difference(stored_objects(self.connection), VERSION_4)
             if mismatch:
                 raise IntegrityError("migration produced an unexpected layout: " + mismatch)
         return {
             "migrated": True, "from_schema_version": started_at, "to_schema_version": SCHEMA_VERSION,
             "records": verified["records"], "vectors": verified["vectors"],
             "egress_entries": verified["egress_entries"],
-            "message": ("verified the whole store, added the first_written table and the row-protection triggers, "
-                        "then the lane_records table, its keyword index and its triggers, and stamped "
-                        "schema_version {}; no existing row was changed").format(SCHEMA_VERSION),
+            "message": ("verified each layout, added the missing schema objects, level and instance columns and "
+                        "append-only feedback, and stamped schema_version {}; existing content and hashes are "
+                        "unchanged; legacy scopes are NULL").format(SCHEMA_VERSION),
         }
 
     @staticmethod
@@ -605,7 +684,7 @@ class Store:
         if started:
             self.connection.execute("BEGIN IMMEDIATE")
         try:
-            return self._verify_snapshot(expected or VERSION_3)
+            return self._verify_snapshot(expected or VERSION_4)
         finally:
             if started and self.connection.in_transaction:
                 self.connection.rollback()
@@ -647,6 +726,11 @@ class Store:
                     raise IntegrityError("lane record {}: keyword index mismatch".format(row["id"]))
             if connection.execute("SELECT count(*) FROM lane_keyword_index").fetchone()[0] != len(lane_records):
                 raise IntegrityError("the lane record keyword index has extra rows")
+        if ("table", "feedback") in expected:
+            known_cases = set(records) | set(lane_records)
+            for value in self.feedback():
+                if value["case_id"] not in known_cases:
+                    raise IntegrityError("feedback: case is missing")
         for identifier, record in records.items():
             for field, back_link in (("supersedes", "superseded_by"), ("superseded_by", "supersedes")):
                 target = record.get(field)
@@ -768,12 +852,13 @@ class Store:
             # take before it ends, so the layout cannot change between the check and the writes: a change made while
             # the import waited for the lock is found here. Problems of the imported data, found below and by the
             # final verification, are invalid input.
-            mismatch = difference(stored_objects(self.connection), VERSION_3)
+            mismatch = difference(stored_objects(self.connection), VERSION_4)
             if mismatch:
                 raise IntegrityError("schema definition mismatch: " + mismatch)
             try:
                 stats = self.stats()
-                if stats["records"] or stats["models"] or stats["egress_entries"] or stats["lane_records"]:
+                if (stats["records"] or stats["models"] or stats["egress_entries"] or stats["lane_records"]
+                        or stats["feedback_events"]):
                     raise InvalidInput("import requires an empty initialized store")
                 for entry in entries:
                     category = required_category(entry)

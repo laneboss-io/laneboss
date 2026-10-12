@@ -91,10 +91,10 @@ is true afterwards, by kind of command:
 
 ## Schema versions and upgrading
 
-A new store is schema version 3 (SQLite `user_version`). Version 1 is the
+A new store is schema version 4 (SQLite `user_version`). Version 1 is the
 layout the previous release wrote, and version 2 the one the release after it
-wrote. Each version keeps every earlier version's tables, indexes and triggers
-unchanged and adds its own. Version 2 adds:
+wrote. Versions 2 and 3 keep every earlier version's tables, indexes and triggers
+unchanged and add their own. Version 2 adds:
 
 - the `first_written` table: for each record, the SHA-256 of the record exactly
   as it was first written (see "Loading a batch");
@@ -112,12 +112,19 @@ unchanged and adds its own. Version 2 adds:
 Version 3 adds the `lane_records` table, its `lane_keyword_index` (FTS5
 trigram, on the row's text) and three triggers that make a lane record
 append-only: an update, a delete and a replacement are each refused (see "Lane
-records"). `migrate` upgrades a version-1 store through version 2 to version 3,
-and a version-2 store to version 3, one step at a time inside a single
-transaction: each step verifies the store and its result before the next runs,
-and the version is stamped only at the end, so a failure leaves the store as it
-was. Migration adds the new objects only and changes no existing row. Nothing
-upgrades automatically.
+records"). Version 4 appends nullable `level` and `instance` columns to both
+`records` and `lane_records`, adds scope indexes, and adds the `feedback` table
+and its append-only triggers. It retains every earlier trigger and adds a
+guard against changing a decision record's scope. Existing JSON, hashes,
+verbatim bytes, ids, timestamps and keyword rows are preserved; legacy scopes
+are NULL and are excluded by scoped history queries. A new scope supplies both
+an integer level (3–6) and an instance name. Nothing upgrades automatically.
+
+`migrate` upgrades versions 1, 2 and 3 to version 4, one step at a time inside
+one transaction. Each layout and its data are verified before the next step,
+and the complete version-4 result is verified before the version is stamped.
+A failed verification or write rolls the migration back. No old record is
+rewritten to invent an instance or level.
 
 The layout check compares the stored text of every table, index, trigger and
 view (including the tables FTS5 creates for the keyword index and SQLite's
@@ -127,7 +134,7 @@ index's or a table's name. Any missing, changed or extra object is refused,
 statistics tables included. These commands run the check:
 
 - `verify`, and `export`, which verifies before it writes anything (exit 3);
-- `migrate` on a version-1 or version-2 store, before it changes anything
+- `migrate` on a version-1, version-2 or version-3 store, before it changes anything
   (exit 3);
 - `import`, on the destination store under its own write lock, before it
   writes anything (exit 3): a layout change that another connection makes while
@@ -140,26 +147,18 @@ statistics tables included. These commands run the check:
 
 Every other command checks only the schema version and the records, models
 and vectors it reads or writes, so `get`, `search`, `stats`, `egress`, `add`,
-`supersede`, `annotate` and `embed` still work on a version-2 store that has,
-for example, an extra index. `migrate` on a version-2 store changes nothing,
+`supersede`, `annotate` and `embed` still work on a version-4 store that has,
+for example, an extra index. `migrate` on a version-4 store changes nothing,
 says so, and does not check the layout; run `verify` for that.
 
-Every command except `migrate` refuses a version-1 store with exit 3,
-`unsupported database schema_version 1`, and a message that names `migrate`.
-Nothing is upgraded automatically. `migrate --db X` upgrades a version-1 store
-in one transaction: it takes the write lock, checks that every object has
-exactly the version-1 definition, runs the whole `verify`, creates the
-version-2 objects and only then sets the version to 2. No row of an existing
-table is rewritten; the migrated store's records have no first-written hash
-(see "Loading a batch"). It prints what it did: `migrated`,
-`from_schema_version`, `to_schema_version`, the record, vector and egress
-counts, and a message. A failed check or verification exits 3, a lock timeout
-exits 5, a permission problem exits 6, and a failed write exits 7; every
-failure rolls back and leaves the file byte-identical, including a failure
-while the version-2 objects are being written (tested with a file-size limit
-that lets the journal be written but not the new pages). `migrate` on a
-version-2 store changes nothing and says so. Any other version is refused by
-every command, `migrate` included.
+Every command except `migrate` refuses versions 1–3 with exit 3 and a message
+that names `migrate`. Migration takes the write lock, verifies each exact
+layout, preserves old content, and prints `migrated`, `from_schema_version`,
+`to_schema_version`, record/vector/egress counts, and a message. Version-1
+records retain the absence of a first-written hash (see "Loading a batch").
+A failed check exits 3, a lock timeout exits 5, a permission problem exits 6,
+and a failed write exits 7. Migration of version 4 is a no-op. Other versions
+are refused by every command, `migrate` included.
 
 ### Older layout
 
@@ -240,7 +239,9 @@ Timestamps use exactly `YYYY-MM-DDTHH:MM:SS`, optionally followed by a
 three- or six-digit fraction, and then `Z` or an offset in `+HH:MM`/
 `-HH:MM` form. The same grammar applies to search bounds. `schema_version`
 defaults to `1`. Kinds: `decision`, `answer`, `instruction`, `preference`,
-`correction`, `question_from_owner`. Statuses: `in_force`, `superseded`,
+`correction`, `question_from_owner`, `owner-decision`, `ledger`, `report`,
+`board`, `bulletin`. Optional `level` and `instance` supply the immutable org
+scope, with both present together. Statuses: `in_force`, `superseded`,
 `withdrawn`, `fulfilled`. `scope.applies_to` is a nonempty string or string list;
 `reversible` is a boolean. Optional fields retain their original values.
 
@@ -267,7 +268,7 @@ A lane's own records have a place beside the owner's decisions. The
 FTS5 trigram index on the row's `text`, the same way `records` has one. The
 columns are `row_id`, `id`, `config`, `lane`, `part` (`report`, `events` or
 `attachment`), `source_path`, `source_sha256`, `text`, `created_utc` and
-`ingested_utc`. The id is stable and names its source:
+`ingested_utc`, `level` and `instance` (NULL for legacy/unscoped rows). The id is stable and names its source:
 `<config>/<lane>/<part>/<first 16 hex digits of source_sha256>`. A row is
 append-only: an update, a delete and a replacement are refused by triggers, on
 the same terms as a decision record.
@@ -284,7 +285,7 @@ writes one row per source:
 
 ```sh
 PYTHONPATH=src python -m laneboss.decisions ingest-lane --db decisions.sqlite \
-    --config CONFIG --lane LANE [--attach FILE ...]
+    --config CONFIG --lane LANE [--attach FILE ...] [--org-dir ORG --instance NAME]
 ```
 
 - **The report** is the runner's final message: the bytes of
@@ -314,10 +315,25 @@ the table's row count and the triggers present, and `verify` checks every row,
 its id and its keyword index row. Export and import do not carry lane records:
 they still move the owner's decisions alone.
 
+With an org binding, ingestion reads `level` and `instance` from that
+instance's `instance.toml` and requires `--db` to equal the org's configured
+history store. It appends feedback for accepted/merged/abandoned marks and
+refusals, and for ids previously injected to this instance and later cited in
+the report. Rows and feedback are written in one decision-store transaction;
+the launcher receipt is appended afterwards to its separate event store. If
+that receipt fails, the history rows are already committed and can be
+re-ingested safely. The automatic launcher callback records an explicit
+failure receipt and preserves the lane's exit status. See [Org history](org-history.md)
+for that integration point and the curated-records command.
+
 ## Retrieval
 
 All modes accept `--id`, `--project`, `--area`, `--topic`, `--kind`, repeatable
 `--status`, `--date-from`, `--date-to`, `--limit` and `--all`. Labels match exactly.
+They also accept `--level`, `--instance` and `--scope intersection|own-or-level`.
+The default intersects level and instance filters. `own-or-level` requires
+both and returns their union, including lane records in keyword mode. A
+store is one org's boundary; scoped retrieval never combines stores.
 Dates filter `answered_at`, compared in UTC. A date-only lower bound is midnight
 UTC inclusive; a date-only upper bound includes the entire day. Full timestamp
 bounds are inclusive. `--from`/`--since` and `--to`/`--until` are aliases.
@@ -374,6 +390,43 @@ that names a decision record's own field (`--id`, `--project`, `--area`,
 record has none of those fields. `exact`, `vector` and `hybrid` never return a
 lane record: the keyword half of a hybrid search is restricted to decision
 records, so no lane-record text is ever put near a vector.
+
+### Time and outcome ranking
+
+`--rank time` applies `relevance × recency × outcome` to every candidate before
+`--limit`, in exact, keyword, vector and hybrid modes. Relevance is the existing
+mode's score, floored at zero for negative cosine similarity. Recency is
+`2 ** (-age_days / half_life_days)`, with future source times treated as age
+zero. Defaults are 14 days for lane/ledger/report/board/bulletin cases and 60
+days for other decisions; `owner-decision` never decays. Repeatable
+`--half-life KIND=DAYS` overrides finite positive half-lives, except owner
+decisions. `--now ISO_TIMESTAMP` fixes the clock for reproducible searches.
+`--now` and `--half-life` require `--rank time`. Superseded cases are excluded
+from time ranking even with `--all`.
+
+The append-only `feedback` table records `case_id`, `event`, `at`, `source`,
+and an integrity hash, with a numeric row id. `accepted`, `merged` and `cited`
+each contribute +1; `abandoned` and `refusal` each contribute -1. Outcome is
+`2 ** reward_sum`, with the sum capped to [-8, 8]. Only events at or before
+the search clock count. The same case/event/source is one immutable event;
+re-ingestion retains its original time and does not multiply its reward.
+Every event is kept, including ones beyond the cap. No feedback edits a case.
+
+```sh
+laneboss decisions feedback --db decisions.sqlite CASE_ID --event accepted --source EVENT_REFERENCE
+laneboss decisions search --db decisions.sqlite "release" --rank time --now 2026-10-13T00:00:00Z
+```
+
+Time-ranked hits include `ranking` with each factor, the clock, half-life and
+contributing feedback. Any negative event adds `do_not_repeat: true` and
+`warning: "do not repeat"`; negative cases remain candidates with positive
+weights. An empty keyword query with time ranking enumerates scoped history
+with equal relevance, which lets SessionStart retrieve cases before a prompt
+exists. The ordinary keyword empty-query behavior is unchanged.
+
+Decision JSONL exports carry scoped curated and owner decisions as records,
+but do not carry lane records or feedback. Preserve the SQLite store when
+moving a complete org history, including its rewards.
 
 ## Embeddings and egress
 
@@ -451,13 +504,19 @@ curl -sS --fail-with-body --unix-socket "$SOCKET" -G http://localhost/search \
     --data-urlencode "query=backup schedule" --data-urlencode "mode=keyword" --data-urlencode "limit=5"
 ```
 
-The parameters are the options of `search`: `query` (required; it may be empty, for `exact`), `mode`, `id`,
+The parameters are the options of `search`: `query` (required; it may be empty for `exact` or time-ranked keyword history), `mode`, `id`,
 `project`, `area`, `topic`, `kind`, `status` (as often as wanted), `date-from` (also `from`, `since`), `date-to` (also
 `to`, `until`), `limit` and `all` (the value `1` or `true`). They go in the query string (`-G`, above) or, without `-G`, in the
 body of a POST, which `curl` sends as a form (up to 1 MiB; the address of a GET is limited to about 64 KB by the HTTP
 library, so a longer query goes in a POST). The parameters are turned into the words of the command and read by the
-command's own parser, so a wrong `mode`, `limit` or date is refused as the command refuses it. A parameter that is not
-in the list, a parameter given twice (`status` excepted) and a `config` are refused: the embedding configuration is the
+command's own parser. Scope/ranking options `level`, `instance`, `scope`, `rank`,
+`now` and repeatable `half-life` are accepted too. Time-ranked answers with a
+live clock are recomputed on each request; a fixed `now` is cacheable. Feedback
+changes invalidate the resident snapshot and its remembered answers. `/status`
+includes `store_id`, the SHA-256 of the real database path, so an org hook can
+reject a resident wired to another store before asking it for any cases.
+A wrong `mode`, `limit` or date is refused as the command refuses it. A parameter that is not
+in the list, a parameter given twice (`status` and `half-life` excepted) and a `config` are refused: the embedding configuration is the
 server's own, set when it started, and no request can choose another. `GET /status` shows what the server holds: its
 process id, how many times it built its index (`builds`), the records and the schema version of the index, the number
 of embedding models whose vectors it holds checked (`vector_models`), the vectors it remembers for questions (`cache`:

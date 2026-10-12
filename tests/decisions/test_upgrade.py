@@ -18,12 +18,12 @@ class UpgradeCase(StoreCase):
         self.hits("deployment", "vector", config=config)
 
 
-class VersionThreeTest(UpgradeCase):
-    def test_new_store_is_version_three(self):
-        self.assertEqual(self.user_version(), 3)
-        self.assertEqual(self.json_cli("init"), {"ok": True, "schema_version": 3})
-        self.assertEqual(self.user_version(), 3)
-        self.assertEqual(self.json_cli("stats")["schema_version"], 3)
+class VersionFourTest(UpgradeCase):
+    def test_new_store_is_version_four(self):
+        self.assertEqual(self.user_version(), 4)
+        self.assertEqual(self.json_cli("init"), {"ok": True, "schema_version": 4})
+        self.assertEqual(self.user_version(), 4)
+        self.assertEqual(self.json_cli("stats")["schema_version"], 4)
         self.json_cli("verify")
 
     def test_earlier_versions_are_refused(self):
@@ -53,12 +53,14 @@ class VersionThreeTest(UpgradeCase):
         # Version 2 first, then version 1: each downgrade is applied to the store of the version above it, so
         # every store really holds that version's objects. Made the other way round, the version-2 store would be
         # a version-1 layout stamped 2, and the assertions below would not be about version 2 at all.
-        for version in (2, 1):
+        for version in (3, 2, 1):
             with self.subTest(version=version):
                 if version == 1:
                     self.make_version1()
-                else:
+                elif version == 2:
                     self.make_version2()
+                else:
+                    self.make_version3()
                 before = self.db.read_bytes()
                 for command, arguments in commands:
                     with self.subTest(version=version, command=command):
@@ -71,7 +73,7 @@ class VersionThreeTest(UpgradeCase):
 
     def test_other_versions_are_refused(self):
         self.add()
-        for version in (0, 4, 99):
+        for version in (0, 5, 99):
             self.set_version(version)
             for command, arguments in (("verify", ()), ("stats", ()), ("get", ("D-22",)), ("migrate", ())):
                 with self.subTest(version=version, command=command):
@@ -87,13 +89,16 @@ class MigrateTest(UpgradeCase):
         previous_export = legacy_export(self.db)
         result = self.json_cli("migrate")
         self.assertIs(result["migrated"], True)
-        self.assertEqual((result["from_schema_version"], result["to_schema_version"]), (1, 3))
+        self.assertEqual((result["from_schema_version"], result["to_schema_version"]), (1, 4))
         self.assertEqual((result["records"], result["vectors"], result["egress_entries"]), (2, 8, 9))
         self.assertTrue(result["message"])
-        self.assertEqual(self.user_version(), 3)
+        self.assertEqual(self.user_version(), 4)
         self.json_cli("verify")
         after = self.dump()
         self.assertEqual(after.pop("first_written"), [])
+        width = len(before["records"][0])
+        self.assertTrue(all(row[width:] == (None, None) for row in after["records"]))
+        after["records"] = [row[:width] for row in after["records"]]
         self.assertEqual(after, before)
         target = self.directory / "after.jsonl"
         self.json_cli("export", "--out", target)
@@ -108,27 +113,27 @@ class MigrateTest(UpgradeCase):
         self.populate()
         self.make_version2()
         existing = self.table_names()
-        before_rows = self.hash_rows(tables=existing)
+        before_rows = self.hash_rows(tables=existing, legacy_scope=True)
         before_bytes = self.db.read_bytes()
         result = self.json_cli("migrate")
         self.assertIs(result["migrated"], True)
-        self.assertEqual((result["from_schema_version"], result["to_schema_version"]), (2, 3))
-        self.assertEqual(self.user_version(), 3)
-        self.assertEqual(self.hash_rows(tables=existing), before_rows)
+        self.assertEqual((result["from_schema_version"], result["to_schema_version"]), (2, 4))
+        self.assertEqual(self.user_version(), 4)
+        self.assertEqual(self.hash_rows(tables=existing, legacy_scope=True), before_rows)
         self.assertNotEqual(self.db.read_bytes(), before_bytes)
         self.json_cli("verify")
         self.assertEqual(self.json_cli("stats")["lane_records"], 0)
         again = self.json_cli("migrate")
         self.assertIs(again["migrated"], False)
-        self.assertEqual(self.hash_rows(tables=existing), before_rows)
-        self.assertEqual(self.user_version(), 3)
+        self.assertEqual(self.hash_rows(tables=existing, legacy_scope=True), before_rows)
+        self.assertEqual(self.user_version(), 4)
 
     def test_migrate_is_a_noop(self):
         self.populate()
         before = self.db.read_bytes()
         result = self.json_cli("migrate")
         self.assertIs(result["migrated"], False)
-        self.assertEqual((result["from_schema_version"], result["to_schema_version"]), (3, 3))
+        self.assertEqual((result["from_schema_version"], result["to_schema_version"]), (4, 4))
         self.assertIn("already", result["message"])
         self.assertEqual(self.db.read_bytes(), before)
 
@@ -136,7 +141,7 @@ class MigrateTest(UpgradeCase):
         fresh = self.objects()
         self.make_version1()
         self.assertIs(self.json_cli("migrate")["migrated"], True)
-        self.assertEqual(self.user_version(), 3)
+        self.assertEqual(self.user_version(), 4)
         self.assertEqual(self.objects(), fresh)
         self.json_cli("verify")
 

@@ -9,7 +9,7 @@ from .embed import embed_store, provider_from_config
 from .lane import ingest_lane, launcher_failure
 from .layout import SCHEMA_VERSION
 from .load import load_file
-from .schema import AccessProblem, IntegrityError, InvalidInput, KINDS, ProviderError, STATUSES, read_json, render
+from .schema import AccessProblem, FEEDBACK_EVENTS, IntegrityError, InvalidInput, KINDS, ProviderError, STATUSES, read_json, render
 from .search import search
 from .store import Progress, Store, is_access_problem, is_busy, is_storage_problem
 
@@ -85,7 +85,7 @@ def parser(parser_class=argparse.ArgumentParser):
     root = parser_class(prog="laneboss-decisions", description=__doc__)
     commands = root.add_subparsers(dest="command", required=True)
     for name in ("init", "migrate", "add", "supersede", "annotate", "get", "search", "embed", "egress", "stats",
-                 "verify", "export", "import", "load", "serve", "ingest-lane"):
+                 "verify", "export", "import", "load", "serve", "ingest-lane", "ingest-records", "feedback"):
         command = commands.add_parser(name)
         command.add_argument("--db", required=True)
         if name in ("get", "supersede", "annotate"):
@@ -100,6 +100,18 @@ def parser(parser_class=argparse.ArgumentParser):
             command.add_argument("--lane", required=True)
             command.add_argument("--attach", action="append", default=[], metavar="FILE",
                                  help="a file to ingest as one lane record (repeatable)")
+            command.add_argument("--org-dir", help="the org whose history store this lane belongs to")
+            command.add_argument("--instance", help="the instance whose instance.toml supplies the scope")
+        if name == "ingest-records":
+            command.add_argument("--org-dir", required=True)
+            command.add_argument("--instance", required=True)
+            command.add_argument("--file", required=True)
+            command.add_argument("--kind", choices=("ledger", "report", "board", "bulletin"), default="ledger")
+        if name == "feedback":
+            command.add_argument("id", help="a decision or lane-record id")
+            command.add_argument("--event", required=True, choices=sorted(FEEDBACK_EVENTS))
+            command.add_argument("--source", required=True, help="the outcome event or citation's source reference")
+            command.add_argument("--at", help="the event's ISO timestamp (default now)")
         if name == "serve":
             command.add_argument("--socket", required=True)
             command.add_argument("--idle-exit", type=positive_number, default=60.0, metavar="MINUTES",
@@ -123,6 +135,16 @@ def parser(parser_class=argparse.ArgumentParser):
             command.add_argument("--date-to", "--to", "--until", dest="date_to")
             command.add_argument("--limit", type=positive_integer, default=20)
             command.add_argument("--all", action="store_true")
+            command.add_argument("--level", type=int, choices=(3, 4, 5, 6))
+            command.add_argument("--instance")
+            command.add_argument("--scope", choices=("intersection", "own-or-level"), default="intersection",
+                                 help="scope filters intersect; own-or-level selects their union")
+            command.add_argument("--rank", choices=("relevance", "time"), default="relevance")
+            command.add_argument("--now", help="fixed ISO clock for an auditable time ranking")
+            command.add_argument("--half-life", action="append", metavar="KIND=DAYS",
+                                 help="override one kind's decay; repeatable; owner decisions never decay")
+            command.add_argument("--cautions", type=positive_integer, default=0,
+                                 help="reserve up to this many time-ranked hits for relevant negative cases")
     return root
 
 
@@ -149,7 +171,13 @@ def dispatch(store, arguments):
     if command == "egress":
         return store.egress()
     if command == "ingest-lane":
-        return ingest_lane(store, arguments.config, arguments.lane, arguments.attach)
+        return ingest_lane(store, arguments.config, arguments.lane, arguments.attach,
+                           arguments.org_dir, arguments.instance)
+    if command == "ingest-records":
+        from .curated import ingest_records
+        return ingest_records(store, arguments.org_dir, arguments.instance, arguments.file, arguments.kind)
+    if command == "feedback":
+        return store.append_feedback(arguments.id, arguments.event, arguments.source, arguments.at)
     if command == "stats":
         return store.stats()
     if command == "verify":
@@ -204,8 +232,16 @@ def main(argv=None):
             # Imported here: the server is needed by no other command, and its imports are not free.
             from .serve import serve
             return serve(arguments)
+        # Reject an out-of-org destination before opening SQLite, including its schema or recovery journal.
+        if arguments.command == "ingest-records":
+            from .orgcontext import Org
+            Org(arguments.org_dir).check_store(arguments.db)
+        elif arguments.command == "ingest-lane" and (arguments.org_dir or arguments.instance):
+            from .orgcontext import discover
+            org, _, _, _ = discover(org_dir=arguments.org_dir, instance=arguments.instance)
+            org.check_store(arguments.db)
         store = Store(arguments.db, initialize=arguments.command == "init", migrating=arguments.command == "migrate",
-                      progress=progress)
+                      progress=progress, write_required=arguments.command in ("verify", "export", "add"))
         result = dispatch(store, arguments)
         sys.stdout.write(render(result))
         return 0

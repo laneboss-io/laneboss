@@ -36,6 +36,9 @@ OPTIONS = {
     "mode": "mode", "id": "id", "project": "project", "area": "area", "topic": "topic", "kind": "kind",
     "status": "status", "limit": "limit", "date-from": "date-from", "from": "date-from", "since": "date-from",
     "date-to": "date-to", "to": "date-to", "until": "date-to",
+    "level": "level", "instance": "instance", "scope": "scope", "rank": "rank", "now": "now",
+    "half-life": "half-life",
+    "cautions": "cautions",
 }
 MAX_BODY = 1 << 20
 # The most bytes a Unix socket path may take: the size of `sun_path` (104 bytes on macOS and the BSDs, 108 on Linux).
@@ -72,7 +75,7 @@ class Requests:
                 target = OPTIONS.get(name)
             if target is None:
                 raise InvalidInput("unknown parameter: " + ascii(name[:40]))
-            if target in taken and target != "status":
+            if target in taken and target not in ("status", "half-life"):
                 raise InvalidInput("parameter given twice: " + target)
             taken.add(target)
             if target == "query":
@@ -254,7 +257,7 @@ def check_socket_path(socket_path):
         "Linux".format(length, SOCKET_PATH_LIMIT))
 
 
-def private_directory(directory):
+def private_directory(directory, create=True):
     """The directory of the socket is the server's own: made here with mode 700, or already yours and closed to
     everyone else. A directory that others can enter is refused, and never changed."""
     try:
@@ -263,6 +266,8 @@ def private_directory(directory):
         if not os.path.isdir(os.path.dirname(directory)):
             raise InvalidInput("the directory {} for the socket does not exist, and neither does the one "
                                "above it".format(directory)) from None
+        if not create:
+            return
         try:
             os.mkdir(directory, 0o700)
             os.chmod(directory, 0o700)
@@ -278,7 +283,7 @@ def private_directory(directory):
             "chmod 700, or give the socket a directory of its own".format(directory))
 
 
-def claim(path):
+def claim(path, remove_stale=True):
     """Make the way free for a socket at `path`: remove the socket that a server left, and refuse a live server's
     and anything that is not a socket."""
     try:
@@ -292,6 +297,8 @@ def claim(path):
     try:
         probe.connect(path)
     except (ConnectionRefusedError, FileNotFoundError):
+        if not remove_stale:
+            return
         try:
             os.unlink(path)
         except FileNotFoundError:
@@ -320,6 +327,13 @@ def bind(path, resident, requests):
     return server
 
 
+def socket_preflight(path):
+    """Validate the destination before opening or copying a store; this check creates or removes nothing."""
+    check_socket_path(path)
+    private_directory(os.path.dirname(path), create=False)
+    claim(path, remove_stale=False)
+
+
 def serve(arguments):
     """Run the server until it has been idle for --idle-exit minutes or is told to stop; return the exit code."""
     socket_path = os.path.abspath(arguments.socket)
@@ -328,10 +342,10 @@ def serve(arguments):
     server = None
     made = None
     try:
+        socket_preflight(socket_path)
         snapshot = resident.current()
         snapshot.require_sound()
         resident.warm(snapshot)
-        check_socket_path(socket_path)
         private_directory(os.path.dirname(socket_path))
         claim(socket_path)
         server = bind(socket_path, resident, Requests(resident.path, config))

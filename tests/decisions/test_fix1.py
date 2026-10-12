@@ -42,16 +42,20 @@ class LayoutTest(StoreCase):
         self.json_cli("embed", "--config", self.config())
 
     def test_version_two_adds_to_version_one(self):
+        current = self.objects()
+        self.make_version2()
         fresh = self.objects()
         for name, definition in VERSION1_OBJECTS.items():
             self.assertEqual(fresh.get(name), definition, name)
         added = {name: definition for name, definition in fresh.items() if name not in VERSION1_OBJECTS}
         self.assertTrue(added, "version 2 must add objects to the version 1 layout")
         self.assertTrue(all(kind in ("table", "index", "trigger") for kind, table, sql in added.values()), added)
+        self.json_cli("migrate")
+        self.assertEqual(self.objects(), current)
         self.populate()
         self.make_version1()
         self.json_cli("migrate")
-        self.assertEqual(self.objects(), fresh)
+        self.assertEqual(self.objects(), current)
         self.json_cli("verify")
 
     def test_layout_changes_are_refused(self):
@@ -69,21 +73,22 @@ class LayoutTest(StoreCase):
         self.populate()
         pristine = self.directory / "pristine.sqlite"
         shutil.copyfile(str(self.db), str(pristine))
-        # Every layout this code can open is checked: version 1 and version 2, which the migrate command opens and
-        # compares against that version's objects before it adds anything, and the current version 3 (lane_records,
-        # its keyword index and its triggers), which verify compares against its own layout. A change to any of them
+        # Versions 1–3 are checked by migrate before additions; current version 4 is checked by verify.
+        # A change to any of them
         # is refused and nothing is written.
         for label, name, change in changes:
-            for version in (1, 2, 3):
+            for version in (1, 2, 3, 4):
                 with self.subTest(change=label, version=version):
                     shutil.copyfile(str(pristine), str(self.db))
                     if version == 1:
                         self.make_version1()
                     elif version == 2:
                         self.make_version2()
+                    elif version == 3:
+                        self.make_version3()
                     change()
                     before = self.db.read_bytes()
-                    result = self.cli("verify" if version == 3 else "migrate", code=3)
+                    result = self.cli("verify" if version == 4 else "migrate", code=3)
                     self.assertIn("schema", result.stderr)
                     self.assertIn(name, result.stderr)
                     self.assertNotIn("Traceback", result.stderr)
@@ -515,6 +520,8 @@ class PermissionTest(StoreCase):
             self.make_version1(db=db)
         elif version == 2:
             self.make_version2(db=db)
+        elif version == 3:
+            self.make_version3(db=db)
         return folder, db
 
     def locked(self, path, mode):
@@ -525,11 +532,11 @@ class PermissionTest(StoreCase):
     def test_read_only_file(self):
         exports = self.directory / "exports"
         exports.mkdir()
-        # verify, export and add act on a store of the version this code uses (3, with lane_records and its keyword
-        # index and triggers); migrate is the command that opens a store of an earlier version, so it is checked
-        # against both versions it still opens (1 and 2). Every one refuses a read-only file with the permission
+        # Preserve read-only v3 refusals and add the current v4 rows; migrate covers all older layouts.
+        # Every one refuses a read-only file with the permission
         # problem, before any write, and leaves the store's bytes and its schema version as they were.
-        commands = (("verify", 3), ("export", 3), ("migrate", 1), ("migrate", 2), ("add", 3))
+        commands = (("verify", 3), ("verify", 4), ("export", 3), ("export", 4),
+                    ("migrate", 1), ("migrate", 2), ("migrate", 3), ("add", 3), ("add", 4))
         for command, version in commands:
             with self.subTest(command=command, version=version):
                 folder, db = self.prepare("read-only-{}-{}".format(command, version), version)
@@ -548,7 +555,7 @@ class PermissionTest(StoreCase):
     def test_unwritable_directory(self):
         exports = self.directory / "exports"
         exports.mkdir()
-        folder, db = self.prepare("unwritable-3", 3)
+        folder, db = self.prepare("unwritable-4", 4)
         self.locked(folder, 0o500)
         before = db.read_bytes()
         self.json_cli("verify", db=db)
@@ -558,9 +565,9 @@ class PermissionTest(StoreCase):
         self.assertNotIn("integrity problem", result.stderr)
         self.assertEqual(db.read_bytes(), before)
         # migrate is the one command that opens a store of an earlier version, so it is checked against every
-        # version it still opens (1 and 2) as well as the version this code uses (3): the first write it makes is
+        # version it still opens (1, 2 and 3): the first write it makes is
         # the one the unwritable directory refuses, and the store's bytes and schema version are left as they were.
-        for version in (1, 2):
+        for version in (1, 2, 3):
             with self.subTest(version=version):
                 folder, db = self.prepare("unwritable-{}".format(version), version)
                 self.locked(folder, 0o500)

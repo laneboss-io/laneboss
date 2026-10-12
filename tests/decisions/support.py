@@ -455,6 +455,7 @@ class StoreCase(unittest.TestCase):
     def make_version1(self, db=None):
         """Turn a store written by this code into the layout the previous release wrote: drop every object
         that release did not have and stamp schema_version 1. No row of a remaining table changes."""
+        self.make_version3(db)
         with closing(sqlite3.connect(str(db or self.db))) as connection:
             with connection:
                 extra = connection.execute(
@@ -471,6 +472,8 @@ class StoreCase(unittest.TestCase):
         """Turn a store written by this code into the version-2 layout: drop every object version 2 did not have
         (the lane_records table, its keyword index and its triggers) and stamp schema_version 2. No row of a
         remaining table changes."""
+        self.make_version3(db)
+
         def kept(name):
             return not (name.startswith("lane_") or name.startswith("sqlite_autoindex_lane_"))
 
@@ -487,11 +490,41 @@ class StoreCase(unittest.TestCase):
         self.assertEqual(self.objects(db), expected)
         self.assertEqual(self.user_version(db), 2)
 
+    def make_version3(self, db=None):
+        """Build an actual pre-scope layout, retaining only each old table's original columns and rows."""
+        with closing(sqlite3.connect(str(db or self.db))) as connection:
+            with connection:
+                extras = connection.execute("SELECT type, name FROM sqlite_master WHERE name IN "
+                                            "('records_scope', 'lane_records_scope', 'records_fixed_scope') "
+                                            "OR name LIKE 'feedback%'").fetchall()
+                for kind, name in sorted(extras, key=lambda item: item[0] != "trigger"):
+                    if connection.execute("SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?",
+                                          (kind, name)).fetchone():
+                        connection.execute('DROP {} "{}"'.format(kind.upper(), name))
+                for table in ("records", "lane_records"):
+                    definition = connection.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+                                                    (table,)).fetchone()
+                    if definition is None or ", level INTEGER, instance TEXT" not in definition[0]:
+                        continue
+                    columns = [row[1] for row in connection.execute("PRAGMA table_info({})".format(table))
+                               if row[1] not in ("level", "instance")]
+                    kept = connection.execute("SELECT sql FROM sqlite_master WHERE tbl_name = ? AND "
+                                              "type IN ('index', 'trigger') AND sql IS NOT NULL", (table,)).fetchall()
+                    names = ",".join(columns)
+                    connection.execute("CREATE TEMP TABLE old_scope_rows AS SELECT {} FROM {}".format(names, table))
+                    connection.execute("DROP TABLE " + table)
+                    connection.execute(definition[0].replace(", level INTEGER, instance TEXT", ""))
+                    connection.execute("INSERT INTO {} ({}) SELECT {} FROM old_scope_rows".format(table, names, names))
+                    connection.execute("DROP TABLE old_scope_rows")
+                    for (sql,) in kept:
+                        connection.execute(sql)
+                connection.execute("PRAGMA user_version = 3")
+
     def table_names(self, db=None):
         return sorted(row[0] for row in self.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table'", db=db))
 
-    def hash_rows(self, db=None, tables=None):
+    def hash_rows(self, db=None, tables=None, legacy_scope=False):
         """A digest of every stored row of the named tables (every table by default), in a fixed order: what a
         migration must leave unchanged. Tables named here must exist."""
         order = {"records": "row_id", "keyword_index": "rowid", "models": "model",
@@ -502,7 +535,11 @@ class StoreCase(unittest.TestCase):
         with closing(sqlite3.connect(str(db or self.db))) as connection:
             for name in names:
                 digest_value.update(("table " + name + "\n").encode("utf-8"))
-                for row in connection.execute("SELECT * FROM {} ORDER BY {}".format(name, order[name])):
+                columns = "*"
+                if legacy_scope and name in ("records", "lane_records"):
+                    columns = ",".join(row[1] for row in connection.execute("PRAGMA table_info({})".format(name))
+                                       if row[1] not in ("level", "instance"))
+                for row in connection.execute("SELECT {} FROM {} ORDER BY {}".format(columns, name, order[name])):
                     digest_value.update(repr(tuple(row)).encode("utf-8"))
                     digest_value.update(b"\n")
         return digest_value.hexdigest()

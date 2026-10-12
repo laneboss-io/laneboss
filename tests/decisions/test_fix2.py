@@ -130,19 +130,20 @@ class NameCollisionTest(StoreCase):
         self.add()
         pristine = self.directory / "pristine.sqlite"
         shutil.copyfile(str(self.db), str(pristine))
-        # Version 1 and version 2 are the layouts the migrate command opens, and it compares the stored objects
-        # against that version's before it adds anything; version 3 is the current layout, which verify compares
+        # Versions 1–3 are the layouts migrate opens and checks before additions; version 4 is current and verify
         # against its own. In every one a trigger that shares the index's name is an extra object and is refused.
-        for version in (1, 2, 3):
+        for version in (1, 2, 3, 4):
             with self.subTest(version=version):
                 shutil.copyfile(str(pristine), str(self.db))
                 if version == 1:
                     self.make_version1()
                 elif version == 2:
                     self.make_version2()
+                elif version == 3:
+                    self.make_version3()
                 self.collide()
                 before = self.db.read_bytes()
-                result = self.cli("verify" if version == 3 else "migrate", code=3)
+                result = self.cli("verify" if version == 4 else "migrate", code=3)
                 for text in ("schema", "trigger exact_metadata"):
                     self.assertIn(text, result.stderr)
                 self.assertNotIn("Traceback", result.stderr)

@@ -6,6 +6,8 @@ Exit codes: 0 success; 1 a doctor check failed; 2 invalid input or a refused req
 """
 
 import argparse
+from contextlib import redirect_stderr
+import io
 import os
 import re
 import sqlite3
@@ -78,7 +80,7 @@ def build_parser():
     commands = root.add_subparsers(dest="command", metavar="COMMAND")
     commands.add_parser("decisions", help="the owner decision store; arguments pass through unchanged")
     commands.add_parser("plugin", help="locate the installed plugin of an agent program (plugin path)")
-    org = commands.add_parser("org", help="manage the structured org")
+    org = commands.add_parser("org", help="manage the structured org, its hooks, owner channels and history")
     org_actions = org.add_subparsers(dest="action", metavar="ACTION", required=True)
     orgcmd.register_actions(org_actions)
     orghook.register_actions(org_actions)
@@ -98,6 +100,20 @@ def build_parser():
     binding = argparse.ArgumentParser(add_help=False)
     binding.add_argument("--config", metavar="NAME", help="the configuration to bind (or set {})".format(
         env_name("CONFIG")))
+    # B2: org history injection and owner-decision capture, in the same org command group.
+    history = org_actions.add_parser("hook-history", help="bounded additional context for runner hooks; failure-tolerant")
+    history.add_argument("--runner", required=True, choices=("claude", "codex"))
+    history.add_argument("--org-dir", help="the org folder; otherwise the LANEBOSS_ORG variable")
+    history.add_argument("--instance", help="otherwise use instance.toml or LANEBOSS_INSTANCE")
+    history.add_argument("--event", choices=("SessionStart", "UserPromptSubmit"), help="otherwise read the hook input")
+    capture = org_actions.add_parser("capture-decision", parents=[binding], help="classify a human message with a judge Choice")
+    capture.add_argument("--org-dir", required=True)
+    capture.add_argument("--source", required=True, help="channel/message or terminal/session/time pointer")
+    capture.add_argument("--text-file", required=True)
+    capture.add_argument("--author-authority", required=True, choices=("decide", "inform"))
+    capture.add_argument("--instance", help="otherwise use instance.toml or LANEBOSS_INSTANCE")
+    capture.add_argument("--judge", help="otherwise use the org history judge")
+    capture.add_argument("--at", help="message timestamp; otherwise use the source's time or text file's mtime")
 
     configs = commands.add_parser("config", help="list, show, validate and locate configurations")
     actions = configs.add_subparsers(dest="action", metavar="ACTION", required=True)
@@ -428,7 +444,22 @@ def run_start(arguments):
 
 
 def run_org(arguments):
-    """One `org` command: each module owns its actions (A init/instance/render/validate, B1 hook/refusals/check-hooks, B3 channel)."""
+    """One `org` command: each module owns its actions (A init/instance/render/validate, B1 hook/refusals/check-hooks,
+    B2 hook-history/capture-decision, B3 channel)."""
+    if arguments.action == "hook-history":
+        from .decisions.history import hook_history
+        return hook_history(arguments)
+    if arguments.action == "capture-decision":
+        from .decisions.capture import capture_decision
+        from .decisions.cli import failure
+        try:
+            return emit(capture_decision(arguments))
+        except Exception as error:
+            known = failure(error, argparse.Namespace(command="capture-decision"), None)
+            if known is None:
+                raise
+            print(known[0], file=sys.stderr)
+            return known[1]
     if arguments.action in orgcmd.ACTIONS:
         return orgcmd.run(arguments)
     if arguments.action == "channel":
@@ -449,7 +480,18 @@ def main(argv=None):
         from .plugincmd import main as plugin_main
         return plugin_main(argv[1:])
     parser = build_parser()
-    arguments = parser.parse_args(argv)
+    if argv[:2] == ["org", "hook-history"]:
+        # Optional history must not block a prompt on malformed runner configuration. Keep the shared parser and
+        # its --help output, but turn this command's usage errors into a quiet successful exit.
+        try:
+            with redirect_stderr(io.StringIO()):
+                arguments = parser.parse_args(argv)
+        except SystemExit as error:
+            if error.code != 0:
+                return 0
+            raise
+    else:
+        arguments = parser.parse_args(argv)
     try:
         if arguments.version:
             return emit({"program": PROGRAM, "version": VERSION, "protocol_version": load_protocol()[1]})
