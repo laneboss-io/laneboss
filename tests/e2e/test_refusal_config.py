@@ -95,13 +95,22 @@ class RefusalConfigurationTest(support.LauncherTest):
         source = support.ROOT / "src" / "laneboss"
         found = sorted(str(path.relative_to(source)) for path in source.rglob("*.py")
                        if "codex" in path.read_text(encoding="utf-8").lower())
-        self.assertEqual(found, ["config.py"])
+        # The org template supports Codex as a RUNNER of its hook (docs/org-hooks.md), so the name appears in the
+        # org modules and the org parser's --runner choices. None of them may offer it as a session-record format.
+        runner_modules = {"cli.py", "orgexamples.py", "orghook.py"}
+        self.assertEqual([name for name in found if name not in runner_modules], ["config.py"])
+        for name in sorted(runner_modules & set(found)):
+            text = (source / name).read_text(encoding="utf-8").lower()
+            self.assertIsNone(re.search(r"""format["']?\s*[:=]\s*["']codex""", text), name)
         for name in ("tests/e2e/sessionstandin.py", "tests/e2e/refusalsupport.py", "examples/minimal/config.toml"):
             self.assertNotIn("codex", (support.ROOT / name).read_text(encoding="utf-8").lower(), name)
         for name in ("docs/architecture.md", "docs/configuration.md", "README.md"):
             for line in (support.ROOT / name).read_text(encoding="utf-8").splitlines():
+                # A line about session records says Codex is not supported; a line about the org template's
+                # commands may name Codex as a hook runner.
                 if "codex" in line.lower():
-                    self.assertIn("not supported", line.lower(), "{}: {}".format(name, line))
+                    self.assertTrue("not supported" in line.lower() or re.search(r"\borg\b", line.lower()),
+                                    "{}: {}".format(name, line))
 
     def test_text_reads_only_the_log(self):
         # Fix round 2, ruling R36: format text reads the run's own log and nothing else. A text entry with any other

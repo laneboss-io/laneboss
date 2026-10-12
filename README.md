@@ -202,12 +202,27 @@ laneboss lane clean --config example --lane demo-1
 ```
 
 Most commands print one JSON value; `doctor`, `event tail` and `judge egress` print one JSON object per line,
-`laneboss start` prints Markdown unless it is given `--format json`, and `lane attach` prints text for a person. The configuration home is `$LANEBOSS_HOME`, by
+`laneboss start` prints Markdown unless it is given `--format json`, `org validate` prints text unless given
+`--format json`, and `lane attach` prints text for a person. The configuration home is `$LANEBOSS_HOME`, by
 default `~/.config/laneboss`; state goes to `$LANEBOSS_STATE_HOME`, by default `~/.local/state/laneboss`. A lane's log,
 rendered briefs and kept inputs are in `STATE_DIR/lanes/LANE/`; nothing is written into a working directory given
 with `--worktree` (its claim is kept in the account's one claims registry,
 `~/.local/state/laneboss/.lane-claims/` of the account's own home directory, or, for a linked Git worktree, in that
 worktree's own Git directory).
+
+## An org in one folder
+
+`laneboss org init ./research --levels 3-6` creates shared rules, level-specific protocol sources and one example
+instance per level inside `.laneboss/`, alongside the org's repositories and `worktrees/`. `org instance add` adds
+an agent; `org render` generates Claude imports and inlined Codex rules from the same sources, refusing hand edits
+to generated files; `org validate` checks the tree, schemas, imports, secret values, hooks and owner channels. Configs
+store secret names; values live in an external store. The tree and commands are in [docs/org.md](docs/org.md).
+
+Every instance's Claude and Codex runner gets one shared PreToolUse hook, set up by `org init`, `instance add` and
+`render`: rules are data in shared and level `hooks/rules.toml`, every rule has a refusal description in `refusals/`
+that tells the agent why and what to do instead, and a policy or settings file that cannot be read means a denial
+([docs/org-hooks.md](docs/org-hooks.md)). Only L5 and L6 instances talk to the owner, each in its own Discord channel,
+registered with `org channel add`; L3 and L4 never get one ([docs/org-discord.md](docs/org-discord.md)).
 
 ## Claude through Claudock, with profile swap
 
@@ -232,6 +247,7 @@ codes and the limit messages it recognises are in [docs/claudock.md](docs/claudo
 |---|---|---|
 | Installation | `scripts/install.sh`: no pip, network access or administrator rights; installed versions are immutable and checked against a manifest. `install.sh` at the root, for anybody without a checkout: it gets the source of one version and runs that version's own installer ([docs/install.md](docs/install.md)) | |
 | Configurations | One per company, kept apart from every other (isolation by identity, not by path text); organisations; level names L3 to L6 | |
+| Org template | `org init`, `instance add`, `render` and `validate`: one folder, protocol sources and generated rules, schemas and secret checks ([docs/org.md](docs/org.md)); the shared level- and identity-aware hook with refusal descriptions, `org hook`, `refusals` and `check-hooks` ([docs/org-hooks.md](docs/org-hooks.md)); L5/L6 owner channels with `org channel add` ([docs/org-discord.md](docs/org-discord.md)) | `lane start` and `resume` checking an org instance's runner command; the gateway that delivers channel events; the org history store and its hook (in review, not in this version) |
 | Event store | One SQLite file per configuration: append-only, a hash on every event, duplicate-safe appends, the lane projection, `event tail --follow`, `state verify` and `rebuild` | The network service in front of the store |
 | Shared protocol and briefs | Protocol 1.2.0 with its refusal rule; `brief render`, with the cost and preflight sections mandatory for briefs that touch billing or deployment | |
 | Lanes | `lane start` (routing by difficulty, budgets), `resume`, `stop`, `status`, `check`, `mark` and `clean`; `lane.stuck` and `lane.timeout` events; a lane's session identity (`{session}`) and a prompt on standard input; turn-based lanes: `lane start --turns`, mail (`lane send`) and one turn at a time (`lane turn`), with the lane waiting between turns, the loop that starts those turns on a schedule (`lane loop`), and `lane attach`, a terminal view of a turn-based lane and a keyboard for it, and the runner key `stream`; `lane adopt` makes a session started outside the launcher a turn-based lane ([docs/architecture.md](docs/architecture.md#accounts-and-adoption-t5-built-in-part)) | Account choice by remaining quota; messages to a running executor |
@@ -365,11 +381,20 @@ it from them.
 The launcher's commands that read or write state (`event`, `state`, `brief`, `doctor`, `lane`, `judge`) are bound to
 one configuration, with `--config NAME` or the variable `LANEBOSS_CONFIG`; the launcher never guesses which one.
 `laneboss decisions` is the exception: it is not bound to a configuration and takes its own `--db` path.
+`laneboss org` also works independently, using its explicit org folder.
 
 | Command | What it does |
 |---|---|
 | `laneboss --version` | Prints the program, package and protocol versions. |
 | `laneboss config list`, `show NAME`, `validate NAME` or `--all`, `path NAME` | Lists, shows, validates and locates configurations. |
+| `laneboss org init ORG_DIR [--levels 3-6] [--name NAME]` | Creates the org tree with generic rules and one example instance per level. |
+| `laneboss org instance add ORG_DIR NAME --level N --role ROLE [--discord-channel ID] [--secret NAME]...` | Adds an instance with its own level's rules and names-only config. |
+| `laneboss org render ORG_DIR` | Regenerates all org rules from protocol sources; refuses hand edits to generated files. |
+| `laneboss org validate ORG_DIR [--format text\|json]` | Checks the managed org tree, schemas, imports, instance levels, secret values, hooks and owner channels. |
+| `laneboss org hook --runner claude\|codex [--instance FILE]` | The PreToolUse hook: reads one event on standard input and prints the decision. |
+| `laneboss org refusals ORG_DIR [--format text\|json]` | Lists every rule's refusal description. |
+| `laneboss org check-hooks ORG_DIR` | Checks that every instance's runners are registered with the org hook. |
+| `laneboss org channel add ORG_DIR INSTANCE (--channel-id ID \| --create) [--member ID:AUTHORITY]... [--dry-run]` | Registers an L5/L6 instance's owner channel. |
 | `laneboss event append --config N --file F` | Appends one event read from a file (`-` reads stdin). |
 | `laneboss event tail --config N [--since SEQ] [--lane L] [--follow] [--until KIND]` | Prints stored events as JSON lines; `--follow` keeps going, `--until` stops after the first event of a kind. |
 | `laneboss state events`, `lanes`, `rebuild` or `verify --config N` | Reads, rebuilds and checks the event store and its lane projection. |
@@ -413,6 +438,9 @@ manual.
   configurations, the event store, lanes and their events, refusals and suspected workarounds, briefs, `doctor`,
   the publication scan and the known limits.
 - [docs/configuration.md](docs/configuration.md): every field of a configuration.
+- [docs/org.md](docs/org.md): an org in one folder, its files, schemas, commands, runner rules and external secrets.
+- [docs/org-hooks.md](docs/org-hooks.md): the org hook, its rule data and refusal descriptions.
+- [docs/org-discord.md](docs/org-discord.md): L5/L6 owner channels and channel-aware events.
 - [docs/install.md](docs/install.md): the one-command install: what it does, needs and trusts, and where the source
   comes from.
 - [docs/judges.md](docs/judges.md): the judge contract, the three `judge` commands and the egress log.

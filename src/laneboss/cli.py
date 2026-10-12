@@ -12,7 +12,8 @@ import sqlite3
 import sys
 import time
 
-from . import attach, brief, config, disk, doctor, events, judgecmd, lanecmd, loopcmd, mail, startcmd
+from . import attach, brief, config, disk, doctor, events, judgecmd, lanecmd, loopcmd, mail, orgcmd, orgdiscord
+from . import orghook, startcmd
 from .errors import LauncherError, Refused
 from .identity import PROGRAM, VERSION, env_name
 from .jsonutil import output, parse
@@ -77,6 +78,23 @@ def build_parser():
     commands = root.add_subparsers(dest="command", metavar="COMMAND")
     commands.add_parser("decisions", help="the owner decision store; arguments pass through unchanged")
     commands.add_parser("plugin", help="locate the installed plugin of an agent program (plugin path)")
+    org = commands.add_parser("org", help="manage the structured org")
+    org_actions = org.add_subparsers(dest="action", metavar="ACTION", required=True)
+    orgcmd.register_actions(org_actions)
+    orghook.register_actions(org_actions)
+    channel = org_actions.add_parser("channel", help="register owner channels for L5/L6 instances")
+    channel_actions = channel.add_subparsers(dest="channel_action", metavar="ACTION", required=True)
+    channel_add = channel_actions.add_parser("add", help="register a Discord channel and verify its hello")
+    channel_add.add_argument("org_dir", metavar="ORG-DIR")
+    channel_add.add_argument("instance", metavar="INSTANCE")
+    channel_mode = channel_add.add_mutually_exclusive_group(required=True)
+    channel_mode.add_argument("--channel-id", metavar="ID", help="a channel created by the owner")
+    channel_mode.add_argument("--create", action="store_true", help="create through the bot (Manage Channels)")
+    channel_add.add_argument("--member", action="append", default=[], metavar="ID:AUTHORITY",
+                             help="a user id with decide or inform authority; repeat for more members")
+    channel_add.add_argument("--role-id", action="append", default=[], metavar="ID:AUTHORITY",
+                             help="a Discord server role id with decide or inform authority; repeatable")
+    channel_add.add_argument("--dry-run", action="store_true", help="print all changes and requests; write and post nothing")
     binding = argparse.ArgumentParser(add_help=False)
     binding.add_argument("--config", metavar="NAME", help="the configuration to bind (or set {})".format(
         env_name("CONFIG")))
@@ -409,8 +427,17 @@ def run_start(arguments):
     return startcmd.run(arguments, bind)
 
 
+def run_org(arguments):
+    """One `org` command: each module owns its actions (A init/instance/render/validate, B1 hook/refusals/check-hooks, B3 channel)."""
+    if arguments.action in orgcmd.ACTIONS:
+        return orgcmd.run(arguments)
+    if arguments.action == "channel":
+        return emit(orgdiscord.add_channel(arguments))
+    return orghook.run(arguments)
+
+
 HANDLERS = {"config": run_config, "event": run_event, "state": run_state, "brief": run_brief, "doctor": run_doctor,
-            "disk": run_disk, "lane": run_lane, "judge": run_judge, "start": run_start}
+            "disk": run_disk, "lane": run_lane, "judge": run_judge, "start": run_start, "org": run_org}
 
 
 def main(argv=None):
