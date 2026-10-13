@@ -1,6 +1,7 @@
 """Run the resident-boundary assertion with just its store-id comparison removed in an isolated checkout."""
 
 import argparse
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -23,12 +24,15 @@ def main():
         checkout = Path(temporary) / "checkout"
         shutil.copytree(ROOT, checkout, ignore=shutil.ignore_patterns(
             ".git", "__pycache__", "*.pyc", ".venv", "build", "dist", "*.egg-info"))
-        path = checkout / "src/laneboss/decisions/history.py"
+        go = "decisions" in os.environ.get("LANEBOSS_TEST_GO_GROUPS", "").split(",")
+        path = checkout / ("internal/decisionsrv/history.go" if go else "src/laneboss/decisions/history.py")
         original = path.read_text(encoding="utf-8")
-        anchor = 'use_server = status.get("store_id") == sha256(str(org.db))'
+        anchor = ('useServer = obj(status) != nil && obj(status)["store_id"] == digest(o.db)' if go else
+                  'use_server = status.get("store_id") == sha256(str(org.db))')
         if original.count(anchor) != 1:
             raise RuntimeError("resident comparison mutation has no unique anchor")
-        path.write_text(original.replace(anchor, "use_server = True"), encoding="utf-8")
+        replacement = 'useServer = obj(status) != nil' if go else "use_server = True"
+        path.write_text(original.replace(anchor, replacement), encoding="utf-8")
         module = "tests.e2e.test_org_history"
         case = module + ".HistoryTest.test_foreign_resident"
         # Isolation ensures no Python path from the supervising test process selects the original checkout.

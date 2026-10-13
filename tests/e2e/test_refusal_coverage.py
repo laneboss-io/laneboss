@@ -93,6 +93,35 @@ class CoverageTest(refusalsupport.RefusalTest):
                          sorted([(1, "unreadable", unreadable), (1, "unrecognised", newer)]))
         self.assert_sound()
 
+    def test_unreadable_peer_blocks_acceptance(self):
+        # A healthy file under the same template must never stand in for an
+        # unreadable record. Create the peer after the live scanner is gone so
+        # no previous inventory can supply its ownership to a fresh scan.
+        if os.geteuid() == 0:
+            self.fail("run the suite as a non-root user: root ignores file modes")
+        lane = "g-unreadable-peer"
+        self.start_session(lane, "claude-code", [{"open": {}}]
+                           + refusalsupport.shell_steps("readable", "ls") + [{"exit": 0}])
+        self.wait_event("lane.ended", lane)
+        main = self.ended_by_itself(lane)["records"][0]
+        self.assertIs(self.scan(lane)["runs"][0]["covered"], True)
+        peer = os.path.join(os.path.dirname(main), "unreadable-peer.jsonl")
+        with open(main, "rb") as source, open(peer, "wb") as destination:
+            destination.write(source.read())
+        stamp = os.stat(main).st_mtime
+        os.utime(peer, (stamp, stamp))
+        os.chmod(peer, 0)
+        self.addCleanup(os.chmod, peer, 0o600)
+        for state in ("accepted", "merged"):
+            result = self.lane("mark", "--lane", lane, "--state", state, code=2)
+            self.assertIn(peer, result.stderr)
+        self.assertEqual(self.lane_events(lane, "lane.state"), [])
+        for coverage in (self.coverage(lane), self.scan(lane)["runs"][0]):
+            self.assertIs(coverage["covered"], False)
+            self.assertIn(("unreadable", peer),
+                          [(item["reason"], item.get("path")) for item in coverage["not_covered"]])
+        self.assert_sound()
+
     def test_slow_matching_is_bounded(self):
         # A guard pattern that passes validation but backtracks without end on a long line: matching that result stops
         # at its bound and the result is reported as not covered; the refusal after it is still found.

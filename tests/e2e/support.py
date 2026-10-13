@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -139,10 +140,35 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+# LANEBOSS_TEST_GO_GROUPS=org,config,... runs those command groups of the suite on their Go ports: each binary
+# (cmd/laneboss-<group>) is built once from this checkout and named to the installed launcher, which forwards to
+# it with no Python fallback. LANEBOSS_TEST_ORG_ENGINE=go is the older spelling of the group org.
+GO_GROUPS = [group for group in os.environ.get(ENV_PREFIX + "TEST_GO_GROUPS", "").split(",") if group]
+if os.environ.get(ENV_PREFIX + "TEST_ORG_ENGINE", "python") == "go" and "org" not in GO_GROUPS:
+    GO_GROUPS.append("org")
+_go_binaries = {}
+
+
+def go_binary(group):
+    """Build cmd/laneboss-<group> once per test process; a failed build fails every test that needs it."""
+    if group not in _go_binaries:
+        if not re.fullmatch(r"[a-z]+", group) or not (ROOT / "cmd" / ("laneboss-" + group)).is_dir():
+            raise AssertionError("no Go port for the command group " + repr(group))
+        output = Path(tempfile.mkdtemp(prefix="laneboss-e2e-go-")) / ("laneboss-" + group)
+        result = subprocess.run(["go", "build", "-o", str(output), "./cmd/laneboss-" + group], cwd=str(ROOT),
+                                capture_output=True, text=True, encoding="utf-8", timeout=600)
+        if result.returncode != 0:
+            raise AssertionError("go build ./cmd/laneboss-" + group + " failed: " + result.stderr.strip())
+        _go_binaries[group] = output
+    return _go_binaries[group]
+
+
 def base_environment(user_home):
     environment = {key: value for key, value in os.environ.items()
                    if not key.startswith(ENV_PREFIX) and not key.startswith("PYTHON")}
     environment["HOME"] = str(user_home)
+    for group in GO_GROUPS:
+        environment[ENV_PREFIX + group.upper() + "_GO_BIN"] = str(go_binary(group))
     return environment
 
 

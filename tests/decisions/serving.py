@@ -22,11 +22,98 @@ import sys
 import tempfile
 import threading
 import time
+import types
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlencode
+from collections import OrderedDict
 
-from .support import ROOT, StoreCase, plain_record
+from .support import GO_DECISIONS, ROOT, StoreCase, decisions_go_binary, plain_record
+
+
+def decisions_program():
+    return [str(decisions_go_binary())] if GO_DECISIONS else [sys.executable, "-m", "laneboss.decisions"]
+
+
+class GoProbe:
+    """One Go process exposing the service's own arithmetic and cache bookkeeping."""
+
+    def __init__(self, case):
+        self.case = case
+        self.errors = tempfile.TemporaryFile(mode="w+b")
+        self.process = subprocess.Popen([str(decisions_go_binary()), "probe"], cwd=str(ROOT),
+                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.errors,
+                                        text=True, encoding="utf-8")
+        case.addCleanup(self.close)
+
+    def request(self, value):
+        self.process.stdin.write(json.dumps(value, ensure_ascii=False, allow_nan=False) + "\n")
+        self.process.stdin.flush()
+        readable, _, _ = select.select([self.process.stdout], [], [], 60)
+        self.case.assertTrue(readable, "the Go probe did not answer")
+        line = self.process.stdout.readline()
+        if not line:
+            self.process.wait(timeout=10)
+            self.errors.seek(0)
+            self.case.fail("the Go probe ended: " + self.errors.read().decode("utf-8"))
+        return json.loads(line)
+
+    def close(self):
+        if self.process.poll() is None:
+            self.process.stdin.close()
+            try:
+                self.process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait(timeout=10)
+        self.process.stdout.close()
+        if not self.process.stdin.closed:
+            self.process.stdin.close()
+        self.errors.close()
+
+
+class GoResidentProxy:
+    """Translate existing white-box rows into calls to the compiled Go functions."""
+
+    Entry = staticmethod(lambda identifier, side, vector, norm:
+                         types.SimpleNamespace(record_id=identifier, side=side, vector=vector, norm=norm))
+
+    def __init__(self, case, cache=False):
+        self.probe = GoProbe(case)
+        if cache:
+            limits = self.probe.request({"action": "cache-init"})
+            self.ANSWER_BYTES = limits["max_bytes"]
+            self.Snapshot = types.SimpleNamespace(remember_answer=self.remember_answer)
+
+    def exact_dot(self, left, right):
+        return self.probe.request({"action": "dot", "left": list(left), "right": list(right)})["dot"]
+
+    def exact_norm(self, vector):
+        return self.probe.request({"action": "dot", "left": list(vector), "right": list(vector)})["norm"]
+
+    def rank_vectors(self, model, groups, query, depth):
+        values = {identifier: [{"side": entry.side, "vector": list(entry.vector)} for entry in entries]
+                  for identifier, entries in groups.items()}
+        result = self.probe.request({"action": "rank", "model": model, "groups": values,
+                                     "query": query, "depth": depth})
+        return types.SimpleNamespace(ranking=result["ranking"], matches=lambda identifier: result["matches"][identifier],
+                                     score=lambda identifier: result["scores"][identifier])
+
+    def remember_answer(self, keeper, key, body):
+        result = self.probe.request({"action": "cache-put", "key": json.dumps(key),
+                                     "body": body.decode("utf-8")})
+        keeper.answers = OrderedDict((tuple(json.loads(value)), None) for value in result["keys"])
+        keeper.answers_size = result["bytes"]
+
+
+def arithmetic_sum(values):
+    """The Go contract adds float64 products in order, independent of Python's version."""
+    if not GO_DECISIONS:
+        return sum(values)
+    total = 0.0
+    for value in values:
+        total += float(value)
+    return total
 
 DIMENSION = 256
 MODEL = "stub-embed-1"
@@ -210,7 +297,7 @@ class ServerProcess:
         # Whether stop() read the server's output to its end. A test that searches that output for a secret requires
         # this: a read that failed would leave the search with less than the whole output and could still pass.
         self.stdout_complete = False
-        launcher = launcher or [sys.executable, "-m", "laneboss.decisions", "serve"]
+        launcher = launcher or decisions_program() + ["serve"]
         command = [str(item) for item in launcher] + [str(item) for item in arguments]
         if umask is not None:
             # The shell sets the mask and then becomes the server, so the process id stays the server's.
@@ -406,7 +493,7 @@ def build_fixture_store(directory, environment, stub):
                                   "api_key_env": "TEST_EMBED_KEY", "endpoint": stub.endpoint}), encoding="utf-8")
     for arguments in (("init",), ("load", "--in", batch), ("embed", "--config", config)):
         result = subprocess.run(
-            [sys.executable, "-m", "laneboss.decisions", arguments[0], "--db", str(database)]
+            decisions_program() + [arguments[0], "--db", str(database)]
             + [str(item) for item in arguments[1:]],
             cwd=str(ROOT), env=environment, capture_output=True, text=True, encoding="utf-8", timeout=300)
         if result.returncode != 0:
@@ -501,7 +588,7 @@ class ServeCase(StoreCase):
         """`serve` that is expected to end by itself, with a message and an exit code, not to start."""
         try:
             return subprocess.run(
-                [sys.executable, "-m", "laneboss.decisions", "serve"] + [str(item) for item in arguments],
+                decisions_program() + ["serve"] + [str(item) for item in arguments],
                 cwd=str(cwd or ROOT), env=environment or self.environment, stdin=subprocess.DEVNULL,
                 capture_output=True, text=True, encoding="utf-8", timeout=timeout)
         except subprocess.TimeoutExpired:

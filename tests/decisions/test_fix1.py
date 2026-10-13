@@ -14,7 +14,7 @@ from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .support import (
-    ROOT, VERSION1_OBJECTS, StoreCase, canonical, digest, ids, in_current_format, legacy_export, plain_record, record,
+    GO_DECISIONS, ROOT, VERSION1_OBJECTS, StoreCase, canonical, digest, ids, in_current_format, legacy_export, plain_record, record,
 )
 
 
@@ -667,8 +667,13 @@ class LoadWriteFailureTest(StoreCase):
                  add_op(record("D-33")), add_op(record("D-34"))]
         before = self.db.read_bytes()
         result = self.cli("load", "--in", self.write_batch(batch), code=2)
-        for text in ("line 4", "D-33", "test-installed abort"):
+        # Go keeps constraint diagnostics generic: a trigger's arbitrary message must
+        # not become command output. Both implementations must still roll back the batch.
+        constraint = "database constraint" if GO_DECISIONS else "test-installed abort"
+        for text in ("line 4", "D-33", constraint):
             self.assertIn(text, result.stderr)
+        if GO_DECISIONS:
+            self.assertNotIn("test-installed abort", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
         self.assertEqual(self.db.read_bytes(), before)
         self.execute_script("DROP TRIGGER test_abort;")

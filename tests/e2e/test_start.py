@@ -55,10 +55,11 @@ LANE_LINE = re.compile(
     r"last end: (?:reason (?P<reason>\S+), exit code (?P<exit_code>\S+), survivors (?P<survivors>\S+)"
     r"|(?P<gone>" + GONE + r")); "
     r"state (?P<state>\S+) since (?P<since>\S+); times: (?P<times>.+?)(?:; landing: (?P<landing>.+))?")
-# Follow-up 2. The installed program runs unchanged under an interpreter whose sqlite3 connections stop once, after
+# Follow-up 2. The Python reader runs under an interpreter whose sqlite3 connections stop once, after
 # the first read of the lane rows or of the events that is made outside a transaction (the reader's own reads, not
 # the checks' transactions), until the test lets them go. Between that read and the next the test appends an event
-# with the real writer.
+# with the real writer. A Go reader uses its explicit file synchronization hook after the verified snapshot has been
+# retained and its read locks released, before it emits that snapshot. The assertions below are shared by both.
 PAUSE_AFTER_FIRST_READ = '''import os, runpy, sqlite3, sys, time
 reached, go = os.environ["E2E_PAUSE_REACHED"], os.environ["E2E_PAUSE_GO"]
 real_connect = sqlite3.connect
@@ -497,13 +498,17 @@ class StartTest(support.LauncherTest):
     def test_one_snapshot_of_the_store(self):
         self.write_config("alpha")
         self.started("b-one")
-        python, launch = self.python_and_launch()
-        wrapper = self.directory / "pause-after-first-read.py"
-        wrapper.write_text(PAUSE_AFTER_FIRST_READ, encoding="utf-8")
         reached, go = self.directory / "reader-reached", self.directory / "reader-go"
         environment = dict(self.environment, E2E_PAUSE_REACHED=str(reached), E2E_PAUSE_GO=str(go))
-        reader = subprocess.Popen([python, "-I", "-B", str(wrapper), launch, "start", "--config", "alpha", "--format",
-                                   "json"], cwd=str(self.directory), env=environment, stdout=subprocess.PIPE,
+        if "start" in support.GO_GROUPS:
+            environment["LANEBOSS_TEST_START_SYNC"] = str(self.directory / "reader")
+            command = [str(self.command), "start", "--config", "alpha", "--format", "json"]
+        else:
+            python, launch = self.python_and_launch()
+            wrapper = self.directory / "pause-after-first-read.py"
+            wrapper.write_text(PAUSE_AFTER_FIRST_READ, encoding="utf-8")
+            command = [python, "-I", "-B", str(wrapper), launch, "start", "--config", "alpha", "--format", "json"]
+        reader = subprocess.Popen(command, cwd=str(self.directory), env=environment, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE, text=True)
         try:
             deadline = time.monotonic() + 60

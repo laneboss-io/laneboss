@@ -19,6 +19,22 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 ROOT = Path(__file__).resolve().parents[2]
+# LANEBOSS_TEST_GO_GROUPS containing "decisions" runs this suite's command lines on the Go port
+# (cmd/laneboss-decisions), built once from this checkout; there is no fallback to Python.
+GO_DECISIONS = "decisions" in os.environ.get("LANEBOSS_TEST_GO_GROUPS", "").split(",")
+_decisions_go_binary = None
+
+
+def decisions_go_binary():
+    global _decisions_go_binary
+    if _decisions_go_binary is None:
+        output = Path(tempfile.mkdtemp(prefix="laneboss-decisions-go-")) / "laneboss-decisions"
+        result = subprocess.run(["go", "build", "-o", str(output), "./cmd/laneboss-decisions"], cwd=str(ROOT),
+                                capture_output=True, text=True, encoding="utf-8", timeout=600)
+        if result.returncode != 0:
+            raise AssertionError("go build ./cmd/laneboss-decisions failed: " + result.stderr.strip())
+        _decisions_go_binary = output
+    return _decisions_go_binary
 
 # The program that runs the command line with one fault or synchronisation point; see its docstring.
 FAULTS = Path(__file__).resolve().with_name("faults.py")
@@ -320,8 +336,8 @@ class StoreCase(unittest.TestCase):
         self.cli("init")
 
     def command_line(self, command, arguments, db):
-        return [sys.executable, "-m", "laneboss.decisions", command, "--db", str(db or self.db),
-                *map(str, arguments)]
+        program = [str(decisions_go_binary())] if GO_DECISIONS else [sys.executable, "-m", "laneboss.decisions"]
+        return [*program, command, "--db", str(db or self.db), *map(str, arguments)]
 
     def cli(self, command, *arguments, code=0, db=None, environment=None):
         result = subprocess.run(

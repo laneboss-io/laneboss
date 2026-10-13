@@ -39,7 +39,7 @@ from . import serving
 from .serving import (
     DIMENSION, MODEL, ServeCase, UnixConnection, inet_sockets, search_params, search_words, semantic_vector,
 )
-from .support import FAULTS, ROOT, ids, plain_record
+from .support import FAULTS, GO_DECISIONS, ROOT, decisions_go_binary, ids, plain_record
 
 try:
     from math import sumprod
@@ -198,6 +198,9 @@ class RankingTest(unittest.TestCase):
     """The ranking of the resident search against the arithmetic of the command, on vectors made to tie or nearly."""
 
     def setUp(self):
+        if GO_DECISIONS:
+            self.resident = serving.GoResidentProxy(self)
+            return
         source = str(ROOT / "src")
         sys.path.insert(0, source)
         self.addCleanup(sys.path.remove, source)
@@ -207,12 +210,12 @@ class RankingTest(unittest.TestCase):
     @staticmethod
     def command_ranking(model, groups, query_vector):
         """What the command does with these vectors, written out again: score each, group by record, rank."""
-        query_norm = math.sqrt(sum(number * number for number in query_vector))
+        query_norm = math.sqrt(serving.arithmetic_sum(number * number for number in query_vector))
         matches = []
         for identifier, entries in groups.items():
             for entry in entries:
-                norm = math.sqrt(sum(number * number for number in entry.vector))
-                score = sum(left * right for left, right in zip(query_vector, entry.vector)) / (query_norm * norm)
+                norm = math.sqrt(serving.arithmetic_sum(number * number for number in entry.vector))
+                score = serving.arithmetic_sum(left * right for left, right in zip(query_vector, entry.vector)) / (query_norm * norm)
                 matches.append({"id": identifier, "index": "vector:" + model, "text": SIDES[entry.side],
                                 "field": entry.side, "score": max(-1.0, min(1.0, score))})
         matches.sort(key=lambda match: (-match["score"], match["id"], match["text"]))
@@ -244,7 +247,7 @@ class RankingTest(unittest.TestCase):
                     vector = [-value for value in source]
                 else:
                     vector = [rng.gauss(0.0, 1.0) for _ in range(dimension)]
-                norm = math.sqrt(sum(value * value for value in vector))
+                norm = math.sqrt(serving.arithmetic_sum(value * value for value in vector))
                 entries.append(self.resident.Entry(identifier, side, tuple(vector), norm))
             groups[identifier] = entries
         return groups, bases
@@ -282,6 +285,11 @@ class RankingTest(unittest.TestCase):
         products that older interpreters use. The data is shown to hold ties and near ties. Fails when the margin
         that separates the fast scores from the command's is too small (the order of near ties is then the fast
         one), when a tie is broken another way, or when a printed score is not the command's expression."""
+        if GO_DECISIONS:
+            tied, near = self.trials("Go float64 ranking")
+            self.assertGreater(tied, 100, "the data holds too few exact ties")
+            self.assertGreater(near, 50, "the data holds too few scores that differ only in the last digits")
+            return
         for label, dot in (("this interpreter's dot product", self.resident.dot),
                            ("sum of products", self.resident.exact_dot)):
             with mock.patch.object(self.resident, "dot", dot):
@@ -304,10 +312,12 @@ class RankingTest(unittest.TestCase):
             right = [rng.gauss(0.0, 1.0) / scale for _ in range(size)]
             if trial % 11 == 0:
                 left = [round(value) for value in left]
-            expected = sum(first * second for first, second in zip(left, right))
+            expected = serving.arithmetic_sum(first * second for first, second in zip(left, right))
             self.assertEqual(repr(self.resident.exact_dot(left, right)), repr(expected), (trial, size))
             self.assertEqual(repr(self.resident.exact_norm(left)),
-                             repr(math.sqrt(sum(number * number for number in left))), (trial, size))
+                             repr(math.sqrt(serving.arithmetic_sum(
+                                 (float(number) * float(number) if GO_DECISIONS else number * number)
+                                 for number in left))), (trial, size))
             if hasattr(math, "sumprod") and repr(math.sumprod(left, right)) != repr(expected):
                 different += 1
         if hasattr(math, "sumprod"):
@@ -320,6 +330,10 @@ class AnswerBoundsTest(unittest.TestCase):
     answers of the size that reaches the bound."""
 
     def setUp(self):
+        if GO_DECISIONS:
+            self.resident = serving.GoResidentProxy(self, cache=True)
+            self.keeper = types.SimpleNamespace(answers=OrderedDict(), answers_size=0)
+            return
         source = str(ROOT / "src")
         sys.path.insert(0, source)
         self.addCleanup(sys.path.remove, source)
@@ -363,6 +377,24 @@ class StandardLibraryTest(unittest.TestCase):
         newer) and, everywhere, against KNOWN_STANDARD, so that a new import is added to it on purpose. Fails on any
         other import, however it is written (`import`, `from`, inside a function) and on `__import__` or
         `import_module`."""
+        if GO_DECISIONS:
+            result = subprocess.run(["go", "list", "std"], cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            allowed = set(result.stdout.splitlines()) | {"github.com/BurntSushi/toml", "modernc.org/sqlite"}
+            found = set()
+            files = sorted((ROOT / "internal" / "decisionsrv").glob("*.go"))
+            self.assertGreater(len(files), 8)
+            for path in files:
+                text = path.read_text(encoding="utf-8")
+                for block in re.findall(r"(?ms)^import\s*\((.*?)^\)", text):
+                    found.update(re.findall(r'"([^"\n]+)"', block))
+                found.update(re.findall(r'(?m)^import\s+(?:\w+\s+)?"([^"\n]+)"', text))
+            # The module's own packages (for example its shared JSON encoder) are the package itself, not third-party.
+            own = {name for name in found if name.startswith("laneboss.io/laneboss/")}
+            self.assertEqual(sorted(found - allowed - own), [])
+            self.assertTrue({"modernc.org/sqlite", "net", "net/http"} <= found,
+                            "the check did not read the Go imports")
+            return
         found = set()
         files = sorted((ROOT / "src" / "laneboss" / "decisions").glob("*.py"))
         self.assertGreater(len(files), 8)
@@ -824,6 +856,16 @@ class ProviderOnceTest(ServeCase):
         """A vector search reads the embedding configuration once and is answered with the command's bytes. Fails when
         a request reads the configuration twice, so that an edit to it between the two reads can remember an answer
         computed with one model under another model's key."""
+        if GO_DECISIONS:
+            server = self.serve()
+            before = server.status()["provider_reads"]
+            reply = server.search("backup schedule", "vector")
+            self.assertEqual(reply.status, 200, reply.body)
+            self.assertEqual(server.status()["provider_reads"] - before, 1)
+            command = self.search_command("backup schedule", "vector")
+            self.assertEqual(command.returncode, 0, command.stderr)
+            self.assertEqual(reply.body, command.stdout)
+            return
         from laneboss.decisions import embed
         from laneboss.decisions import resident as resident_module
         from laneboss.decisions import search as search_module
@@ -948,6 +990,10 @@ class SocketTest(ServeCase):
         """The socket is made private by the mask it is bound under, not only changed afterwards: with the mask of
         the process at 000, its mode is already 600 when bind returns (faults.py reads it at that moment). Fails
         when the server binds under the mask it inherited and puts the mode right later."""
+        if GO_DECISIONS:
+            server = self.serve(umask=0o000, name="born")
+            self.assertEqual(server.status()["socket_mode_at_bind"], 0o600)
+            return
         marker = self.scratch / "bound"
         self.serve(umask=0o000, name="born",
                    launcher=[sys.executable, str(FAULTS), "socket-bound", str(marker), "serve"])
@@ -1081,7 +1127,7 @@ class KeyTest(ServeCase):
         self.assertTrue(all(request["auth"] == "Bearer " + self.key for request in self.stub.requests))
         seen = [reply.body.decode("utf-8") + repr(reply.headers) for reply in replies]
         listing = subprocess.run(["ps", "-eo", "args="], capture_output=True, text=True, timeout=60).stdout
-        self.assertIn("laneboss.decisions", listing)
+        self.assertIn(str(decisions_go_binary()) if GO_DECISIONS else "laneboss.decisions", listing)
         seen.append(listing)
         server.stop()
         self.assertTrue(server.stdout_complete,
@@ -1139,8 +1185,7 @@ class LifecycleTest(ServeCase):
         with exit 0 and no socket. A server started without them ignored stops on SIGHUP, with exit 0 and no
         socket. Fails when the server takes back a signal that was ignored for it: it would then stop when the
         terminal it was started from closes."""
-        ignoring = ["sh", "-c", 'trap "" HUP INT; exec "$@"', "sh", sys.executable, "-m", "laneboss.decisions",
-                    "serve"]
+        ignoring = ["sh", "-c", 'trap "" HUP INT; exec "$@"', "sh"] + serving.decisions_program() + ["serve"]
         server = self.serve(launcher=ignoring, name="ignoring")
         for number in (signal.SIGHUP, signal.SIGINT):
             server.process.send_signal(number)
@@ -1168,6 +1213,9 @@ class LifecycleTest(ServeCase):
 
     def test_idle_exit_defaults_to_60(self):
         """Without the option the idle time is sixty minutes. Fails on any other default."""
+        if GO_DECISIONS:
+            self.assertEqual(serving.GoProbe(self).request({"action": "serve-options"})["idle_exit"], 60.0)
+            return
         program = ("import laneboss.decisions.cli as cli\n"
                    "arguments = cli.parser().parse_args(['serve', '--db', 'a', '--socket', 'b'])\n"
                    "print(arguments.idle_exit)\n")
@@ -1252,13 +1300,17 @@ class ProtocolTest(ServeCase):
         bin_directory.mkdir()
         log = self.scratch / "launcher.log"
         launcher = bin_directory / "laneboss"
+        dispatch = ('exec "$LB_TEST_DECISIONS" "$@"\n' if GO_DECISIONS else
+                    'exec "$LB_TEST_PYTHON" -m laneboss.decisions "$@"\n')
         launcher.write_text('#!/bin/sh\necho run >> "$LB_TEST_LOG"\n[ "$1" = decisions ] || exit 64\nshift\n'
-                            'exec "$LB_TEST_PYTHON" -m laneboss.decisions "$@"\n', encoding="utf-8")
+                            + dispatch, encoding="utf-8")
         launcher.chmod(0o755)
         server = self.serve()
         environment = dict(self.environment, SOCKET=server.socket_path, DB=str(self.db), CONFIG=str(self.provider_config),
                            LB_TEST_LOG=str(log), LB_TEST_PYTHON=sys.executable,
                            PATH=str(bin_directory) + os.pathsep + os.environ["PATH"])
+        if GO_DECISIONS:
+            environment["LB_TEST_DECISIONS"] = str(decisions_go_binary())
 
         def call(arguments):
             return subprocess.run(["sh", "-c", blocks[0] + "\nsearch " + arguments + "\n"], env=environment,

@@ -135,14 +135,16 @@ elif mode == "wait":
 """
 
 
-# The installed command with the reader's size limit changed: the nearest a black-box test can come to a log of 64 MiB
-# without writing one. It imports the installed package in a separate process, sets the module's constant and runs the
-# command line unchanged, so the writer and the reader of one run both see the small limit.
+# The installed command with the reader's size limit lowered, so its actual writer and reader face the same bound.
+# The Python implementation uses its module constant; the Go implementation uses its operator-configurable lower cap.
+# A Python monkeypatch alone cannot cross the launcher's forwarding boundary into the Go process.
 LIMITED = r"""
+import os
 import sys
 sys.path.insert(0, sys.argv[1])
 from laneboss import cli, judges
 judges.MAX_EGRESS_BYTES = int(sys.argv[2])
+os.environ["LANEBOSS_JUDGE_MAX_EGRESS_BYTES"] = sys.argv[2]
 sys.exit(cli.main(sys.argv[3:]))
 """
 

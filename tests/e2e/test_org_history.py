@@ -20,7 +20,7 @@ import time
 import uuid
 
 from . import support
-from ..decisions.support import StoreCase
+from ..decisions.support import GO_DECISIONS, StoreCase, decisions_go_binary
 
 NOW = "2026-10-13T00:00:00Z"
 
@@ -65,6 +65,18 @@ class UnixHTTP(http.client.HTTPConnection):
 
 
 class HistoryTest(support.LauncherTest):
+    def run_laneboss(self, *arguments, code=0, stdin=None, environment=None):
+        # History is owned by the decisions service lane. Test its Go entry point
+        # while the independent org command package is still being ported.
+        if GO_DECISIONS and arguments[:2] in (("org", "hook-history"), ("org", "capture-decision")):
+            result = subprocess.run([str(decisions_go_binary()), *map(str, arguments[1:])],
+                                    cwd=str(self.directory), env=self.environment if environment is None else environment,
+                                    input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=60)
+            if code is not None:
+                self.assertEqual(result.returncode, code, result.stderr)
+            return result
+        return super().run_laneboss(*arguments, code=code, stdin=stdin, environment=environment)
+
     def setUp(self):
         super().setUp()
         self.stub = self.directory / "judge"
@@ -203,6 +215,8 @@ class HistoryTest(support.LauncherTest):
     def probe_command(self, value):
         request = self.directory / (uuid.uuid4().hex + ".json")
         request.write_text(json.dumps(value), encoding="utf-8")
+        if GO_DECISIONS:
+            return [str(decisions_go_binary()), "probe", "--file", str(request)]
         library = self.command.resolve().parent.parent / "lib"
         self.assertTrue((library / "laneboss").is_dir())
         return [sys.executable, "-I", "-B", str(Path(__file__).with_name("historyprobe.py")),
@@ -378,7 +392,8 @@ class HistoryTest(support.LauncherTest):
         self.add_row(row("input-case", text="quartz stdin", created=datetime.now(timezone.utc).isoformat()))
         input_file = self.directory / "hook.json"
         input_file.write_text(json.dumps({"prompt": "Fix quartz", "hook_event_name": "UserPromptSubmit"}), encoding="utf-8")
-        words = [str(self.command), "org", "hook-history", "--runner", "claude", "--org-dir", str(self.org),
+        program = [str(decisions_go_binary())] if GO_DECISIONS else [str(self.command), "org"]
+        words = program + ["hook-history", "--runner", "claude", "--org-dir", str(self.org),
                  "--instance", "observer"]
         for path, extra in ((input_file, []), (Path(os.devnull), ["--event", "SessionStart"])):
             with self.subTest(input=path.name):
@@ -398,7 +413,9 @@ class HistoryTest(support.LauncherTest):
             result = subprocess.run(command, env=self.environment, capture_output=True, text=True, timeout=1)
             self.assertLess(time.monotonic() - started, 0.8)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("database is locked", result.stderr)
+            self.assertIn("database busy" if GO_DECISIONS else "database is locked", result.stderr)
+            if GO_DECISIONS:
+                self.assertEqual(result.returncode, 5)
 
     def test_log_lock_retry(self):
         """A short competing append must not silently discard the new injection receipt."""

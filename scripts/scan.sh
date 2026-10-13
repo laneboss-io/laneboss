@@ -124,6 +124,10 @@ for relative, content in sorted(items, key=lambda item: item[0]):
         continue
     newlines = [match.start() for match in re.finditer(b"\n", content)]
     for rule, pattern in patterns.items():
+        # go.sum holds the published checksums of public Go modules ("h1:" plus base64), which the token rule
+        # cannot tell from a secret; only that rule skips it, and only for that exact file name.
+        if rule == "long-secret-like-token" and relative.rsplit("/", 1)[-1] == "go.sum":
+            continue
         for match in pattern.finditer(content):
             if rule == "non-loopback-ipv4":
                 address = match.group()

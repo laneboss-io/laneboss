@@ -12,6 +12,7 @@ import sys
 import tempfile
 
 from . import support
+from ..decisions.support import GO_DECISIONS, decisions_go_binary
 
 RECORD = {
     "id": "P-1", "kind": "decision", "asked_at": "2026-10-08T09:00:00Z", "answered_at": "2026-10-08T09:04:00Z",
@@ -47,7 +48,8 @@ def tearDownModule():
 class DecisionsPassthroughTest(support.LauncherTest):
     def module(self, *arguments):
         environment = dict(self.environment, PYTHONPATH=str(support.ROOT / "src"), PYTHONDONTWRITEBYTECODE="1")
-        return subprocess.run([sys.executable, "-m", "laneboss.decisions", *map(str, arguments)], cwd=str(self.directory),
+        program = [str(decisions_go_binary())] if GO_DECISIONS else [sys.executable, "-m", "laneboss.decisions"]
+        return subprocess.run(program + list(map(str, arguments)), cwd=str(self.directory),
                               env=environment, capture_output=True, text=True, encoding="utf-8", timeout=60)
 
     def same(self, *arguments, code=0):

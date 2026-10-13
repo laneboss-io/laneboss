@@ -1,12 +1,15 @@
 """Exercise the installed Discord APIs with documents from files, without a gateway.
 
 The suite first registers channels through the installed CLI. This probe then
-uses that installation's library to read its roles and convert actual payloads.
+uses the selected Go binary, or that installation's Python library, to read its
+roles and convert actual payloads. A selected Go binary never falls back.
 """
 
 import argparse
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 
 
@@ -18,6 +21,16 @@ def main():
     parser.add_argument("--message")
     parser.add_argument("--channel-names")
     arguments = parser.parse_args()
+    binary = os.environ.get("LANEBOSS_ORG_GO_BIN")
+    if binary is not None:
+        command = [binary, "channel", "_probe", arguments.operation, arguments.org_dir]
+        if arguments.message is not None:
+            command.extend(["--message", arguments.message])
+        if arguments.channel_names is not None:
+            command.extend(["--channel-names", arguments.channel_names])
+        # Forward output and the actual exit code. A failed Go probe never
+        # falls back to the Python library.
+        return subprocess.run(command, check=False, timeout=25).returncode
     sys.path.insert(0, arguments.library)
     from laneboss.errors import LauncherError
     from laneboss.orgdiscord import event_json_line, message_to_event, read_roles, validate_org_channels

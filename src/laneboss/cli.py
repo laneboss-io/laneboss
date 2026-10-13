@@ -467,12 +467,31 @@ def run_org(arguments):
     return orghook.run(arguments)
 
 
+# Command groups with a Go port (cmd/laneboss-<group>); LANEBOSS_<GROUP>_GO_BIN selects it.
+GO_GROUPS = ("org", "config", "event", "state", "brief", "doctor", "disk", "lane", "judge", "start", "plugin",
+             "decisions")
+
 HANDLERS = {"config": run_config, "event": run_event, "state": run_state, "brief": run_brief, "doctor": run_doctor,
             "disk": run_disk, "lane": run_lane, "judge": run_judge, "start": run_start, "org": run_org}
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] and argv[0] in GO_GROUPS and os.environ.get(env_name(argv[0].upper() + "_GO_BIN")):
+        # The Go port of one command group: forward the arguments unchanged. There is no fallback to Python
+        # here, so a test run that names a group's Go binary tests only that binary.
+        variable = env_name(argv[0].upper() + "_GO_BIN")
+        binary = os.environ[variable]
+        if not os.path.isabs(binary) or not os.access(binary, os.X_OK):
+            print(PROGRAM + ": " + variable + " must name an executable file by absolute path", file=sys.stderr)
+            return 2
+        if argv[0] == "plugin":
+            # Preserve the assets of this launcher across exec, also when the Go binary is elsewhere. Installed
+            # modules are VERSION/lib/laneboss; checkout modules are REPO/src/laneboss. Both roots are two levels
+            # above the module directory. A forwarded call always uses its launcher's own assets.
+            module_directory = os.path.dirname(os.path.realpath(__file__))
+            os.environ[env_name("PLUGIN_ROOT")] = os.path.dirname(os.path.dirname(module_directory))
+        os.execv(binary, [binary, *argv[1:]])
     if argv[:1] == ["decisions"]:
         from .decisions.cli import main as decisions_main
         return decisions_main(argv[1:])
