@@ -1,5 +1,5 @@
-// Command laneboss-plugin is the Go implementation of `laneboss plugin`. The Python launcher forwards
-// `laneboss plugin ...` here, unchanged, when LANEBOSS_PLUGIN_GO_BIN names this binary.
+// Command laneboss-plugin is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

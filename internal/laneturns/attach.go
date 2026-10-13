@@ -17,6 +17,19 @@ const attachHelp = "/turn   start a turn for the messages that wait\n/stop   sto
 const attachHint = "nothing was stopped; leave with /exit or Ctrl-D (Ctrl-C stops only a turn that this attach started)"
 const keyNotice = "Ctrl-C noted: attach acts on it when the lane command now running returns; another Ctrl-C at least 2 seconds after this one leaves attach now, without waiting"
 
+func attachHintText(discarded bool, typed any) string {
+	if !discarded {
+		return attachHint
+	}
+	if typed == nil {
+		return "anything typed was discarded; " + attachHint
+	}
+	if typed == true {
+		return "the line was discarded; " + attachHint
+	}
+	return attachHint
+}
+
 type attachResult struct {
 	kind  string
 	value object
@@ -58,6 +71,9 @@ type attachView struct {
 	drawing        atomic.Bool
 }
 
+func (v *attachView) somethingTyped() bool { return len(v.buffer) > 0 || len(v.continued) > 0 }
+func (v *attachView) typing() bool         { return len(v.buffer) > 0 }
+
 func (v *attachView) put(text string) {
 	if text == "" {
 		return
@@ -72,7 +88,7 @@ func (v *attachView) emit(text string) {
 		return
 	}
 	v.pending += text
-	if v.terminal && len(v.buffer) > 0 {
+	if v.terminal && v.typing() {
 		return
 	}
 	at := strings.LastIndexByte(v.pending, '\n')
@@ -200,7 +216,7 @@ func (v *attachView) liveRun() (int, error) {
 }
 func (v *attachView) interrupt(discarded bool) *int {
 	counted := v.keys
-	typed := len(v.buffer) > 0 || len(v.continued) > 0
+	typed := v.somethingTyped()
 	v.buffer = nil
 	v.cursor = 0
 	v.continued = nil
@@ -301,10 +317,7 @@ func (v *attachView) result(r attachResult) *int {
 		}
 		run := integer(r.value["run"])
 		if run == 0 {
-			hint := attachHint
-			if flag(r.value["discarded"]) && flag(r.value["typed"]) {
-				hint = "the line was discarded; " + hint
-			}
+			hint := attachHintText(flag(r.value["discarded"]), r.value["typed"])
 			v.say(hint)
 			v.showPrompt()
 		} else if v.started[run] {

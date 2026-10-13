@@ -1,5 +1,5 @@
-// Command laneboss-doctor is the Go implementation of `laneboss doctor`. The Python launcher forwards
-// `laneboss doctor ...` here, unchanged, when LANEBOSS_DOCTOR_GO_BIN names this binary.
+// Command laneboss-doctor is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

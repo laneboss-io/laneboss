@@ -7,12 +7,13 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 const withheld = "[withheld]"
 const unknown = "Open questions to the owner and due dates are not in the store yet."
 const noStore = "no store exists yet"
-const usageRefused = "not accepted; a typed value is never repeated here, see the usage line above or run with --help"
 const startUsage = "usage: laneboss start [-h] [--config NAME] [--role ROLE] [--format {text,json}]"
 
 type problem struct {
@@ -20,10 +21,12 @@ type problem struct {
 	prefix, message string
 }
 
-func (p *problem) Error() string      { return p.message }
-func refused(message string) error    { return &problem{2, "refused", message} }
-func integrity(message string) error  { return &problem{3, "integrity problem", message} }
-func usageError(message string) error { return &problem{2, "laneboss start: error", message} }
+func (p *problem) Error() string     { return p.message }
+func refused(message string) error   { return &problem{2, "refused", message} }
+func integrity(message string) error { return &problem{3, "integrity problem", message} }
+func usageError(message string) error {
+	return &problem{2, "laneboss start: error", cliargs.Screen(message)}
+}
 func invalid(label, path, message string) error {
 	if path == "" {
 		path = "(top level)"
@@ -50,17 +53,17 @@ func parseArgs(args []string) (options, error) {
 		for _, candidate := range []string{"--config", "--role", "--format"} {
 			if strings.HasPrefix(candidate, label) && strings.HasPrefix(label, "--") {
 				if known != "" {
-					return o, usageError("the command line was " + usageRefused)
+					return o, usageError(cliargs.Reject(""))
 				}
 				known = candidate
 			}
 		}
 		if known == "" {
-			return o, usageError("the command line was " + usageRefused)
+			return o, usageError(cliargs.Reject(""))
 		}
 		if !attached {
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
-				return o, usageError("argument " + known + ": expected one argument")
+				return o, usageError(cliargs.Expected(known))
 			}
 			i++
 			val = args[i]
@@ -74,7 +77,7 @@ func parseArgs(args []string) (options, error) {
 			o.role = &value
 		case "--format":
 			if val != "text" && val != "json" {
-				return o, usageError("argument --format: " + usageRefused)
+				return o, usageError(cliargs.Reject("--format"))
 			}
 			o.format = val
 		}

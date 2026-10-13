@@ -139,6 +139,17 @@ class DetectorTest(support.LauncherTest):
         super().setUp()
         self.write_config("alpha")
 
+    def test_bearer_after_unicode_space(self):
+        """Fails if a Unicode separator lets the credential reach any public input surface."""
+        for whitespace in ("\u00a0", "\u0085", "\u2003", "\u202f", "\u001c", "\v"):
+            for prefix in ("Bearer", "Authorization:" + whitespace + "Bearer"):
+                secret = uuid.uuid4().hex
+                line = prefix + whitespace + secret
+                for surface, check in (("event", self.check_event), ("brief", self.check_brief),
+                                       ("rules", self.check_rules), ("config", self.check_value)):
+                    with self.subTest(separator=hex(ord(whitespace)), surface=surface):
+                        check({"log": line} if surface == "event" else line, True, secret)
+
     def check_event(self, payload, refused, secret=None):
         self.fresh_config("alpha")
         result = self.append(self.event(id="detect-" + uuid.uuid4().hex[:8], payload=payload),

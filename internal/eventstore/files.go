@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"laneboss.io/laneboss/internal/faults"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -140,6 +141,18 @@ func Bind(cli string) (*Configuration, error) {
 		return nil, Refuse("no configuration is bound: pass --config NAME or set LANEBOSS_CONFIG; configurations: %s", strings.Join(labels, ", "))
 	}
 	c := &Configuration{Name: name, Home: home, StateHome: states, Directory: filepath.Join(home, "configs", name), StatePath: filepath.Join(states, name), known: map[string]bool{name: true}}
+	if _, err := os.Lstat(filepath.Join(c.Directory, "config.toml")); os.IsNotExist(err) {
+		labels := []string{}
+		for _, candidate := range names {
+			labels = append(labels, shown(candidate))
+		}
+		available := "configurations: " + strings.Join(labels, ", ")
+		if len(labels) == 0 {
+			available = "no configuration exists under " + filepath.Join(home, "configs")
+		}
+		label := shown(name)
+		return nil, Refuse("no configuration named %s (%s does not exist); %s", label, filepath.Join(home, "configs", label, "config.toml"), available)
+	}
 	data, err := configData(c.Directory, name, true)
 	if err != nil {
 		return nil, err
@@ -345,7 +358,8 @@ func validMarker(v Object, name string) bool {
 	return len(s) == 2 && storeIDGrammar.MatchString(text(s["id"])) && recordedGrammar.MatchString(text(s["created_at"]))
 }
 func (c *Configuration) checkAncestors(path string, self bool, label string) error {
-	for p := realPath(path); ; p = filepath.Dir(p) {
+	target := realPath(path)
+	for p := target; ; p = filepath.Dir(p) {
 		v, exists, err := markerAt(p)
 		if exists {
 			if err != nil {
@@ -354,12 +368,15 @@ func (c *Configuration) checkAncestors(path string, self bool, label string) err
 			if v["config"] != c.Name {
 				owner := text(v["config"])
 				if c.known[owner] && validMarker(v, owner) {
-					return Refuse("%s belongs to or lies inside configuration %s", label, shown(owner))
+					if self {
+						if p == target {
+							return Refuse("the state directory %s belongs to configuration %s", c.StatePath, shown(owner))
+						}
+						return Refuse("the state directory %s lies inside the state directory of configuration %s", c.StatePath, shown(owner))
+					}
+					return Refuse("%s lies inside the state directory of configuration %s; a command bound to %s uses only its own", label, shown(owner), shown(c.Name))
 				}
 				return Refuse("%s belongs to another or an unknown configuration", label)
-			}
-			if self {
-				self = false
 			}
 		}
 		if parent := filepath.Dir(p); parent == p {
@@ -468,7 +485,7 @@ func directoryLock(f *os.File, shared bool) (func(), error) {
 	if shared {
 		op = syscall.LOCK_SH
 	}
-	directoryLocked := syscall.Flock(int(f.Fd()), op) == nil
+	directoryLocked := faults.DirectoryFlock(f, op) == nil
 	unlockDirectory := func() {
 		if directoryLocked {
 			syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
@@ -572,6 +589,23 @@ func (d *Directory) ReadLane(lane, part, name string, limit int64) ([]byte, erro
 		return nil, nil
 	}
 	return data, err
+}
+
+// Inspect the final mail entry without following a link, after checking its
+// parent directories in the same way as ReadLane.
+func (d *Directory) mailEntry(lane, name string) (os.FileInfo, error) {
+	if !laneGrammar.MatchString(lane) || !mailNameGrammar.MatchString(name) {
+		return nil, Refuse("the mail entry name is not valid")
+	}
+	parent, err := checkedBelow(d.Path, filepath.Join("lanes", lane, "mail"))
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(filepath.Join(parent, name))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	return info, err
 }
 
 type keptFile struct{ Lane, Name string }

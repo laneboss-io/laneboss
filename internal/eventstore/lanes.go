@@ -56,7 +56,9 @@ func currentForm(p Object) bool {
 			return false
 		}
 	}
-	return projectionValues(p) == nil
+	// Python lanes.current_form identifies the projection version by its
+	// fields. Event run bounds belong to event validation, not stored counters.
+	return true
 }
 
 // Check values before changing a row: a malformed queue must never become an empty queue.

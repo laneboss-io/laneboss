@@ -69,7 +69,7 @@ class HistoryTest(support.LauncherTest):
         # History is owned by the decisions service lane. Test its Go entry point
         # while the independent org command package is still being ported.
         if GO_DECISIONS and arguments[:2] in (("org", "hook-history"), ("org", "capture-decision")):
-            result = subprocess.run([str(decisions_go_binary()), *map(str, arguments[1:])],
+            result = subprocess.run(support.group_command("decisions") + list(map(str, arguments[1:])),
                                     cwd=str(self.directory), env=self.environment if environment is None else environment,
                                     input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=60)
             if code is not None:
@@ -216,7 +216,7 @@ class HistoryTest(support.LauncherTest):
         request = self.directory / (uuid.uuid4().hex + ".json")
         request.write_text(json.dumps(value), encoding="utf-8")
         if GO_DECISIONS:
-            return [str(decisions_go_binary()), "probe", "--file", str(request)]
+            return [str(support.faults_binary()), "decisions", "probe", "--file", str(request)]
         library = self.command.resolve().parent.parent / "lib"
         self.assertTrue((library / "laneboss").is_dir())
         return [sys.executable, "-I", "-B", str(Path(__file__).with_name("historyprobe.py")),
@@ -392,7 +392,7 @@ class HistoryTest(support.LauncherTest):
         self.add_row(row("input-case", text="quartz stdin", created=datetime.now(timezone.utc).isoformat()))
         input_file = self.directory / "hook.json"
         input_file.write_text(json.dumps({"prompt": "Fix quartz", "hook_event_name": "UserPromptSubmit"}), encoding="utf-8")
-        program = [str(decisions_go_binary())] if GO_DECISIONS else [str(self.command), "org"]
+        program = support.group_command("decisions")
         words = program + ["hook-history", "--runner", "claude", "--org-dir", str(self.org),
                  "--instance", "observer"]
         for path, extra in ((input_file, []), (Path(os.devnull), ["--event", "SessionStart"])):

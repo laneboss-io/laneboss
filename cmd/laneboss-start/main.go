@@ -1,5 +1,5 @@
-// Command laneboss-start is the Go implementation of `laneboss start`. The Python launcher forwards
-// `laneboss start ...` here, unchanged, when LANEBOSS_START_GO_BIN names this binary.
+// Command laneboss-start is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

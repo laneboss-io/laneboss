@@ -7,6 +7,7 @@ the package under test: every assertion goes through the installed command.
 """
 
 import hashlib
+import importlib.abc
 import json
 import os
 from pathlib import Path
@@ -23,7 +24,98 @@ ROOT = Path(__file__).resolve().parents[2]
 PROGRAM = "laneboss"
 ENV_PREFIX = "LANEBOSS_"
 INSTALL_SCRIPT = ROOT / "scripts" / "install.sh"
-PROTOCOL_FILE = ROOT / "src" / "laneboss" / "protocol" / "protocol.md"
+
+PYTHON_FIXTURE_ERROR = ("LANEBOSS_PY_SRC must name the absolute src/ directory of the pinned "
+                        "python-final tree for fixture construction")
+
+
+def python_source(required=True):
+    source = os.environ.get("LANEBOSS_PY_SRC")
+    if source is None and not required:
+        return None
+    if not source or not Path(source).is_absolute() or not (Path(source) / "laneboss" / "__init__.py").is_file():
+        raise RuntimeError(PYTHON_FIXTURE_ERROR)
+    return source
+
+
+class _FixtureImportGuard(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "laneboss" or fullname.startswith("laneboss."):
+            python_source()
+        return None
+
+
+_fixture_source = python_source(required=False)
+if _fixture_source is not None:
+    sys.path.insert(0, _fixture_source)
+sys.meta_path.insert(0, _FixtureImportGuard())
+
+_helper_builds = {}
+_helper_directories = []
+
+
+def go_executable():
+    command = os.environ.get("LANEBOSS_GO", "go")
+    found = shutil.which(command)
+    if found is None:
+        raise AssertionError("Go is required for the Go-only test harness")
+    return str(Path(found).absolute())
+
+
+def go_environment():
+    """Keep build caches and toolchain settings outside the test's product HOME."""
+    environment = dict(os.environ, GOTOOLCHAIN="go1.26.0", GOWORK="off", CGO_ENABLED="0", GOENV="off", GOFLAGS="")
+    environment.setdefault("GOCACHE", str(Path.home() / ".cache" / "go-build"))
+    environment.setdefault("GOPATH", str(Path.home() / "go"))
+    environment.setdefault("XDG_CONFIG_HOME", str(Path.home() / ".config"))
+    return environment
+
+
+def copy_go_tree(destination, plugins=True):
+    """Copy the complete Go installer input, including embedded protocol files."""
+    destination = Path(destination)
+    destination.mkdir(parents=True)
+    for name in ("cmd", "internal", "scripts") + (("plugins",) if plugins else ()):
+        shutil.copytree(ROOT / name, destination / name, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    for name in ("go.mod", "go.sum"):
+        shutil.copy2(ROOT / name, destination / name)
+    return destination
+
+
+def helper_binary(source, *, standalone=False):
+    """Build a Go package, or an explicitly isolated mutant file; fail on build errors."""
+    source = Path(source).resolve()
+    key = (str(source), standalone)
+    if key not in _helper_builds:
+        directory = tempfile.TemporaryDirectory(prefix="lb-go-only-helper-")
+        _helper_directories.append(directory)
+        output = Path(directory.name) / source.parent.name
+        environment = go_environment()
+        target = str(source) if standalone else "./" + str(source.parent.relative_to(ROOT))
+        result = subprocess.run([go_executable(), "build", "-tags=", "-trimpath", "-o", str(output), target],
+                                cwd=ROOT, env=environment, capture_output=True, text=True, timeout=600)
+        if result.returncode:
+            raise AssertionError("Go helper build failed: " + result.stderr)
+        _helper_builds[key] = output
+    return _helper_builds[key]
+
+
+def faults_binary():
+    """Build instrumentation only into the binary used by private probes."""
+    key = "laneboss_faults"
+    if key not in _helper_builds:
+        directory = tempfile.TemporaryDirectory(prefix="lb-go-only-faults-")
+        _helper_directories.append(directory)
+        output = Path(directory.name) / PROGRAM
+        result = subprocess.run([go_executable(), "build", "-tags=laneboss_faults", "-trimpath", "-o", str(output),
+                                 "./cmd/laneboss"], cwd=ROOT, env=go_environment(),
+                                capture_output=True, text=True, timeout=600)
+        if result.returncode:
+            raise AssertionError("Go fault binary build failed: " + result.stderr)
+        _helper_builds[key] = output
+    return _helper_builds[key]
+
+PROTOCOL_FILE = ROOT / "internal" / "protocol" / "protocol.md"
 TIMESTAMP = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$"
 
 CONFIG_TEMPLATE = """\
@@ -167,16 +259,38 @@ def base_environment(user_home):
     environment = {key: value for key, value in os.environ.items()
                    if not key.startswith(ENV_PREFIX) and not key.startswith("PYTHON")}
     environment["HOME"] = str(user_home)
+    for key in ("LANEBOSS_BIN", "LANEBOSS_PY_SRC"):
+        if key in os.environ:
+            environment[key] = os.environ[key]
     for group in GO_GROUPS:
         environment[ENV_PREFIX + group.upper() + "_GO_BIN"] = str(go_binary(group))
     return environment
 
 
 def install_environment(user_home):
-    """Install with the interpreter that runs the suite, so every platform tests one Python."""
+    """Pass the Go executable explicitly, including when a test restricts PATH."""
     environment = base_environment(user_home)
-    environment[ENV_PREFIX + "PYTHON"] = sys.executable
+    environment[ENV_PREFIX + "GO"] = go_executable()
+    build = go_environment()
+    for key in ("GOCACHE", "GOPATH", "GOMODCACHE", "XDG_CONFIG_HOME"):
+        if key in build:
+            environment[key] = build[key]
     return environment
+
+
+def group_command(group):
+    binary = os.environ.get("LANEBOSS_BIN")
+    if binary is not None:
+        if not Path(binary).is_absolute() or not Path(binary).is_file() or not os.access(binary, os.X_OK):
+            raise AssertionError("LANEBOSS_BIN must name an executable file by absolute path")
+        return [binary, group]
+    if group in GO_GROUPS:
+        return [str(go_binary(group))]
+    if _installation is not None:
+        if _installation.problem:
+            raise AssertionError(_installation.problem)
+        return [str(_installation.command), group]
+    return [str(helper_binary(ROOT / "cmd" / "laneboss" / "main.go")), group]
 
 
 def run_install(source_root, prefix, user_home, environment=None):
@@ -195,6 +309,23 @@ class Installation:
         self.prefix = self.directory / "prefix"
         self.command = self.prefix / "bin" / PROGRAM
         self.problem = None
+        binary = os.environ.get(ENV_PREFIX + "BIN")
+        if binary is not None:
+            supplied = Path(binary)
+            if not supplied.is_absolute() or not supplied.is_file() or not os.access(binary, os.X_OK):
+                self.problem = "LANEBOSS_BIN must name an executable file by absolute path"
+                return
+            # Install the exact supplied bytes with the real Go install helper.
+            # This exercises the manifest, link and plugin layout without rebuilding
+            # the product for every module of a sharded suite.
+            installer = helper_binary(ROOT / "scripts" / "install" / "main.go")
+            user_home = self.directory / "user-home"
+            user_home.mkdir()
+            result = subprocess.run([str(installer), str(ROOT), str(self.prefix), str(supplied)],
+                                    env=install_environment(user_home), capture_output=True, text=True, timeout=120)
+            if result.returncode:
+                self.problem = "Go install helper failed: " + result.stderr
+            return
         if not INSTALL_SCRIPT.is_file():
             self.problem = "scripts/install.sh does not exist, so the launcher cannot be installed"
             return

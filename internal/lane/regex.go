@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 // Configured expressions retain the launcher's backtracking and timeout
@@ -161,7 +163,7 @@ func classifyOutput(root *os.Root, offset int64, spec object) (string, any, any)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, binary, "__classify")
+	command := exec.CommandContext(ctx, binary, selfexec.Args("lane", "__classify")...)
 	command.Args[0] = classifierProcessLabel
 	command.Stdin = strings.NewReader(string(canonical(job)))
 	command.WaitDelay = time.Second

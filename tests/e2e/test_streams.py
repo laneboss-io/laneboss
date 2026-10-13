@@ -12,6 +12,7 @@ hand from the input, never by asking the code under test what it returned.
 
 import json
 import sys
+import subprocess
 import unittest
 
 from . import support
@@ -23,25 +24,23 @@ _streams = None
 _import_error = None
 
 
-def installed_library():
-    """The ``lib`` directory of the one installed copy this module built."""
-    found = sorted((support._installation.prefix / "share" / support.PROGRAM / "versions").glob("*/lib"))
-    assert len(found) == 1, "expected one installed version, found %r" % (found,)
-    return found[0]
 
 
 def setUpModule():
     global _streams, _import_error
     support.install()
-    library = str(installed_library())
-    if library not in sys.path:
-        sys.path.insert(0, library)
-    try:
-        from laneboss import streams
-    except Exception as error:  # noqa: BLE001 - the red run: the module does not exist yet
-        _import_error = "%s: %s" % (type(error).__name__, error)
-    else:
-        _streams = streams
+
+    class GoStreams:
+        @staticmethod
+        def read(name, line):
+            result = subprocess.run([str(support.faults_binary()), "lane", "__probe"],
+                                    input=json.dumps({"action": "stream", "name": name, "line": line}),
+                                    capture_output=True, text=True, timeout=60)
+            if result.returncode:
+                raise ValueError(result.stderr)
+            return json.loads(result.stdout)
+
+    _streams = GoStreams()
 
 
 def tearDownModule():

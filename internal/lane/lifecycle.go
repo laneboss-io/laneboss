@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 func (s *session) runner(name string) (object, error) {
@@ -524,7 +526,7 @@ func (s *session) begin(lane string, spec object) (object, error) {
 	if err != nil {
 		return nil, err
 	}
-	code, _, errors, err := tmuxRun(socket, "new-session", "-d", "-s", session, "-c", str(spec["cwd"]), "-x", "200", "-y", "50", binary, "__supervise", fifo)
+	code, _, errors, err := tmuxRun(socket, append([]string{"new-session", "-d", "-s", session, "-c", str(spec["cwd"]), "-x", "200", "-y", "50", binary}, selfexec.Args("lane", "__supervise", fifo)...)...)
 	if err != nil {
 		return nil, err
 	}

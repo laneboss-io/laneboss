@@ -8,6 +8,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 type scanFollower struct {
@@ -36,7 +38,7 @@ func (r *supervisedRun) startScanner() {
 		inWrite.Close()
 		return
 	}
-	command := exec.Command(binary, "__follow")
+	command := exec.Command(binary, selfexec.Args("lane", "__follow")...)
 	command.Args[0] = scannerProcessLabel
 	command.Stdin = inRead
 	command.Stdout = outWrite

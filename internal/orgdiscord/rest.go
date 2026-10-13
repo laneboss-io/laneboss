@@ -19,6 +19,8 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/testenv"
 )
 
 const testBaseEnv = "LANEBOSS_TEST_DISCORD_BASE_URL"
@@ -182,7 +184,7 @@ func loadToken(discord discordSettings, store secretStore) (string, error) {
 }
 
 func apiBase() (string, error) {
-	base, set := os.LookupEnv(testBaseEnv)
+	base, set := testenv.DiscordBase()
 	if !set {
 		return "https://discord.com/api/v10", nil
 	}

@@ -3,6 +3,7 @@ session into exactly one lane.lost. The tmux server a run lives in keeps none of
 fixed set of names the launcher gives every tmux command."""
 
 import os
+import json
 import shutil
 import subprocess
 import sys
@@ -18,12 +19,6 @@ FIVE = ("PATH", "HOME", "LANG", "TMPDIR", "USER")
 BY_TMUX = "PWD"
 # The probe test starts its session through the multiplexer module of the installed copy, in a process of its own whose
 # environment it chooses. The session's pane only waits: the server ends with its last session.
-SESSION = """import sys
-sys.path.insert(0, sys.argv[1])
-from laneboss import multiplexer
-socket, name, directory, hold = sys.argv[2:]
-multiplexer.new_session(socket, name, directory, [sys.executable, "-I", "-c", hold])
-"""
 HOLD = "import time; time.sleep(120)"
 
 
@@ -145,9 +140,11 @@ class LaneControlTest(lanesupport.LaneTest):
                         "TMPDIR": str(self.directory)})
         starter.setdefault("LANG", "C.UTF-8")
         starter.setdefault("USER", "lb-h1")
-        started = subprocess.run([sys.executable, "-I", "-B", "-c", SESSION, str(installed_library()), socket,
-                                  "lb-h1-probe", str(self.directory), HOLD], env=starter, capture_output=True,
-                                 text=True, encoding="utf-8", timeout=60)
+        started = subprocess.run([str(support.faults_binary()), "lane", "__probe"],
+                                 input=json.dumps({"action": "tmux-new", "socket": socket, "name": "lb-h1-probe",
+                                                   "directory": str(self.directory),
+                                                   "argv": [sys.executable, "-I", "-c", HOLD]}),
+                                 env=starter, capture_output=True, text=True, timeout=60)
         self.assertEqual(started.returncode, 0, "the session was not started: {!r}".format(started.stderr))
         pids += map(int, self.tmux(socket, "list-panes", "-a", "-F", "#{pid} #{pane_pid}").stdout.split())
         lines = self.tmux(socket, "show-environment", "-g").stdout.splitlines()

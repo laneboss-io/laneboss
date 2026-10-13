@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"laneboss.io/laneboss/internal/jsontext"
 	"math"
 	"reflect"
 	"sort"
@@ -104,6 +105,9 @@ func eventTime(e object) any {
 	return e["recorded_at"]
 }
 func decodeJSON(data []byte) (object, error) {
+	if !jsontext.ValidUnicode(data) {
+		return nil, integrity("stored JSON is not valid Unicode")
+	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
 	v, err := decodeValue(d, 0)

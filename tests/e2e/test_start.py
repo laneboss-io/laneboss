@@ -30,7 +30,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shlex
 import sqlite3
 import stat
 import subprocess
@@ -55,50 +54,7 @@ LANE_LINE = re.compile(
     r"last end: (?:reason (?P<reason>\S+), exit code (?P<exit_code>\S+), survivors (?P<survivors>\S+)"
     r"|(?P<gone>" + GONE + r")); "
     r"state (?P<state>\S+) since (?P<since>\S+); times: (?P<times>.+?)(?:; landing: (?P<landing>.+))?")
-# Follow-up 2. The Python reader runs under an interpreter whose sqlite3 connections stop once, after
-# the first read of the lane rows or of the events that is made outside a transaction (the reader's own reads, not
-# the checks' transactions), until the test lets them go. Between that read and the next the test appends an event
-# with the real writer. A Go reader uses its explicit file synchronization hook after the verified snapshot has been
-# retained and its read locks released, before it emits that snapshot. The assertions below are shared by both.
-PAUSE_AFTER_FIRST_READ = '''import os, runpy, sqlite3, sys, time
-reached, go = os.environ["E2E_PAUSE_REACHED"], os.environ["E2E_PAUSE_GO"]
-real_connect = sqlite3.connect
-paused = []
-
-
-class Cursor(sqlite3.Cursor):
-    def fetchall(self):
-        rows = super().fetchall()
-        sql = getattr(self, "e2e_sql", "")
-        if not paused and not self.connection.in_transaction and ("FROM lanes" in sql or "FROM events" in sql):
-            paused.append(True)
-            open(reached, "w").close()
-            deadline = time.monotonic() + 40
-            while not os.path.exists(go) and time.monotonic() < deadline:
-                time.sleep(0.05)
-        return rows
-
-
-class Connection(sqlite3.Connection):
-    def cursor(self, factory=Cursor):
-        return super().cursor(factory)
-
-    def execute(self, sql, parameters=()):
-        cursor = self.cursor()
-        cursor.e2e_sql = sql
-        return cursor.execute(sql, parameters)
-
-
-def connect(*arguments, **options):
-    options["factory"] = Connection
-    return real_connect(*arguments, **options)
-
-
-sqlite3.connect = connect
-launch = sys.argv[1]
-sys.argv = [launch] + sys.argv[2:]
-runpy.run_path(launch, run_name="__main__")
-'''
+# A tagged Go reader pauses after retaining and verifying its real snapshot. The test appends with a real writer.
 EVENT_LINE = re.compile(r"- seq (\d+), (\S+), lane (\S+), (\S+)")
 RULE_LINE = re.compile(r"- (\S+): sha256 ([0-9a-f]{64})")
 # Rules files with blank lines, an indented line, non-ASCII text and lines that start with `#`; the second has no
@@ -499,15 +455,9 @@ class StartTest(support.LauncherTest):
         self.write_config("alpha")
         self.started("b-one")
         reached, go = self.directory / "reader-reached", self.directory / "reader-go"
-        environment = dict(self.environment, E2E_PAUSE_REACHED=str(reached), E2E_PAUSE_GO=str(go))
-        if "start" in support.GO_GROUPS:
-            environment["LANEBOSS_TEST_START_SYNC"] = str(self.directory / "reader")
-            command = [str(self.command), "start", "--config", "alpha", "--format", "json"]
-        else:
-            python, launch = self.python_and_launch()
-            wrapper = self.directory / "pause-after-first-read.py"
-            wrapper.write_text(PAUSE_AFTER_FIRST_READ, encoding="utf-8")
-            command = [python, "-I", "-B", str(wrapper), launch, "start", "--config", "alpha", "--format", "json"]
+        environment = dict(self.environment, LANEBOSS_FAULTS=json.dumps(
+            {"point": "snapshot", "marker": str(reached), "continue": str(go)}))
+        command = [str(support.faults_binary()), "start", "--config", "alpha", "--format", "json"]
         reader = subprocess.Popen(command, cwd=str(self.directory), env=environment, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE, text=True)
         try:
@@ -539,12 +489,6 @@ class StartTest(support.LauncherTest):
             self.assertEqual((item["reason"], item["exit_code"], item["survivors"]), (None, None, None))
             self.assertEqual(briefing["events"]["total"], 1)
         self.assertEqual([item["kind"] for item in self.events()], ["lane.started", "lane.ended"])
-
-    def python_and_launch(self):
-        exec_line = [line for line in self.command.read_text(encoding="utf-8").splitlines()
-                     if line.startswith("exec ")][0]
-        words = shlex.split(exec_line)
-        return words[1], words[4]
 
     def test_latest_run_end_is_shown(self):
         self.write_config("alpha")

@@ -15,12 +15,14 @@ import (
 	"syscall"
 	"unicode/utf8"
 
-	protocol "laneboss.io/laneboss/src/laneboss/protocol"
+	"laneboss.io/laneboss/internal/cliargs"
+	"laneboss.io/laneboss/internal/identity"
+	"laneboss.io/laneboss/internal/protocol"
 )
 
 const (
 	program         = "laneboss"
-	launcherVersion = "0.6.0-dev4"
+	launcherVersion = identity.Version
 	beginMarker     = "<!-- laneboss launcher block: begin"
 	maxBriefBytes   = 4 * 1024 * 1024
 	maxFileBytes    = 1024 * 1024
@@ -124,8 +126,11 @@ func emit(value any, stdout, stderr io.Writer) int {
 
 func parseOptions(args []string) (options, error) {
 	var o options
-	if len(args) == 0 || args[0] != "render" {
-		return o, refused("brief: a render action is required")
+	if len(args) == 0 {
+		return o, refused("%s", cliargs.Required("ACTION"))
+	}
+	if args[0] != "render" {
+		return o, refused("%s", cliargs.Reject("ACTION"))
 	}
 	seen := map[string]bool{}
 	for i := 1; i < len(args); i++ {
@@ -133,11 +138,11 @@ func parseOptions(args []string) (options, error) {
 		switch key {
 		case "--config", "--lane", "--in", "--out", "--project", "--touches":
 		default:
-			return o, refused("brief render: an unknown argument was supplied")
+			return o, refused("%s", cliargs.Reject(""))
 		}
 		if !hasValue {
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
-				return o, refused("%s: requires a value", key)
+				return o, refused("%s", cliargs.Expected(key))
 			}
 			i++
 			value = args[i]
@@ -156,14 +161,14 @@ func parseOptions(args []string) (options, error) {
 			o.project, o.projectSet = value, true
 		case "--touches":
 			if value != "billing" && value != "deploy" {
-				return o, refused("--touches: must be billing or deploy")
+				return o, refused("%s", cliargs.Reject("--touches"))
 			}
 			o.touches = append(o.touches, value)
 		}
 	}
 	for _, key := range []string{"--lane", "--in", "--out"} {
 		if !seen[key] {
-			return o, refused("%s: is required", key)
+			return o, refused("%s", cliargs.Required(key))
 		}
 	}
 	o.touches = uniqueSorted(o.touches)

@@ -8,21 +8,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 const withheld = "[withheld]"
-const usageRefused = "not accepted; a typed value is never repeated here, see the usage line above or run with --help"
 
 func usage(stderr io.Writer, message string) int {
 	fmt.Fprintln(stderr, "usage: laneboss plugin [-h] ACTION ...")
-	fmt.Fprintln(stderr, "laneboss plugin: error: "+message)
+	fmt.Fprintln(stderr, "laneboss plugin: error: "+cliargs.Screen(message))
 	return 2
 }
 
-// resourceRoot uses the forwarding launcher's own LANEBOSS_PLUGIN_ROOT, or the
-// resolved binary's location for a direct installed invocation. PYTHONPATH can
-// identify an explicitly used checkout; its files are only inspected, and Python
-// is never evaluated or imported by this package.
+// resourceRoot uses an explicit asset root or the resolved binary's location.
+// The installer puts bin/laneboss and plugins/ in the same version directory.
 func resourceRoot() (string, error) {
 	if root := os.Getenv("LANEBOSS_PLUGIN_ROOT"); root != "" {
 		if !filepath.IsAbs(root) {
@@ -33,14 +32,6 @@ func resourceRoot() (string, error) {
 			return "", fmt.Errorf("LANEBOSS_PLUGIN_ROOT does not name a readable launcher root")
 		}
 		return real, nil
-	}
-	for _, path := range filepath.SplitList(os.Getenv("PYTHONPATH")) {
-		if !filepath.IsAbs(path) {
-			continue
-		}
-		if info, err := os.Stat(filepath.Join(path, "laneboss", "plugincmd.py")); err == nil && info.Mode().IsRegular() {
-			return filepath.Dir(filepath.Clean(path)), nil
-		}
 	}
 	executable, err := os.Executable()
 	if err != nil {
@@ -60,14 +51,14 @@ func resourceRoot() (string, error) {
 // Run implements plugin path. It never runs an agent or alters its settings.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		return usage(stderr, "the following arguments are required: ACTION")
+		return usage(stderr, cliargs.Required("ACTION"))
 	}
 	if args[0] == "--help" || args[0] == "-h" {
 		fmt.Fprintln(stdout, "usage: laneboss plugin [-h] ACTION ...\n\nLocate the plugin that ships with the launcher.\n\nActions:\n  path  the directory of the installed plugin, as one JSON value")
 		return 0
 	}
 	if args[0] != "path" {
-		return usage(stderr, "argument ACTION: "+usageRefused)
+		return usage(stderr, cliargs.Reject("ACTION"))
 	}
 	agent := "claude-code"
 	for i := 1; i < len(args); i++ {
@@ -78,11 +69,11 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		label, value, attached := strings.Cut(arg, "=")
 		if !strings.HasPrefix(label, "--") || !strings.HasPrefix("--agent", label) {
-			return usage(stderr, "the command line was "+usageRefused)
+			return usage(stderr, cliargs.Reject(""))
 		}
 		if !attached {
 			if i+1 == len(args) || strings.HasPrefix(args[i+1], "--") {
-				return usage(stderr, "argument --agent: expected one argument")
+				return usage(stderr, cliargs.Expected("--agent"))
 			}
 			i++
 			value = args[i]

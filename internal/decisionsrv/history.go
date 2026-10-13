@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"laneboss.io/laneboss/internal/decisions/jsonout"
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 const maxHookInput = 128 << 10
@@ -103,8 +104,11 @@ func boundedHookInput(reader io.Reader) (object, error) {
 }
 func hookHistory(args []string, stdin io.Reader, stdout io.Writer) int {
 	started := time.Now()
-	o, e := parseOptions(args, "runner org-dir instance event", "")
-	if e != nil || requireOptions(o, "runner") != nil || !wordsSet("claude codex")[o.get("runner")] || (o.get("event") != "" && !wordsSet("SessionStart UserPromptSubmit")[o.get("event")]) {
+	o, e := parseLauncherOptions(args, "runner org-dir instance event", "")
+	if e == nil && len(o["_help"]) > 0 {
+		return printUsage(stdout, "hook-history")
+	}
+	if e != nil || requireOptions(o, "runner") != nil || !wordsSet("claude codex")[o.get("runner")] || (len(o["event"]) > 0 && !wordsSet("SessionStart UserPromptSubmit")[o.get("event")]) {
 		return 0
 	}
 	payload, e := boundedHookInput(stdin)
@@ -144,7 +148,7 @@ func hookHistory(args []string, stdin io.Reader, stdout io.Writer) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), min(800*time.Millisecond, 1100*time.Millisecond-time.Since(started)))
 	defer cancel()
-	cmd := exec.CommandContext(ctx, exe, "history-worker")
+	cmd := exec.CommandContext(ctx, exe, selfexec.Args("decisions", "history-worker")...)
 	cmd.Stdin = strings.NewReader(request)
 	var output cappedBuffer
 	output.limit = 64 << 10
@@ -353,7 +357,7 @@ func startResident(o *orgContext) error {
 			return invalid("cannot open resident streams")
 		}
 		defer null.Close()
-		cmd := exec.Command(exe, "serve", "--db", o.db, "--socket", o.socket, "--idle-exit", "60")
+		cmd := exec.Command(exe, selfexec.Args("decisions", "serve", "--db", o.db, "--socket", o.socket, "--idle-exit", "60")...)
 		cmd.Stdin = null
 		cmd.Stdout = null
 		cmd.Stderr = null

@@ -1,7 +1,7 @@
 # Org history ingestion, injection and owner decisions
 
-Each org has one decision store inside its `.laneboss` home. The launcher and
-org commands require Python 3.11. History is curated markdown, finished lane
+Each org has one decision store inside its `.laneboss` home. The Go launcher provides
+all org commands. History is curated markdown, finished lane
 reports/events, and classified human decisions. No command here opens raw
 session transcripts or uses an LLM to distil supervisor records.
 

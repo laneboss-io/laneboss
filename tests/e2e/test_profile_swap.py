@@ -2,10 +2,12 @@
 
 Run the behavioral suite on a disposable machine with Python 3.11 or newer:
     python3 -m unittest tests.e2e.test_profile_swap -v
-On the editing machine, --static-checks only compiles and exercises CLI help.
+The --static-checks mode also exercises CLI help, so it runs on the disposable machine.
 The product is never imported. Mutants execute copies through the same CLI rows.
 """
 import json
+
+from .support import helper_binary
 import py_compile
 import subprocess
 import sys
@@ -16,7 +18,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "integrations" / "claudock" / "profile_swap.py"
+SCRIPT = ROOT / "integrations" / "claudock" / "profile_swap" / "main.go"
 REAL_SHAPE = Path(__file__).resolve().parent / "fixtures" / "claudock-usage.tsv"
 HEADER = "PROFILE\tPLAN\tWINDOW\tUSED_PERCENT\tRESETS_UTC\n"
 FUTURE = "2099-01-01T01:00:00Z"
@@ -78,7 +80,10 @@ class Stub:
 
     def call(self, args, script=SCRIPT):
         # No inherited environment, credentials, network service, or real vendor on PATH.
-        return subprocess.run([sys.executable, "-I", str(script), *args],
+        # A mutant is one standalone Go source file outside the checkout. Build
+        # exactly that file, rather than its directory or the original package.
+        program = helper_binary(script, standalone=Path(script).resolve() != SCRIPT.resolve())
+        return subprocess.run([str(program), *args],
                               cwd=self.root, env={"PATH": str(self.bin), "LANG": "C.UTF-8"},
                               capture_output=True, encoding="utf-8", timeout=20)
 
@@ -622,17 +627,17 @@ class ProfileSwapTest(unittest.TestCase):
 # Each transformation must kill its named public CLI row with the stated assertion,
 # not with an import failure, missing file, invalid mutant, or broken test setup.
 MUTANTS = (
-    ("threshold_off_by_one", "profile.tightest < settings.max_used_percent",
-     "profile.tightest <= settings.max_used_percent", "test_pick_threshold_is_strict",
+    ("threshold_off_by_one", "p.tightest() < s.maxUsed",
+     "p.tightest() <= s.maxUsed", "test_pick_threshold_is_strict",
      "strict threshold rejects equality"),
-    ("from_not_excluded", "excluded.add(args.from_profile)", "excluded.discard(args.from_profile)",
+    ("from_not_excluded", 'excluded[values["--from"]] = true', 'delete(excluded, values["--from"])',
      "test_resume_excludes_from", "source profile must be excluded"),
-    ("cross_provider_flag_added", 'run_argv = [wrapper, "run", chosen.name, "--", "-p"]',
-     'run_argv = [wrapper, "run", chosen.name, "--allow-cross-provider-resume", "--", "-p"]',
+    ("cross_provider_flag_added", 'runArgv := []string{wrapper, "run", chosen.name, "--", "-p"}',
+     'runArgv := []string{wrapper, "run", chosen.name, "--allow-cross-provider-resume", "--", "-p"}',
      "test_resume_no_cross_provider_flag", "cross-provider refusal must stay enabled"),
-    ("unknown_reset_rejected", 'if value in ("", "-", "—", "unknown"):',
-     'if value in ("", "-", "—"):', "test_pick_real_shape_unknown", "literal unknown must be a valid reset"),
-    ("console_without_opt_in", "if not settings.include_console:", "if False:",
+    ("unknown_reset_rejected", 'case "", "-", "—", "unknown":',
+     'case "", "-", "—":', "test_pick_real_shape_unknown", "literal unknown must be a valid reset"),
+    ("console_without_opt_in", "!s.includeConsole && p.console()", "false && p.console()",
      "test_pick_console_requires_opt_in", "Console requires explicit billing opt-in"),
 )
 
@@ -651,7 +656,7 @@ class MutantTest(unittest.TestCase):
                     self.assertEqual(green.errors, [])
                     self.assertEqual(green.failures, [], "the named row must pass against the original tool")
                     self.assertEqual(source.count(before), 1, "mutant anchor must identify exactly one operation")
-                    mutant = Path(directory) / f"{name}.py"
+                    mutant = Path(directory) / f"{name}.go"
                     mutant.write_text(source.replace(before, after, 1), encoding="utf-8")
                     case = ProfileSwapTest(row)
                     case.script = mutant
@@ -664,14 +669,15 @@ class MutantTest(unittest.TestCase):
 
 
 def static_checks():
-    """The authorized local checks: compile only, then --help with the private stub on PATH."""
+    """Compile and exercise --help with the private stub on the disposable machine."""
     if sys.version_info < (3, 11):
         raise RuntimeError("Python 3.11 or newer is required")
     with tempfile.TemporaryDirectory(prefix="lb-claudock-swap-static-") as directory:
         root = Path(directory)
-        for index, path in enumerate((Path(__file__).resolve(), SCRIPT)):
+        for index, path in enumerate((Path(__file__).resolve(),)):
             py_compile.compile(str(path), cfile=str(root / f"compile-{index}.pyc"), doraise=True)
             print(f"compile {path.name}: PASS", flush=True)
+        helper_binary(SCRIPT)
         compile(STUB, "<claudock stub>", "exec")
         print("compile claudock stub: PASS", flush=True)
         stub = Stub(root)

@@ -8,6 +8,8 @@ directory; nothing here is a real cloud command, and nothing reads the machine: 
 are values of the test's own making, under the test's own temporary directory.
 """
 import os
+
+from .support import helper_binary
 import signal
 import subprocess
 import sys
@@ -15,7 +17,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[2] / "integrations" / "gcp" / "with_identity.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "integrations" / "gcp" / "with_identity" / "main.go"
 
 # The only variables the program may copy from the caller (specification, "What it does", point 2).
 COPIED = ("PATH", "HOME", "TMPDIR", "LANG", "TERM")
@@ -117,7 +119,7 @@ class WithIdentityTest(unittest.TestCase):
             self.fail("the program under test is not there: %s" % SCRIPT)
         if env is None:
             env = self.ident_env()
-        return subprocess.run([sys.executable, "-I", str(SCRIPT)] + list(arguments), env=env, cwd=self.dir,
+        return subprocess.run([str(helper_binary(SCRIPT))] + list(arguments), env=env, cwd=self.dir,
                               input=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8",
                               errors="replace", timeout=120)
 
@@ -704,7 +706,7 @@ class ExitStatusAndStreamsTest(WithIdentityTest):  # case K: the command is repl
 
     def test_the_wrapper_becomes_the_command(self):
         """fails when: the wrapper runs the command as a child process, so the command has another process id."""
-        proc = subprocess.Popen([sys.executable, "-I", str(SCRIPT), "--identities", self.identities, "id1", "--",
+        proc = subprocess.Popen([str(helper_binary(SCRIPT)), "--identities", self.identities, "id1", "--",
                                  "/bin/sh", "-c", "echo $$"], env=self.ident_env(), cwd=self.dir,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
         out, err = proc.communicate(timeout=120)

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"laneboss.io/laneboss/internal/cliargs"
+	decisionargs "laneboss.io/laneboss/internal/decisions/argparse"
 	"laneboss.io/laneboss/internal/decisions/jsonout"
 )
 
@@ -21,37 +23,103 @@ func (o options) get(key string) string {
 }
 
 func parseOptions(args []string, allowed, repeated string) (options, error) {
+	return parseChoiceOptions(args, allowed, repeated, map[string][]string{"kind": {"ledger", "report", "board", "bulletin"}})
+}
+
+func parseChoiceOptions(args []string, allowed, repeated string, choices map[string][]string) (options, error) {
 	o := options{}
+	extra := []string{}
+	allowedNames, appendNames := wordsSet(allowed), wordsSet(repeated)
 	for i := 0; i < len(args); i++ {
+		if args[i] == "--help" || args[i] == "-h" {
+			o["_help"] = []string{"true"}
+			return o, nil
+		}
 		if !strings.HasPrefix(args[i], "--") {
-			return nil, invalid("unrecognized argument")
+			extra = append(extra, args[i])
+			continue
 		}
 		key, value, equals := strings.Cut(strings.TrimPrefix(args[i], "--"), "=")
-		if !strings.Contains(" "+allowed+" ", " "+key+" ") {
-			return nil, invalid("unrecognized argument: --" + key)
+		if !allowedNames[key] {
+			extra = append(extra, args[i])
+			continue
 		}
 		if !equals {
 			i++
-			if i >= len(args) {
-				return nil, invalid("argument --" + key + " requires a value")
+			if i >= len(args) || decisionargs.IsOption(args[i]) {
+				return nil, invalid(decisionargs.Expected("--" + key))
 			}
 			value = args[i]
 		}
-		if len(o[key]) > 0 && !strings.Contains(" "+repeated+" ", " "+key+" ") {
-			return nil, invalid("argument given twice: --" + key)
+		if values, constrained := choices[key]; constrained && !wordsSet(strings.Join(values, " "))[value] {
+			return nil, invalid(decisionargs.Choice("--"+key, value, values))
+		}
+		if key == "idle-exit" {
+			n, err := strconv.ParseFloat(value, 64)
+			if err != nil || !finite(n) || n <= 0 {
+				return nil, invalid("argument --idle-exit: must be a positive number of minutes")
+			}
+		}
+		// argparse's store action uses the last value; append actions retain all.
+		if !appendNames[key] {
+			o[key] = nil
 		}
 		o[key] = append(o[key], value)
+	}
+	if len(extra) > 0 {
+		return nil, invalid(decisionargs.Unrecognized(extra...))
 	}
 	return o, nil
 }
 
 func requireOptions(o options, keys ...string) error {
+	missing := []string{}
 	for _, key := range keys {
-		if o.get(key) == "" {
-			return invalid("argument --" + key + " is required")
+		if len(o[key]) == 0 {
+			missing = append(missing, "--"+key)
 		}
 	}
+	if len(missing) > 0 {
+		return invalid(decisionargs.Required(missing...))
+	}
 	return nil
+}
+
+// Only the org actions delegated through this package belong to the launcher's
+// ScreeningParser. Standalone decisions arguments retain argparse's wording.
+func screenParserError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if p, ok := err.(*commandError); ok && p.code == 2 {
+		return invalid(cliargs.Screen(strings.TrimPrefix(p.message, "invalid input: ")))
+	}
+	return err
+}
+
+func parseLauncherOptions(args []string, allowed, repeated string) (options, error) {
+	o, err := parseChoiceOptions(args, allowed, repeated, map[string][]string{
+		"runner": {"claude", "codex"}, "event": {"SessionStart", "UserPromptSubmit"},
+		"author-authority": {"decide", "inform"},
+	})
+	return o, screenParserError(err)
+}
+
+func printUsage(stdout io.Writer, action string) int {
+	if action == "capture-decision" {
+		fmt.Fprintln(stdout, "usage: laneboss org capture-decision --org-dir DIR --source SOURCE --text-file FILE --author-authority {decide,inform} [--config NAME] [--instance INSTANCE] [--judge JUDGE] [--at TIME]")
+		return 0
+	}
+	if action == "hook-history" {
+		fmt.Fprintln(stdout, "usage: laneboss org hook-history --runner {claude,codex} [--org-dir DIR] [--instance INSTANCE] [--event {SessionStart,UserPromptSubmit}]")
+		return 0
+	}
+	fmt.Fprintf(stdout, "laneboss decisions %s --db FILE", action)
+	if action == "serve" {
+		fmt.Fprint(stdout, " --socket PATH [--config FILE] [--idle-exit MINUTES] (default 60)")
+	}
+	fmt.Fprintln(stdout)
+	return 0
 }
 
 type commandError struct {
@@ -85,28 +153,12 @@ func idleMinutes(o options) (float64, error) {
 // Run also exposes history actions for delegation from the org command group.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "invalid input: an action is required")
+		fmt.Fprintln(stderr, "invalid input: "+decisionargs.Required("command"))
 		return 2
 	}
 	action := args[0]
-	if action == "probe" {
-		if len(args) > 1 {
-			o, err := parseOptions(args[1:], "file", "")
-			if err == nil {
-				err = requireOptions(o, "file")
-			}
-			if err != nil {
-				fmt.Fprintln(stderr, err.Error())
-				return errorCode(err)
-			}
-			text, err := readRegular(o.get("file"), maxTextBytes)
-			if err != nil {
-				fmt.Fprintln(stderr, err.Error())
-				return errorCode(err)
-			}
-			stdin = strings.NewReader(text)
-		}
-		return Probe(stdin, stdout, stderr)
+	if code, handled := TryProbe(args, stdin, stdout, stderr); handled {
+		return code
 	}
 	if action == "hook-history" {
 		return hookHistory(args[1:], stdin, stdout)
@@ -115,12 +167,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return historyWorker(stdin, stdout)
 	}
 	if len(args) == 2 && (args[1] == "--help" || args[1] == "-h") {
-		fmt.Fprintf(stdout, "laneboss decisions %s --db FILE", action)
-		if action == "serve" {
-			fmt.Fprint(stdout, " --socket PATH [--config FILE] [--idle-exit MINUTES] (default 60)")
-		}
-		fmt.Fprintln(stdout)
-		return 0
+		return printUsage(stdout, action)
 	}
 	allowed := "db"
 	switch action {
@@ -136,9 +183,21 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "invalid input: unsupported resident action")
 		return 2
 	}
-	o, err := parseOptions(args[1:], allowed, "attach")
-	if err == nil && action != "capture-decision" {
-		err = requireOptions(o, "db")
+	var o options
+	var err error
+	if action == "capture-decision" {
+		o, err = parseLauncherOptions(args[1:], allowed, "attach")
+	} else {
+		o, err = parseOptions(args[1:], allowed, "attach")
+	}
+	if err == nil && len(o["_help"]) > 0 {
+		return printUsage(stdout, action)
+	}
+	if err == nil {
+		required := map[string][]string{"serve": {"db", "socket"}, "ingest-records": {"db", "org-dir", "instance", "file"}, "ingest-lane": {"db", "config", "lane"}}
+		if action != "capture-decision" {
+			err = requireOptions(o, required[action]...)
+		}
 	}
 	var result any
 	if err == nil {
@@ -163,7 +222,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 				result, err = ingestLane(o)
 			}
 		case "capture-decision":
-			err = requireOptions(o, "text-file", "source", "author-authority")
+			err = screenParserError(requireOptions(o, "org-dir", "source", "text-file", "author-authority"))
 			if err == nil {
 				result, err = captureDecision(o)
 			}

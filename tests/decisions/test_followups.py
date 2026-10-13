@@ -7,6 +7,7 @@ import re
 import shutil
 import signal
 import sqlite3
+import subprocess
 import time
 from contextlib import closing
 
@@ -23,6 +24,27 @@ def supersede_op(target, value):
 
 class StorageProblemTest(StoreCase):
     """Exit 7 says what SQLite was doing and what exists or is stored afterwards, and nothing that is not true."""
+
+    def test_untagged_ignores_fault_var(self):
+        """Fails if release code reads the hook variable; the tagged control must reach it and fail with exit 7."""
+        from tests.e2e import support as launcher_support
+        self.add()
+        marker = self.directory / "release-fault-marker"
+        environment = dict(self.environment, LANEBOSS_FAULTS=json.dumps(
+            {"point": "io-error", "marker": str(marker)}))
+        arguments = ["decisions", "verify", "--db", str(self.db)]
+        release = launcher_support.helper_binary(launcher_support.ROOT / "cmd" / "laneboss" / "main.go")
+        before = self.db.read_bytes()
+        run = subprocess.run([str(release), *arguments], env=environment, capture_output=True,
+                             text=True, encoding="utf-8", timeout=60)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertFalse(marker.exists(), "the untagged binary executed test instrumentation")
+        control = subprocess.run([str(launcher_support.faults_binary()), *arguments], env=environment,
+                                 capture_output=True, text=True, encoding="utf-8", timeout=60)
+        self.assertEqual(control.returncode, 7, control.stderr)
+        self.assertTrue(marker.exists(), "the tagged control never reached the SQL fault")
+        self.assertIn("disk I/O error", control.stderr)
+        self.assertEqual(self.db.read_bytes(), before, "the read fault changed the store")
 
     def test_read_failure_says_reading(self):
         self.add()

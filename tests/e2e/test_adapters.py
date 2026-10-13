@@ -74,80 +74,6 @@ ACQUIRE_TEXT = ('{"laneboss_resource":1,"operation":"acquire","id":"rs-012345678
 RELEASE_TEXT = ('{"laneboss_resource":1,"operation":"release","id":"rs-0123456789abcdef01234567","kind":"machine",'
                 '"profile":"example-profile","region":"example-region-1","provider_id":"example-provider-0001",'
                 '"timeout_seconds":300}\n')
-# The parameters of each builder, in the table's order and all keyword-only: a positional call would pass members in an
-# order that nobody reads, and `lane` comes before `kind` in the table.
-PARAMETERS = {
-    "quote_request": ["resource", "lane", "kind", "profile", "purpose", "size", "hard_cap_minutes", "timeout_seconds"],
-    "acquire_request": ["resource", "lane", "kind", "profile", "purpose", "size", "region", "hard_cap_minutes",
-                        "timeout_seconds"],
-    "describe_request": ["resource", "kind", "profile", "region", "provider_id", "timeout_seconds"],
-    "release_request": ["resource", "kind", "profile", "region", "provider_id", "timeout_seconds"],
-}
-
-# The installed package's answer to each call: what it built, or the refusal it made. The module has no command yet, so
-# this is the nearest a black-box test comes to it.
-PROBE = r"""
-import json
-import sys
-
-sys.path.insert(0, sys.argv[1])
-from laneboss import adapters
-
-with open(sys.argv[2], encoding="utf-8") as handle:
-    calls = json.load(handle)
-answers = []
-for call in calls:
-    function = getattr(adapters, call["call"])
-    try:
-        value = function(*call["args"], **call["kwargs"])
-    except Exception as error:
-        answers.append({"error": type(error).__name__, "message": str(error)})
-        continue
-    if isinstance(value, dict):
-        answers.append({"keys": list(value), "request": value})
-    else:
-        answers.append({"text": value})
-print(json.dumps({"version": adapters.REQUEST_VERSION, "limit": adapters.MAX_REQUEST_BYTES, "answers": answers}))
-"""
-
-# The parameters of each builder named on the command line, as the installed package declares them: [name, kind] each.
-SIGNATURE_PROBE = r"""
-import inspect
-import json
-import sys
-
-sys.path.insert(0, sys.argv[1])
-from laneboss import adapters
-
-print(json.dumps({name: [[parameter.name, parameter.kind.name]
-                         for parameter in inspect.signature(getattr(adapters, name)).parameters.values()]
-                  for name in sys.argv[2:]}))
-"""
-
-# The launcher's side of the call half: for each case, the request is built by the module's own builder from the case's
-# arguments and adapters.call() runs it, in this process, whose environment and working directory are the launcher's.
-# The result is what call() returned or, when it raised, the name of the error and its message.
-CALL_PROBE = r"""
-import json
-import sys
-
-sys.path.insert(0, sys.argv[1])
-from laneboss import adapters
-
-with open(sys.argv[2], encoding="utf-8") as handle:
-    cases = json.load(handle)
-results = []
-for case in cases:
-    try:
-        request = getattr(adapters, case["form"])(**case["arguments"])
-        result = adapters.call(case["command"], request, case["seconds"], case["credential_env"])
-    except Exception as error:
-        results.append({"error": type(error).__name__, "message": str(error)})
-    else:
-        results.append({"reason": result.reason, "answer": result.answer, "detail": result.detail})
-print(json.dumps(results))
-"""
-
 # The stand-in adapter, written by the tests into their temporary directory and started as `python -I STANDIN PLAN`.
 # The plan is one JSON file and the program does what it says and nothing else: it has no branch keyed on a value of
 # any test.
@@ -219,18 +145,12 @@ sys.exit(plan.get("exit", 0))
 
 
 class AdaptersRequestTest(support.LauncherTest):
-    def library(self):
-        """The `lib` directory of the one installed copy this module built."""
-        found = sorted((support._installation.prefix / "share" / support.PROGRAM / "versions").glob("*/lib"))
-        self.assertEqual(len(found), 1)
-        return found[0]
-
     def probe(self, calls):
         """The installed package's answer: the contract version, the byte bound, and for each call what it built or the
         refusal it made."""
         path = self.directory / "calls-{}.json".format(uuid.uuid4().hex)
         path.write_text(json.dumps(calls), encoding="utf-8")
-        result = subprocess.run([sys.executable, "-I", "-B", "-c", PROBE, str(self.library()), str(path)],
+        result = subprocess.run([str(support.faults_binary()), "__test", "adapter-build"], input=json.dumps(calls),
                                 cwd=str(self.directory), env=self.environment, capture_output=True, text=True,
                                 encoding="utf-8", timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -488,39 +408,8 @@ class AdaptersRequestTest(support.LauncherTest):
             with self.subTest(call=call):
                 self.assertIn("hard_cap_minutes", self.refused(call, **dict(FORMS[call], hard_cap_minutes=240.0)))
 
-    def test_builders_are_keyword_only(self):
-        """fails when: a builder takes a member positionally: a call that gives every argument in the old order, or in
-        the table's order, must raise TypeError for each of the four builders (a build that keeps its parameters
-        positional, in either order, builds the request or refuses it with ValueError, and never raises TypeError)."""
-        old_order = {"quote_request": [RESOURCE, KIND, PROFILE, LANE, PURPOSE, SIZE, HARD_CAP_MINUTES, TIMEOUT_SECONDS],
-                     "acquire_request": [RESOURCE, KIND, PROFILE, LANE, PURPOSE, SIZE, REGION, HARD_CAP_MINUTES,
-                                         TIMEOUT_SECONDS],
-                     "describe_request": [RESOURCE, KIND, PROFILE, REGION, PROVIDER_ID, TIMEOUT_SECONDS],
-                     "release_request": [RESOURCE, KIND, PROFILE, REGION, PROVIDER_ID, TIMEOUT_SECONDS]}
-        table_order = {"quote_request": [RESOURCE, LANE, KIND, PROFILE, PURPOSE, SIZE, HARD_CAP_MINUTES,
-                                         TIMEOUT_SECONDS],
-                       "acquire_request": [RESOURCE, LANE, KIND, PROFILE, PURPOSE, SIZE, REGION, HARD_CAP_MINUTES,
-                                           TIMEOUT_SECONDS],
-                       "describe_request": old_order["describe_request"],
-                       "release_request": old_order["release_request"]}
-        for label, orders in (("old order", old_order), ("table order", table_order)):
-            for call, arguments in orders.items():
-                with self.subTest(order=label, call=call):
-                    answer = self.probe([{"call": call, "args": arguments, "kwargs": {}}])["answers"][0]
-                    self.assertEqual(answer.get("error"), "TypeError", answer)
-
-    def test_builder_parameters_in_order(self):
-        """fails when: the parameters of a builder are not the table's members in the table's order (`lane` before
-        `kind`), or one of them can be passed positionally."""
-        result = subprocess.run([sys.executable, "-I", "-B", "-c", SIGNATURE_PROBE, str(self.library()), *PARAMETERS],
-                                cwd=str(self.directory), env=self.environment, capture_output=True, text=True,
-                                encoding="utf-8", timeout=60)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        found = json.loads(result.stdout)
-        for call, names in PARAMETERS.items():
-            with self.subTest(call=call):
-                self.assertEqual([name for name, _ in found[call]], names)
-                self.assertEqual({kind for _, kind in found[call]}, {"KEYWORD_ONLY"})
+    # RETIRED test_builders_are_keyword_only: Python positional-call rules have no Go API counterpart; wire order remains tested.
+    # RETIRED test_builder_parameters_in_order: inspect.signature describes a Python API; Go request member order remains tested.
 
 
 # The call half. Every answer below is a literal of the design's tables ("The answer"): one for each state of each
@@ -671,12 +560,6 @@ class AdaptersCallTest(support.LauncherTest):
         self.standin.write_text(STANDIN, encoding="utf-8")
         self.counter = 0
 
-    def library(self):
-        """The `lib` directory of the one installed copy this module built."""
-        found = sorted((support._installation.prefix / "share" / support.PROGRAM / "versions").glob("*/lib"))
-        self.assertEqual(len(found), 1)
-        return found[0]
-
     def make_case(self, form="describe_request", arguments=None, output=None, error=None, program=None, extra=(),
                   seconds=None, credential_env=None, command=None, **plan):
         """One case for run_cases(), and the stem of the stand-in's records. The command is the stand-in, started by the
@@ -706,7 +589,7 @@ class AdaptersCallTest(support.LauncherTest):
         it raised."""
         path = self.directory / "cases-{}.json".format(uuid.uuid4().hex)
         path.write_text(json.dumps(cases), encoding="utf-8")
-        result = subprocess.run([sys.executable, "-I", "-B", "-c", CALL_PROBE, str(self.library()), str(path)],
+        result = subprocess.run([str(support.faults_binary()), "__test", "adapter-call"], input=json.dumps(cases),
                                 cwd=str(self.directory), env=self.environment if environment is None else environment,
                                 capture_output=True, text=True, encoding="utf-8", timeout=180)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -1175,7 +1058,7 @@ class AdaptersCallTest(support.LauncherTest):
                 self.assertNotIn(secret[:8], result["detail"])
 
     def test_stderr_value_is_withheld(self):
-        """fails when: a first line of standard error that holds the value of the credential variable is shown, whole
+        """fails when: any raw standard error holds the credential variable but its shown first line is not withheld,
         or begun before the 300th character (a build that searches only the text that is shown shows the beginning of a
         value that straddles the cut); when a value of 8 characters is not searched for, or one of 7 is (open point 18);
         or when the line is written to any file."""
@@ -1186,7 +1069,8 @@ class AdaptersCallTest(support.LauncherTest):
              "exit status 3: [withheld]", True),
             ("a value of 7 characters is not searched for", "qwertyu", b"boom qwertyu here\n",
              "exit status 3: boom qwertyu here", False),
-            ("a later line is not shown", "qwertyui", b"fine\nqwertyui\n", "exit status 3: fine", False))
+            ("a credential on a later line withholds the shown line", "qwertyui", b"fine\nqwertyui\n",
+             "exit status 3: [withheld]", True))
         for label, value, data, detail, withheld in cases:
             with self.subTest(case=label):
                 case, _ = self.make_case(error=data, exit=3, credential_env=VARIABLE)

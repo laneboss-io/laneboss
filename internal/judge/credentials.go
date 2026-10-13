@@ -31,7 +31,7 @@ func shape(pattern, left, right string, digit bool) credentialShape {
 const credentialWords = `(?:ap[iİı][ _-]?key|ap[iİı]key|access[ _-]?key|secret[ _-]?key|pr[iİı]vate[ _-]?key|cl[iİı]ent[ _-]?secret|auth[ _-]?token|secret|token|passw(?:or)?d|passphrase|credent[iİı]als?)`
 const credentialPrefix = `(?:[A-Za-zİı0-9]+[_.-])*?`
 const urlSeparator = `(?:\\?/|%2[Ff])`
-const credentialSpace = `[\s\p{Z}\x{0085}\x{001c}-\x{001f}]`
+const credentialSpace = `[\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]`
 
 var credentialShapes = []credentialShape{
 	shape(`-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----`, "", "", false),

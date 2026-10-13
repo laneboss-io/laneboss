@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"laneboss.io/laneboss/internal/testenv"
 	"os"
 	"os/exec"
 	"os/user"
@@ -107,7 +108,7 @@ func gitKind(directory string) (string, string, error) {
 type directoryClaim struct{ holder, name, registry string }
 
 func claimRegistry() (string, error) {
-	path := os.Getenv("LANEBOSS_TEST_CLAIMS_DIR")
+	path := testenv.ClaimsDirectory()
 	if path != "" {
 		if !filepath.IsAbs(path) {
 			return "", refused("LANEBOSS_TEST_CLAIMS_DIR must be an absolute path")

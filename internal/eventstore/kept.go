@@ -137,27 +137,37 @@ func verifyMail(d *Directory, events []Object) (int, int, error) {
 		}
 		where := "lanes/" + lane + "/mail"
 		if !mailNameGrammar.MatchString(file.Name) {
-			return 0, 0, Integrity("a file under %s is not named SEQUENCE-DIGEST", where)
+			return 0, 0, Integrity("a file under %s is not named SEQUENCE-DIGEST (nine digits of sequence, a hyphen and the SHA-256 of its bytes)", where)
+		}
+		info, err := d.mailEntry(file.Lane, file.Name)
+		if err != nil {
+			return 0, 0, Integrity("%s/%s cannot be read as a message: %s", where, file.Name, err)
+		}
+		if info == nil {
+			continue
+		}
+		if !info.Mode().IsRegular() {
+			return 0, 0, Integrity("%s/%s is not a regular file (a message is a file that is not a link)", where, file.Name)
 		}
 		data, err := d.ReadLane(file.Lane, "mail", file.Name, 262144)
 		if err != nil {
-			return 0, 0, Integrity("%s/%s cannot be read as a message", where, file.Name)
+			return 0, 0, Integrity("%s/%s cannot be read as a message: %s", where, file.Name, err)
 		}
 		if data == nil {
 			continue
 		}
 		if digest(data) != strings.SplitN(file.Name, "-", 2)[1] {
-			return 0, 0, Integrity("%s/%s does not match its hash", where, file.Name)
+			return 0, 0, Integrity("%s/%s does not match its hash: its name says what its bytes must hash to", where, file.Name)
 		}
 		found[key{file.Lane, file.Name}] = len(data)
 	}
 	for k, e := range named {
 		size, ok := found[k]
 		if !ok {
-			return 0, 0, Integrity("lane %s: the mail file of sequence %d (event seq %d) is missing", k.lane, num(object(e["payload"])["sequence"]), num(e["seq"]))
+			return 0, 0, Integrity("lane %s: the mail file of sequence %d (event seq %d) is missing: lanes/%s/mail/%s", k.lane, num(object(e["payload"])["sequence"]), num(e["seq"]), k.lane, k.name)
 		}
 		if int64(size) != num(object(e["payload"])["bytes"]) {
-			return 0, 0, Integrity("lane %s: the mail file of sequence %d (event seq %d) has a different byte count", k.lane, num(object(e["payload"])["sequence"]), num(e["seq"]))
+			return 0, 0, Integrity("lane %s: the mail file of sequence %d (event seq %d) has %d bytes, and its event says %d", k.lane, num(object(e["payload"])["sequence"]), num(e["seq"]), size, num(object(e["payload"])["bytes"]))
 		}
 	}
 	orphans := 0

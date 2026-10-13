@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"laneboss.io/laneboss/internal/cliargs"
 	"laneboss.io/laneboss/internal/orgdiscord"
 	"laneboss.io/laneboss/internal/orghook"
 )
@@ -86,12 +87,12 @@ func parseArgs(args []string, allowed []string) (commandArgs, error) {
 		if !positionalOnly && strings.HasPrefix(argument, "-") {
 			flag, value, inline := strings.Cut(argument, "=")
 			if !contains(allowed, flag) {
-				return result, errors.New("unrecognized command option")
+				return result, errors.New(cliargs.Reject(""))
 			}
 			if !inline {
 				i++
 				if i >= len(args) || strings.HasPrefix(args[i], "--") {
-					return result, errors.New(flag + " requires a value")
+					return result, errors.New(cliargs.Expected(flag))
 				}
 				value = args[i]
 			}
@@ -147,7 +148,7 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 		}
 		if len(args) == 0 || args[0] != "add" {
 			fmt.Fprintln(stderr, "usage: "+usage(action))
-			fmt.Fprintln(stderr, "laneboss org instance: error: ACTION must be add")
+			fmt.Fprintln(stderr, "laneboss org instance: error: "+cliargs.Reject("ACTION"))
 			return 2
 		}
 		args = args[1:]
@@ -157,7 +158,7 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 	case "validate":
 		allowed = []string{"--format"}
 	default:
-		fmt.Fprintln(stderr, "laneboss org: unsupported tree action")
+		fmt.Fprintln(stderr, "laneboss org: error: "+cliargs.Reject("ACTION"))
 		return 2
 	}
 	parsed, err := parseArgs(args, allowed)
@@ -166,18 +167,23 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	if err == nil && len(parsed.positionals) != expected {
-		err = errors.New("ORG_DIR and the action's positional arguments are required; no extra arguments are allowed")
+		if len(parsed.positionals) < expected {
+			labels := []string{"ORG_DIR", "name"}
+			err = errors.New(cliargs.Required(labels[len(parsed.positionals):expected]...))
+		} else {
+			err = errors.New(cliargs.Reject(""))
+		}
 	}
 	if err == nil && action == "instance" {
 		if len(parsed.options["--level"]) == 0 {
-			err = errors.New("--level is required")
+			err = errors.New(cliargs.Required("--level"))
 		} else if len(parsed.options["--role"]) == 0 {
-			err = errors.New("--role is required")
+			err = errors.New(cliargs.Required("--role"))
 		}
 	}
 	format := parsed.value("--format", "text")
 	if err == nil && action == "validate" && format != "text" && format != "json" {
-		err = errors.New("--format must be text or json")
+		err = errors.New(cliargs.Reject("--format"))
 	}
 	if err != nil {
 		fmt.Fprintln(stderr, "usage: "+usage(action))

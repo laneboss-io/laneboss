@@ -1,4 +1,4 @@
-// Package state ports `laneboss state` from the Python launcher (src/laneboss).
+// Package state implements `laneboss state`, ported from the Python launcher (tag python-final).
 package state
 
 import (

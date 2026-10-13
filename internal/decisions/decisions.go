@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
+	decisionargs "laneboss.io/laneboss/internal/decisions/argparse"
 	"laneboss.io/laneboss/internal/decisions/jsonout"
 )
 
@@ -31,7 +33,7 @@ func (a *arguments) has(k string) bool  { return len(a.values[k]) != 0 }
 func parseArguments(args []string) (*arguments, error) {
 	a := &arguments{values: map[string][]string{}, positionals: []string{}}
 	if len(args) == 0 {
-		return nil, invalid("a decisions command is required")
+		return nil, invalid(decisionargs.Required("command"))
 	}
 	if args[0] == "--help" || args[0] == "-h" {
 		a.help = true
@@ -39,7 +41,7 @@ func parseArguments(args []string) (*arguments, error) {
 	}
 	a.command = args[0]
 	if !member(a.command, "init migrate add supersede annotate get search embed egress stats verify export import load feedback") {
-		return nil, invalid("unsupported decisions command")
+		return nil, invalid(decisionargs.Choice("command", a.command, strings.Fields(decisionargs.Commands)))
 	}
 	options := "db"
 	switch a.command {
@@ -60,8 +62,16 @@ func parseArguments(args []string) (*arguments, error) {
 	case "search":
 		options += " config mode id project area topic kind status date-from date-to limit all level instance scope rank now half-life cautions"
 	}
+	want, positionalLabel := 0, "id"
+	if member(a.command, "get supersede annotate search feedback") {
+		want = 1
+	}
+	if a.command == "search" {
+		positionalLabel = "query"
+	}
 	aliases := map[string]string{"from": "date-from", "since": "date-from", "to": "date-to", "until": "date-to"}
 	positional := false
+	extra := []string{}
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" && !positional {
@@ -73,88 +83,123 @@ func parseArguments(args []string) (*arguments, error) {
 			return a, nil
 		}
 		if !positional && strings.HasPrefix(arg, "--") {
-			given := strings.TrimPrefix(arg, "--")
-			parts := strings.SplitN(given, "=", 2)
+			parts := strings.SplitN(strings.TrimPrefix(arg, "--"), "=", 2)
 			name := parts[0]
 			if alias, ok := aliases[name]; ok {
 				name = alias
 			}
 			if !member(name, options) {
-				return nil, invalid("unsupported command option")
+				extra = append(extra, arg)
+				continue
+			}
+			label := "--" + name
+			if name == "date-from" {
+				label = "--date-from/--from/--since"
+			} else if name == "date-to" {
+				label = "--date-to/--to/--until"
 			}
 			value := ""
 			if member(name, "list all dry-run") {
 				if len(parts) != 1 {
-					return nil, invalid("flag does not accept a value")
+					return nil, invalid(decisionargs.Ignored(label, parts[1]))
 				}
 				value = "true"
 			} else if len(parts) == 2 {
 				value = parts[1]
 			} else {
-				if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
-					return nil, invalid("option requires a value: --" + name)
+				if i+1 >= len(args) || decisionargs.IsOption(args[i+1]) {
+					return nil, invalid(decisionargs.Expected(label))
 				}
 				i++
 				value = args[i]
 			}
-			a.values[name] = append(a.values[name], value)
-		} else if !positional && strings.HasPrefix(arg, "-") {
-			return nil, invalid("unsupported command option")
-		} else {
+			checked, err := argumentValue(a.command, name, value)
+			if err != nil {
+				return nil, err
+			}
+			if !member(name, "status half-life") {
+				a.values[name] = nil
+			}
+			a.values[name] = append(a.values[name], checked)
+		} else if !positional && decisionargs.IsOption(arg) {
+			extra = append(extra, arg)
+		} else if len(a.positionals) < want {
 			a.positionals = append(a.positionals, arg)
+		} else {
+			extra = append(extra, arg)
 		}
 	}
-	if a.get("db") == "" {
-		return nil, invalid("--db is required")
+	missing := []string{}
+	if !a.has("db") {
+		missing = append(missing, "--db")
+	}
+	if len(a.positionals) < want {
+		missing = append(missing, positionalLabel)
 	}
 	requiredOptions := map[string][]string{"add": {"file"}, "supersede": {"file"}, "annotate": {"file"}, "export": {"out"}, "import": {"in"}, "load": {"in"}, "egress": {"list"}, "feedback": {"event", "source"}}
-	for _, f := range requiredOptions[a.command] {
-		if a.get(f) == "" {
-			return nil, invalid("--" + f + " is required")
+	for _, key := range requiredOptions[a.command] {
+		if !a.has(key) {
+			missing = append(missing, "--"+key)
 		}
 	}
-	want := 0
-	if member(a.command, "get supersede annotate search feedback") {
-		want = 1
+	if len(missing) > 0 {
+		return nil, invalid(decisionargs.Required(missing...))
 	}
-	if len(a.positionals) != want {
-		return nil, invalid("command has missing or extra positional arguments")
+	if len(extra) > 0 {
+		return nil, invalid(decisionargs.Unrecognized(extra...))
 	}
 	if a.command == "search" {
-		providedCautions := a.has("cautions")
-		if a.has("level") {
-			level, err := strconv.Atoi(trimmed(a.get("level")))
-			if err != nil || level < 3 || level > 6 {
-				return nil, invalid("argument --level: invalid choice")
-			}
-			a.values["level"] = []string{strconv.Itoa(level)}
-		}
-		for k, v := range map[string]string{"mode": "keyword", "limit": "20", "scope": "intersection", "rank": "relevance", "cautions": "0"} {
-			if len(a.values[k]) == 0 {
-				a.values[k] = []string{v}
+		for key, value := range map[string]string{"mode": "keyword", "limit": "20", "scope": "intersection", "rank": "relevance", "cautions": "0"} {
+			if !a.has(key) {
+				a.values[key] = []string{value}
 			}
 		}
-		for _, c := range []struct{ field, choices string }{{"mode", "exact keyword vector hybrid"}, {"kind", kinds + " lane_record"}, {"scope", "intersection own-or-level"}, {"rank", "relevance time"}, {"level", "3 4 5 6"}} {
-			if a.has(c.field) && !member(a.get(c.field), c.choices) {
-				return nil, invalid("argument --" + c.field + ": invalid choice")
-			}
-		}
-		for _, v := range a.values["status"] {
-			if !member(v, statuses) {
-				return nil, invalid("argument --status: invalid choice")
-			}
-		}
-		for _, f := range []string{"limit", "cautions"} {
-			n, e := strconv.Atoi(a.get(f))
-			if e != nil || n < 0 || (f == "limit" && n == 0) || (f == "cautions" && providedCautions && n == 0) {
-				return nil, invalid("--" + f + " must be a positive integer")
-			}
-		}
-	}
-	if a.command == "feedback" && !member(a.get("event"), "merged accepted abandoned refusal cited") {
-		return nil, invalid("unsupported feedback event")
 	}
 	return a, nil
+}
+
+// The parser's registered types and choices are checked while values are read,
+// before required-argument errors, as argparse does.
+func argumentValue(command, name, value string) (string, error) {
+	label := "--" + name
+	choices := []string{}
+	if command == "search" {
+		switch name {
+		case "mode":
+			choices = strings.Fields("exact keyword vector hybrid")
+		case "kind":
+			choices = strings.Fields(kinds + " lane_record")
+			sort.Strings(choices)
+		case "status":
+			choices = strings.Fields(statuses)
+			sort.Strings(choices)
+		case "scope":
+			choices = strings.Fields("intersection own-or-level")
+		case "rank":
+			choices = strings.Fields("relevance time")
+		case "level":
+			n, err := strconv.Atoi(trimmed(value))
+			if err != nil {
+				return "", invalid(decisionargs.InvalidInt(label, value))
+			}
+			if n < 3 || n > 6 {
+				return "", invalid(decisionargs.NumericChoice(label, strconv.Itoa(n), strings.Fields("3 4 5 6")))
+			}
+			return strconv.Itoa(n), nil
+		case "limit", "cautions":
+			n, err := strconv.Atoi(trimmed(value))
+			if err != nil || n < 1 {
+				return "", invalid("argument " + label + ": must be a positive integer")
+			}
+			return strconv.Itoa(n), nil
+		}
+	} else if command == "feedback" && name == "event" {
+		choices = strings.Fields("abandoned accepted cited merged refusal")
+	}
+	if len(choices) > 0 && !member(value, strings.Join(choices, " ")) {
+		return "", invalid(decisionargs.Choice(label, value, choices))
+	}
+	return value, nil
 }
 func dispatch(s *store, a *arguments) (any, error) {
 	switch a.command {

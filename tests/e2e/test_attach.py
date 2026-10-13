@@ -1443,123 +1443,60 @@ class StreamKeyTest(AttachTest):
         self.assertIn("must be one of", result.stderr)
 
 
-def installed_library():
-    """The `lib` directory of the one installed copy that this module built."""
-    found = sorted((support._installation.prefix / "share" / support.PROGRAM / "versions").glob("*/lib"))
-    assert len(found) == 1, "expected one installed version, found %r" % (found,)
-    return found[0]
+# RETIRED test_libedit_buffer_is_not_trusted: Go owns its input buffer and does not use libedit; stale history remains tested.
+# RETIRED test_no_line_editor_claims_nothing: Go has no optional Python readline module; empty native input remains tested.
+# RETIRED test_a_failing_buffer_claims_nothing: Go has no Python get_line_buffer callback to fail; native erase behavior remains tested.
+# The current buffer, history, output holding, continuation and truthful hints remain behavior checks below.
+class LineEditorTest(support.LauncherTest):
+    HINT = "nothing was stopped; leave with /exit or Ctrl-D (Ctrl-C stops only a turn that this attach started)"
 
+    def probe(self, **request):
+        result = subprocess.run([str(support.faults_binary()), "__test", "attach-editor"],
+                                input=json.dumps(request), env=self.environment, capture_output=True,
+                                text=True, encoding="utf-8", timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
 
-def line_editor(buffer, backend=None, doc=None, version=None, fails=False):
-    """A stand-in for the `readline` module of an interpreter: `get_line_buffer()` says `buffer`, or raises. `backend`,
-    `doc` (the module's docstring) and `version` (`_READLINE_LIBRARY_VERSION`) are what the interpreters of macOS and of
-    Linux differ in: libedit says `editline`, "libedit" in its docstring, and "EditLine wrapper"."""
-    def get_line_buffer():
-        if fails:
-            raise RuntimeError("the line editor has no buffer to give")
-        return buffer
+    def test_current_buffer_is_trusted(self):
+        self.assertIs(self.probe(input="a line being typed")["typed"], True)
+        self.assertIs(self.probe(input="")["typed"], False)
 
-    fields = {"get_line_buffer": get_line_buffer}
-    if backend is not None:
-        fields["backend"] = backend
-    if doc is not None:
-        fields["__doc__"] = doc
-    if version is not None:
-        fields["_READLINE_LIBRARY_VERSION"] = version
-    return types.SimpleNamespace(**fields)
+    def test_history_is_not_current_input(self):
+        self.assertIs(self.probe(history=["a line entered before"])["typed"], False)
+        self.assertIs(self.probe(history=["a line entered before"], input="new")["typed"], True)
 
-
-GNU = {"backend": "readline", "version": "8.2"}
-# The three ways that an interpreter says that its line editor is libedit: the module attribute of Python 3.13 and later,
-# the docstring that every version has, and the version of the library.
-LIBEDIT = ({"backend": "editline"},
-           {"doc": "Importing this module enables command line editing using libedit readline."},
-           {"version": "EditLine wrapper"})
-
-
-class LineEditorTest(unittest.TestCase):
-    """Finding 2 of the real trial of attach. On macOS the line editor is libedit (its `readline.backend` is `editline`),
-    and with nothing typed and no turn live Ctrl-C said "the line was discarded". Nothing was discarded: the buffer that
-    `get_line_buffer()` gives there is libedit's own, which it does not clear between two lines, so the bytes of a line
-    that was entered before are "typed" at an empty prompt. What the hint may claim is decided by `Attach.something_typed`
-    from what the line editor says; it is tested here with stand-ins for the line editor, on the installed copy, because
-    the libedit path itself cannot run on the box (it was seen only in the trial, on a Mac)."""
-
-    @classmethod
-    def setUpClass(cls):
-        library = str(installed_library())
-        for name in [name for name in sys.modules if name == "laneboss" or name.startswith("laneboss.")]:
-            del sys.modules[name]  # a copy of an earlier module of this run, whose directory is gone
-        sys.path.insert(0, library)
-        cls.library = library
-        from laneboss import attach
-        cls.attach = attach
-
-    @classmethod
-    def tearDownClass(cls):
-        sys.path.remove(cls.library)
-        for name in [name for name in sys.modules if name == "laneboss" or name.startswith("laneboss.")]:
-            del sys.modules[name]
-
-    def typed(self, editor, continued=False):
-        """What `Attach.something_typed` says for a line editor, as an attach that is in this state would."""
-        return self.attach.Attach.something_typed(types.SimpleNamespace(continued=continued, readline=editor))
-
-    def test_gnu_readline_buffer_is_trusted(self):
-        self.assertIs(self.typed(line_editor("a line being typed", **GNU)), True)
-        self.assertIs(self.typed(line_editor("", **GNU)), False)
-
-    def test_libedit_buffer_is_not_trusted(self):
-        # The bytes of the line that was entered before are in the buffer, and nothing is typed: no claim is made, and
-        # the answer is "cannot tell" (None, since delta 4: it was False), which is not the answer "empty".
-        for fields in LIBEDIT:
-            self.assertIs(self.typed(line_editor("the line that was entered before", **fields)), None, str(fields))
-            self.assertIs(self.typed(line_editor("", **fields)), None, str(fields))
-
-    def test_no_line_editor_claims_nothing(self):
-        self.assertIs(self.typed(None), None)
-
-    def test_a_failing_buffer_claims_nothing(self):
-        self.assertIs(self.typed(line_editor("", fails=True, **GNU)), None)
+    def test_erased_buffer_claims_nothing(self):
+        self.assertIs(self.probe(input="a\u007f")["typed"], False)
+        self.assertIs(self.probe(input="a line\u0015")["typed"], False)
 
     def test_hint_text_by_what_is_known(self):
-        # Delta review 4, N-l: where the line editor cannot tell whether a line was typed, the hint says what is true in
-        # both cases; where it can tell, it says what it knows; a key that came while attach was busy discarded no line.
-        hint = self.attach.HINT
-        self.assertEqual(self.attach.hint_text(True, True), "the line was discarded; " + hint)
-        self.assertEqual(self.attach.hint_text(True, False), hint)
-        self.assertEqual(self.attach.hint_text(True, None), "anything typed was discarded; " + hint)
+        self.assertEqual(self.probe(hint_only=True, discarded=True, typed=True)["hint"],
+                         "the line was discarded; " + self.HINT)
+        self.assertEqual(self.probe(hint_only=True, discarded=True, typed=False)["hint"], self.HINT)
+        self.assertEqual(self.probe(hint_only=True, discarded=True, typed=None)["hint"],
+                         "anything typed was discarded; " + self.HINT)
         for typed in (True, False, None):
-            self.assertEqual(self.attach.hint_text(False, typed), hint, repr(typed))
-        self.assertTrue(self.attach.hint_text(True, None).startswith(
-            "anything typed was discarded; nothing was stopped; leave with /exit or Ctrl-D"))
+            self.assertEqual(self.probe(hint_only=True, discarded=False, typed=typed)["hint"], self.HINT)
 
-    def test_unknown_gives_the_hint_for_unknown(self):
-        # Through the decision of Ctrl-C at the prompt: the answer for each line editor, and the words that follow it.
-        cases = [(line_editor("typed", **GNU), "the line was discarded; "), (line_editor("", **GNU), ""),
-                 (line_editor("stale", **LIBEDIT[0]), "anything typed was discarded; "),
-                 (None, "anything typed was discarded; "),
-                 (line_editor("", fails=True, **GNU), "anything typed was discarded; ")]
-        for editor, words in cases:
-            self.assertEqual(self.attach.hint_text(True, self.typed(editor)), words + self.attach.HINT)
+    def test_prompts_have_truthful_hints(self):
+        self.assertEqual(self.probe(input="", discarded=True)["hint"], self.HINT)
+        self.assertEqual(self.probe(input="typed", discarded=True)["hint"], "the line was discarded; " + self.HINT)
+        self.assertEqual(self.probe(input="typed\u0015", discarded=True)["hint"], self.HINT)
 
-    def test_typing_is_three_way(self):
-        # Delta review 4, N-m: output is held back only while the line editor says that a line is being typed; where it
-        # cannot tell (libedit, no line editor, an error), nothing is typed as far as the console is concerned.
-        def typing(editor):
-            return self.attach.Console(None, editor).typing()
-
-        self.assertIs(typing(line_editor("a line being typed", **GNU)), True)
-        self.assertIs(typing(line_editor("", **GNU)), False)
-        for fields in LIBEDIT:
-            self.assertIs(typing(line_editor("the line that was entered before", **fields)), False, str(fields))
-        self.assertIs(typing(None), False)
-        self.assertIs(typing(line_editor("a line", fails=True, **GNU)), False)
+    def test_typing_holds_current_line(self):
+        typing = self.probe(input="a line being typed")
+        self.assertIs(typing["typing"], True)
+        self.assertEqual(typing["output"], "")
+        self.assertEqual(typing["pending"], "answer\n")
+        for request in ({}, {"history": ["stale"]}, {"input": "a\u007f"}):
+            empty = self.probe(**request)
+            self.assertIs(empty["typing"], False)
+            self.assertIn("answer\n", empty["output"])
+            self.assertEqual(empty["pending"], "")
 
     def test_a_continued_message_is_a_discard(self):
-        # The lines of a message that goes on have been read, and a Ctrl-C drops them, whatever the line editor says.
-        for editor in (None, line_editor("", **GNU), line_editor("stale", **LIBEDIT[0]), line_editor("", fails=True)):
-            self.assertIs(self.typed(editor, continued=True), True)
+        for buffer in ("", "typed", "erased\u0015"):
+            self.assertIs(self.probe(input=buffer, continued=True)["typed"], True)
 
 
 if __name__ == "__main__":

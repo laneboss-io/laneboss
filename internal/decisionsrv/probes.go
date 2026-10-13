@@ -1,3 +1,5 @@
+//go:build laneboss_faults
+
 package decisionsrv
 
 import (
@@ -5,10 +7,36 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"laneboss.io/laneboss/internal/decisions/jsonout"
 )
+
+// TryProbe is present as a dispatch hook in both builds. Only this tagged
+// implementation recognises the private command or reads its input.
+func TryProbe(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, bool) {
+	if len(args) == 0 || args[0] != "probe" {
+		return 0, false
+	}
+	if len(args) > 1 {
+		o, err := parseOptions(args[1:], "file", "")
+		if err == nil {
+			err = requireOptions(o, "file")
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return errorCode(err), true
+		}
+		text, err := readRegular(o.get("file"), maxTextBytes)
+		if err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return errorCode(err), true
+		}
+		stdin = strings.NewReader(text)
+	}
+	return Probe(stdin, stdout, stderr), true
+}
 
 // Probe is a JSON bridge to the same private functions used by the service. It
 // lets the acceptance harness exercise arithmetic and byte bounds without a

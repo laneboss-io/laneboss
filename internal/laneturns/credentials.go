@@ -17,8 +17,8 @@ func shape(name, pattern string) credentialShape {
 
 var credentialShapes = []credentialShape{
 	shape("private-key", `-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----`),
-	shape("authorization-header", `(?i)\b(?:proxy-)?authorization["']?\s*[:=]\s*["']?(?:bearer|basic|token|digest)\s+[A-Za-z0-9._~+/=-]{8,}`),
-	shape("bearer-token", `(?i)\bbearer\s+[A-Za-z0-9._~+/-]{16,}`),
+	shape("authorization-header", `(?i)\b(?:proxy-)?authorization["']?[\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]*[:=][\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]*["']?(?:bearer|basic|token|digest)[\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]+[A-Za-z0-9._~+/=-]{8,}`),
+	shape("bearer-token", `(?i)\bbearer[\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]+[A-Za-z0-9._~+/-]{16,}`),
 	shape("code-host-token", `\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|glpat-[A-Za-z0-9_-]{20,})`),
 	shape("chat-token", `\bxox[abposr]-[A-Za-z0-9-]{10,}`),
 	shape("chat-bot-token", `\b[MNO][A-Za-z0-9_-]{23,27}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,40}(?:$|[^A-Za-z0-9_-])`),

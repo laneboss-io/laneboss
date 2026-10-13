@@ -5,6 +5,10 @@ tagged, so there is one entry, for what exists now.
 
 ## Unreleased
 
+- Removed the unused `scripts/make_charts.py` generator; the chart and its source CSV remain.
+
+- Laneboss is now a single Go binary; the Python launcher and packaging have been removed.
+
 ### Added
 
 - **The generic rules files** (`src/laneboss/protocol/executor.md` and `supervisor.md`), one for executor lanes

@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import importlib.abc
 import json
 import os
 from pathlib import Path
@@ -19,9 +20,35 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+PYTHON_FIXTURE_ERROR = ("LANEBOSS_PY_SRC must name the absolute src/ directory of the pinned "
+                        "python-final tree for fixture construction")
+
+
+def python_source(required=True):
+    source = os.environ.get("LANEBOSS_PY_SRC")
+    if source is None and not required:
+        return None
+    if not source or not Path(source).is_absolute() or not (Path(source) / "laneboss" / "__init__.py").is_file():
+        raise RuntimeError(PYTHON_FIXTURE_ERROR)
+    return source
+
+
+class _FixtureImportGuard(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "laneboss" or fullname.startswith("laneboss."):
+            python_source()
+        return None
+
+
+_fixture_source = python_source(required=False)
+if _fixture_source is not None:
+    sys.path.insert(0, _fixture_source)
+sys.meta_path.insert(0, _FixtureImportGuard())
+
 # LANEBOSS_TEST_GO_GROUPS containing "decisions" runs this suite's command lines on the Go port
 # (cmd/laneboss-decisions), built once from this checkout; there is no fallback to Python.
-GO_DECISIONS = "decisions" in os.environ.get("LANEBOSS_TEST_GO_GROUPS", "").split(",")
+GO_DECISIONS = True  # Product execution is Go; python-final is only a fixture source.
 _decisions_go_binary = None
 
 
@@ -35,6 +62,15 @@ def decisions_go_binary():
             raise AssertionError("go build ./cmd/laneboss-decisions failed: " + result.stderr.strip())
         _decisions_go_binary = output
     return _decisions_go_binary
+
+
+def decisions_program():
+    binary = os.environ.get("LANEBOSS_BIN")
+    if binary is not None:
+        if not Path(binary).is_absolute() or not Path(binary).is_file() or not os.access(binary, os.X_OK):
+            raise AssertionError("LANEBOSS_BIN must name an executable file by absolute path")
+        return [binary, "decisions"]
+    return [str(decisions_go_binary())]
 
 # The program that runs the command line with one fault or synchronisation point; see its docstring.
 FAULTS = Path(__file__).resolve().with_name("faults.py")
@@ -132,11 +168,10 @@ VERSION1_OBJECTS = {
 # A program that runs the command line after it writes a marker file, optionally after a delay that stands
 # for a slow start: python -c STARTER <marker> <delay seconds> <command> --db <path> [arguments...]
 STARTER = (
-    "import sys, time\n"
-    "import laneboss.decisions.cli as cli\n"
+    "import os, sys, time\n"
     "time.sleep(float(sys.argv[2]))\n"
     "open(sys.argv[1], 'w').close()\n"
-    "sys.exit(cli.main(sys.argv[3:]))\n"
+    "os.execv(sys.argv[3], sys.argv[3:])\n"
 )
 
 
@@ -331,12 +366,12 @@ class StoreCase(unittest.TestCase):
         self.directory = Path(self.temporary.name)
         self.db = self.directory / "decisions.sqlite"
         self.environment = dict(os.environ)
-        self.environment["PYTHONPATH"] = str(ROOT / "src")
+        self.environment["PYTHONPATH"] = python_source(required=False) or ""
         self.environment["PYTHONDONTWRITEBYTECODE"] = "1"
         self.cli("init")
 
     def command_line(self, command, arguments, db):
-        program = [str(decisions_go_binary())] if GO_DECISIONS else [sys.executable, "-m", "laneboss.decisions"]
+        program = decisions_program()
         return [*program, command, "--db", str(db or self.db), *map(str, arguments)]
 
     def cli(self, command, *arguments, code=0, db=None, environment=None):
@@ -377,14 +412,12 @@ class StoreCase(unittest.TestCase):
         return result
 
     def start_hooked(self, point, marker, command, *arguments, db=None):
-        """Start the command line through faults.py, which installs `point` first and creates the marker file when
-        the command reaches it."""
-        return subprocess.Popen(
-            [sys.executable, str(FAULTS), point, str(marker), command, "--db", str(db or self.db),
-             *map(str, arguments)],
-            cwd=ROOT, env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, encoding="utf-8",
-        )
+        """Run the real Go command with a build-tagged fault point and its marker."""
+        from tests.e2e.support import faults_binary
+        environment = dict(self.environment, LANEBOSS_FAULTS=json.dumps({"point": point, "marker": str(marker)}))
+        return subprocess.Popen([str(faults_binary()), "decisions", command, "--db", str(db or self.db),
+                                 *map(str, arguments)], cwd=ROOT, env=environment,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
 
     def cli_hooked(self, point, command, *arguments, code, db=None):
         """Run the command to its end through faults.py and check its exit code and that it reached the point."""
@@ -619,7 +652,7 @@ class StoreCase(unittest.TestCase):
         """Start the command line through STARTER: the marker file appears once the interpreter has started
         and imported the command line, `delay` seconds later; the command runs right after."""
         return subprocess.Popen(
-            [sys.executable, "-c", STARTER, str(marker), str(delay), command, "--db", str(db or self.db),
+            [sys.executable, "-c", STARTER, str(marker), str(delay), *decisions_program(), command, "--db", str(db or self.db),
              *map(str, arguments)],
             cwd=ROOT, env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, encoding="utf-8",

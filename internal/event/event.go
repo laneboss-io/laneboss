@@ -1,4 +1,4 @@
-// Package event ports `laneboss event` from the Python launcher (src/laneboss).
+// Package event implements `laneboss event`, ported from the Python launcher (tag python-final).
 package event
 
 import (

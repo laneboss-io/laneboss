@@ -22,7 +22,7 @@ type sectionSpec struct {
 }
 
 // Unlike regexp's ASCII-only \s, Python's label checks accept Unicode spaces.
-const space = `[\t\n\v\f\r \x{0085}\x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}]`
+const space = `[\t\n\v\f\r \x{001c}-\x{001f}\x{0085}\x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}]`
 
 var (
 	headingPattern   = regexp.MustCompile(`^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$`)

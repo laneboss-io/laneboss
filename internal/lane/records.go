@@ -153,6 +153,26 @@ func (r *scanRecord) open(scan *refusalScan) bool {
 		r.state = "unreadable"
 		return false
 	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		r.file.Close()
+		r.file = nil
+		r.state = "refused-zone"
+		return false
+	}
+	if stat.Nlink > 1 {
+		zones := []string{scan.s.c.home, scan.s.c.states, scan.s.c.state, scan.s.c.directory}
+		for _, zone := range scan.s.c.zones {
+			zones = append(zones, zone.path)
+		}
+		linked, err := HardlinkInZones(info, zones)
+		if err != nil || linked {
+			r.file.Close()
+			r.file = nil
+			r.state = "refused-zone"
+			return false
+		}
+	}
 	r.state = "covered"
 	r.mtime = float64(info.ModTime().UnixNano()) / 1e9
 	stop := info.Size()

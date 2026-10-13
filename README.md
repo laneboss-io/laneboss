@@ -123,9 +123,8 @@ worktree and the merged branch go, the lane's record stays.
 - Linux or macOS with a POSIX `sh`, and `git` and `tmux` on `PATH` (`doctor` checks the last two). Lanes run in tmux
   sessions whose sockets are in `/tmp/laneboss-UID/`; on a system without `/proc` they also use `ps` to follow a run's
   processes.
-- Python 3.11 or newer for the launcher. It needs nothing beyond the standard library (`sqlite3` and `tomllib`).
-- The decision store alone also runs on Python 3.9 or newer, from a checkout; it needs SQLite 3.34 or newer with FTS5
-  and its `trigram` tokenizer ([the manual](docs/decisions.md)).
+- Go is needed to build the launcher. The installer selects the pinned Go 1.26.0 toolchain and builds with
+  `go build -trimpath`. The installed command is one Go binary, with SQLite included.
 
 With no checkout, one command installs the launcher:
 
@@ -145,20 +144,21 @@ export PATH="$HOME/.local/bin:$PATH"
 laneboss --version
 ```
 
-`scripts/install.sh` installs into `~/.local` without pip, network access or administrator rights; it takes
-`--prefix DIR` to install elsewhere, and `LANEBOSS_PYTHON` chooses the interpreter.
+`scripts/install.sh` builds and installs into `~/.local` without administrator rights. It takes `--prefix DIR`
+to install elsewhere; `LANEBOSS_GO` selects the Go executable. Missing toolchains and modules are downloaded by Go.
+Plugin files are installed beside the binary and located by `laneboss plugin path`.
 
 ## Quick start
 
 From a checkout of this repository, using the invented configuration in `examples/minimal`:
 
 ```sh
-# 1. Install into ~/.local, without pip or administrator rights. With no checkout, one command does it (what it
+# 1. Build and install into ~/.local, without administrator rights. With no checkout, one command does it (what it
 #    does, needs and trusts: docs/install.md). It runs the installer of what it fetches, with your rights, and
 #    nothing checks that. The command is
 #      curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh
 #    and LANEBOSS_SOURCE names a copy on this machine to use instead of a download. From this checkout, the
-#    installer that the command runs needs no network access either:
+#    installer builds the pinned Go toolchain's binary:
 sh scripts/install.sh
 export PATH="$HOME/.local/bin:$PATH"
 laneboss --version
@@ -230,28 +230,22 @@ in; `org hook-history` gives a runner its own instance's or its level's past cas
 outcomes, with "do not repeat" warnings kept; `org capture-decision` stores an owner's clear decision verbatim
 ([docs/org-history.md](docs/org-history.md)).
 
-## Claude through Claudock, with profile swap
+## Go layout
 
-Where Claude Code runs on several [Claudock](docs/claudock.md) profiles (they share one session history), a runner
-names a profile in its `command`, and `integrations/claudock/profile_swap.py` (Python 3.11 or newer) moves work
-between them. It reads quota from `claudock usage`, never stores a profile name, and never picks a per-token Console
-API profile unless you opt in with `--include-console`:
+`cmd/laneboss` builds the installed executable. Command implementations live in `internal/`,
+and `internal/protocol/` holds the embedded protocol assets. The per-group `cmd/laneboss-<group>`
+entry points remain for the migration test harness; the installer ships only `laneboss`.
+The shell plugin lives in `plugins/claude-code/`.
 
-```sh
-python3 integrations/claudock/profile_swap.py pick --settings ~/.config/laneboss/profile-swap.toml
-python3 integrations/claudock/profile_swap.py limited "$STATE_DIR/lanes/LANE/output.log"   # 0: a usage limit was hit
-python3 integrations/claudock/profile_swap.py resume --session ID --from PROFILE -- --model MODEL
-```
-
-`resume` picks another profile with room left and continues the same session there; a limit is not a failure. The
-settings file is your own (an example with invented names: `examples/claudock/profile-swap.toml`); the loop, the exit
-codes and the limit messages it recognises are in [docs/claudock.md](docs/claudock.md#profile-swap).
+Four optional Go programs can be built separately: `examples/judges/typesafe_jev`,
+`integrations/claudock/cos`, `integrations/claudock/profile_swap`, and `integrations/gcp/with_identity`.
+Their local READMEs describe the flags, output and `go build -trimpath` commands.
 
 ## What is built
 
 | Part | Built and tested | Not built yet |
 |---|---|---|
-| Installation | `scripts/install.sh`: no pip, network access or administrator rights; installed versions are immutable and checked against a manifest. `install.sh` at the root, for anybody without a checkout: it gets the source of one version and runs that version's own installer ([docs/install.md](docs/install.md)) | |
+| Installation | `scripts/install.sh`: builds one Go binary with Go 1.26.0 and `-trimpath`, installs plugins without administrator rights; installed versions are immutable and checked against a manifest. `install.sh` at the root, for anybody without a checkout: it gets the source of one version and runs that version's own installer ([docs/install.md](docs/install.md)) | |
 | Configurations | One per company, kept apart from every other (isolation by identity, not by path text); organisations; level names L3 to L6 | |
 | Org template | `org init`, `instance add`, `render` and `validate`: one folder, protocol sources and generated rules, schemas and secret checks ([docs/org.md](docs/org.md)); the shared level- and identity-aware hook with refusal descriptions, `org hook`, `refusals` and `check-hooks` ([docs/org-hooks.md](docs/org-hooks.md)); L5/L6 owner channels with `org channel add` ([docs/org-discord.md](docs/org-discord.md)); one history store per org, `org hook-history` and `org capture-decision` ([docs/org-history.md](docs/org-history.md)) | `lane start` and `resume` checking an org instance's runner command; `org render` registering the history hook in runner settings; the gateway that delivers channel events and calls decision capture |
 | Event store | One SQLite file per configuration: append-only, a hash on every event, duplicate-safe appends, the lane projection, `event tail --follow`, `state verify` and `rebuild` | The network service in front of the store |
@@ -260,14 +254,12 @@ codes and the limit messages it recognises are in [docs/claudock.md](docs/claudo
 | Refusals | Guard refusals read from a lane's raw session records, suspected workarounds, the supervisor's review, and the gate at `lane mark --state accepted` or `merged` | Telling the owner about refusals; a judge that reads suspicions; the record formats of other agent programs |
 | Judges | The contract and `laneboss judge list`, `ask` and `egress`; every ask is logged, and a text the credential detector refuses is withheld before anything is sent (nothing in the launcher uses a judge yet) | The judge that picks a difficulty |
 | Supervisor sessions | `laneboss start`, the briefing a supervisor session reads; the Claude Code plugin's `/laneboss` command | |
-| Claudock | `cos`, an interactive front for accounts that take only headless requests, and `profile_swap.py`, quota selection and resumption of the same session on another profile ([docs/claudock.md](docs/claudock.md)); tests use stand-in wrappers and invented data. Profile swap has compile/help checks; its behavioral suite is provided for disposable-box verification | |
 | Environment | `laneboss doctor`: one result line per check, and a non-zero exit when one fails | |
 | Owner decisions | `laneboss decisions`: the decision store, with the owner's exact words and provenance | Binding it to a configuration |
 | Publication | `scripts/scan.sh` and a pre-commit hook | |
 | Whole areas | | Test machines, owner messages and cost accounting (their configuration fields are checked but not used yet) |
 
-[Left for later lanes](docs/architecture.md#left-for-later-lanes) lists the rest. The runner block for accounts kept as
-Claudock profiles in [docs/claudock.md](docs/claudock.md) is an example that no test runs.
+[Left for later lanes](docs/architecture.md#left-for-later-lanes) lists the rest. External runners are configured as commands; their account management remains outside the launcher.
 
 ## A lane's life
 
@@ -379,8 +371,7 @@ definition `hook` and `harness` are refusals and `os` and `test` are not, and th
 nine runs asked identical requests, which measures how stable the answer is, not how accurate the judge is in general.
 Nothing else was measured: five subjects say nothing about other results, and nothing in the launcher uses a judge yet
 ([docs/judges.md](docs/judges.md)). The pairs behind the chart are in
-[docs/assets/data/judge_answers.csv](docs/assets/data/judge_answers.csv), and `python3 scripts/make_charts.py` draws
-it from them.
+[docs/assets/data/judge_answers.csv](docs/assets/data/judge_answers.csv); the chart is a retained result of that trial.
 
 ## Commands
 
@@ -417,7 +408,7 @@ one configuration, with `--config NAME` or the variable `LANEBOSS_CONFIG`; the l
 | `laneboss doctor --config N` | Checks the configuration, its state directory, `git`, `tmux`, each runner's programs, each judge's program and the organisation's tools directory; it also warns, without failing, about a runner that can take turns and has no `limit_patterns`. |
 | `laneboss start [--config N] [--role ROLE] [--format text\|json]` | Prints the briefing a supervisor session reads when it begins: configuration, protocol, standing rules with their text, role, read-only checks, lanes by group (running, ended, accepted, lost, and idle: turn-based lanes between two turns) and recent events. Without a configuration it lists them. Appends no event and creates no state (on a file system where a directory cannot be locked it may create the reader's `.lock` file, as every reader of the store does: "Known limits" in [docs/architecture.md](docs/architecture.md)). |
 | `laneboss plugin path [--agent claude-code]` | Prints the directory of the installed Claude Code plugin (the `/laneboss` command) as one JSON string; not bound to a configuration. See [docs/plugin.md](docs/plugin.md). |
-| `laneboss decisions ARGS` | The owner decision store; the same as `python -m laneboss.decisions ARGS`. |
+| `laneboss decisions ARGS` | The owner decision store, dispatched in-process to its Go implementation. |
 
 A supervisor learns about every change of a lane from its events: `event tail --follow` shows `lane.started`,
 `lane.stuck`, `lane.timeout` and `lane.ended` as they happen ([Lanes](docs/architecture.md#lanes)). With guards in
@@ -456,18 +447,17 @@ manual.
 - [docs/decisions.md](docs/decisions.md): the owner decision store.
 - [docs/plugin.md](docs/plugin.md): the Claude Code plugin: its one command, how it handles arguments, and the
   steps to add it to Claude Code.
-- [docs/claudock.md](docs/claudock.md): Laneboss with Claudock: a runner for accounts kept as Claudock profiles, and
-  `cos`, an interactive front for accounts that take only headless requests, plus quota-aware profile swaps
-  that resume the same session.
-- [src/laneboss/protocol/protocol.md](src/laneboss/protocol/protocol.md): the shared protocol.
+- [docs/claudock.md](docs/claudock.md): configuring an external Claudock runner.
+- [internal/protocol/protocol.md](internal/protocol/protocol.md): the shared protocol.
+- [internal/protocol/executor.md](internal/protocol/executor.md): the executor brief.
+- [internal/protocol/supervisor.md](internal/protocol/supervisor.md): the supervisor brief.
+- [internal/protocol/continue.md](internal/protocol/continue.md): the continuation brief.
 - [examples/minimal/](examples/minimal/): the example configuration used above.
 - [CONTRIBUTING.md](CONTRIBUTING.md): running the tests, the publication scan, commit rules and the refusal
   rule.
 - [CHANGELOG.md](CHANGELOG.md): what has changed.
 
-Works with Claudock: [docs/claudock.md](docs/claudock.md) shows one runner that starts the agent program under the
-account of a Claudock profile, `cos`, a small terminal front for accounts that take only headless requests,
-and `profile_swap.py`, which moves an existing session to a profile with room left. Laneboss does not need Claudock.
+Laneboss can run external agent wrappers, including Claudock; it does not require a particular wrapper.
 
 ## Status
 

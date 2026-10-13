@@ -151,6 +151,8 @@ class LaneTest(support.LauncherTest):
 
     def setUp(self):
         super().setUp()
+        # Only the tagged harness binary supports the private claims registry.
+        self.command = support.faults_binary()
         # tmux keeps its sockets below TMUX_TMPDIR; a short private directory keeps the socket paths within the
         # length a Unix socket allows, keeps these servers apart from any other tmux, and lets the test remove them.
         self.tmux_dir = Path(tempfile.mkdtemp(prefix="lbt", dir="/tmp")).resolve()

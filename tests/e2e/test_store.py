@@ -10,7 +10,6 @@ import json
 import os
 from pathlib import Path
 import queue
-import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -21,21 +20,6 @@ from . import support
 
 # Runs the installed program unchanged under an interpreter whose flock refuses directories, as on a file
 # system without directory locks, so the lock-file fallback is taken.
-NO_DIRECTORY_LOCKS = '''import errno, fcntl, os, runpy, stat, sys
-real_flock = fcntl.flock
-
-
-def flock(descriptor, operation):
-    if stat.S_ISDIR(os.fstat(descriptor).st_mode):
-        raise OSError(errno.EOPNOTSUPP, "directory locks are not supported on this file system")
-    return real_flock(descriptor, operation)
-
-
-fcntl.flock = flock
-launch = sys.argv[1]
-sys.argv = [launch] + sys.argv[2:]
-runpy.run_path(launch, run_name="__main__")
-'''
 
 
 def setUpModule():
@@ -361,16 +345,11 @@ class StoreTest(support.LauncherTest):
         self.assertNotIn("internal error", result.stderr)
 
     def test_reader_lock_file_fallback(self):
-        exec_line = [line for line in self.command.read_text(encoding="utf-8").splitlines()
-                     if line.startswith("exec ")][0]
-        words = shlex.split(exec_line)
-        python, launch = words[1], words[4]
-        wrapper = self.directory / "no-directory-locks.py"
-        wrapper.write_text(NO_DIRECTORY_LOCKS, encoding="utf-8")
+        environment = dict(self.environment, LANEBOSS_FAULTS=json.dumps({"point": "directory-lock"}))
 
         def start(*arguments):
-            return subprocess.Popen([python, "-I", "-B", str(wrapper), launch, *map(str, arguments)],
-                                    cwd=str(self.directory), env=self.environment, stdout=subprocess.PIPE,
+            return subprocess.Popen([str(support.faults_binary()), *map(str, arguments)],
+                                    cwd=str(self.directory), env=environment, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, text=True)
 
         self.append(self.event(id="fallback-1"))

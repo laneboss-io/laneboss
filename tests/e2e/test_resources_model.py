@@ -251,9 +251,9 @@ class ResourceModelTest(support.LauncherTest):
         return seqs
 
     def library(self):
-        found = sorted((support._installation.prefix / "share" / support.PROGRAM / "versions").glob("*/lib"))
-        self.assertEqual(len(found), 1)
-        return found[0]
+        # This reference fold constructs expected resource fixtures. The event
+        # append/state assertions still go through the installed Go executable.
+        return support.python_source()
 
     def probe(self, queries=(), config="alpha"):
         """The installed package's answer about the stored events: each record's state and held, and the reasons

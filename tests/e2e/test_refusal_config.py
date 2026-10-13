@@ -92,13 +92,14 @@ class RefusalConfigurationTest(support.LauncherTest):
         self.assertIn("{log}", result.stderr)
         # No code path, fixture or document still offers it: the word appears in the package only in that refusal,
         # nowhere in the stand-in or the refusal tests' support, and in a document only where it says so.
-        source = support.ROOT / "src" / "laneboss"
-        found = sorted(str(path.relative_to(source)) for path in source.rglob("*.py")
+        source = support.ROOT / "internal"
+        found = sorted(str(path.relative_to(source)) for path in source.rglob("*.go")
                        if "codex" in path.read_text(encoding="utf-8").lower())
         # The org template supports Codex as a RUNNER of its hook (docs/org-hooks.md), so the name appears in the
         # org modules and the org parser's --runner choices. None of them may offer it as a session-record format.
-        runner_modules = {"cli.py", "orgexamples.py", "orghook.py"}
-        self.assertEqual([name for name in found if name not in runner_modules], ["config.py"])
+        runner_modules = {"orghook/orghook.go", "orghook/examples.go", "orghook/settings.go", "orghook/policy.go",
+                          "decisionsrv/decisionsrv.go", "decisionsrv/history.go"}
+        self.assertEqual([name for name in found if name not in runner_modules], ["brief/schema.go", "config/schema.go"])
         for name in sorted(runner_modules & set(found)):
             text = (source / name).read_text(encoding="utf-8").lower()
             self.assertIsNone(re.search(r"""format["']?\s*[:=]\s*["']codex""", text), name)
@@ -127,8 +128,8 @@ class RefusalConfigurationTest(support.LauncherTest):
         # calls text "any log".
         entry = re.compile(r'format\s*=\s*"text"\s*,\s*paths\s*=\s*(\[[^\]]*\])')
         for name in ("README.md", "CHANGELOG.md", "docs/architecture.md", "docs/configuration.md",
-                     "examples/minimal/config.toml", "src/laneboss/sessions.py", "src/laneboss/refusals.py",
-                     "src/laneboss/config.py", "tests/e2e/sessionstandin.py", "tests/e2e/refusalsupport.py"):
+                     "examples/minimal/config.toml", "internal/laneturns/config.go", "internal/lane/refusals.go",
+                     "internal/config/schema.go", "tests/e2e/sessionstandin.py", "tests/e2e/refusalsupport.py"):
             text = (support.ROOT / name).read_text(encoding="utf-8")
             for paths in entry.findall(text):
                 self.assertEqual(paths, '["{log}"]', name)

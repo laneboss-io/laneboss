@@ -13,14 +13,12 @@ about an error answer, so the error bodies here are invented and the program mus
 made up at run time and look like a variable name, so that a key typed as an option value gets past that grammar. The
 program is driven only as a command.
 
-This module runs alone, with no import from another test module, and under Python 3.9 too:
-`LANEBOSS_TEST_PYTHON39=<a python3.9> python3.9 -m unittest tests/e2e/test_judge_jev.py` is the documented second run
-(the decision store's tests have one too). The variable is REQUIRED: the program is run under the suite's own Python
-and under the one that the variable names, and a run without it fails `test_runs_under_3_9_and_own_python` with one
-line that says how to provide a Python 3.9. Nothing is searched for on PATH and nothing is skipped.
+This module builds the Go helper once and runs it as a process. Provider requests use only the local stand-in.
 """
 
-import ast
+import re
+
+from .support import helper_binary
 import collections
 import decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -38,7 +36,7 @@ import unittest
 import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
-PROGRAM = ROOT / "examples" / "judges" / "typesafe_jev.py"
+PROGRAM = ROOT / "examples" / "judges" / "typesafe_jev" / "main.go"
 ENDPOINT = "/v1/systemone"
 REQUEST_ID_HEADER = "x-typesafe-request-id"
 MISSING = object()
@@ -46,14 +44,6 @@ ERROR_BODY = {"detail": "the-service-explains-what-went-wrong"}
 HELD_LINE = "the answer held the key and was not printed"
 # What test_runs_under_3_9_and_own_python says when LANEBOSS_TEST_PYTHON39 names no interpreter. That test must not
 # pass with its Python 3.9 leg never run, so it fails instead, and this one line says how to provide a 3.9.
-NO_PYTHON39 = ("no Python 3.9 interpreter: set LANEBOSS_TEST_PYTHON39 to one (for example `uv python install 3.9` "
-               "and then LANEBOSS_TEST_PYTHON39=$(uv python find 3.9), or your package manager's python3.9); this "
-               "test fails without it because its claim, that the program runs under Python 3.9, must really be run")
-# What the program may import where the interpreter cannot list its standard library (Python 3.9 has no
-# sys.stdlib_module_names); every name here is a standard library module.
-KNOWN_STANDARD = frozenset({"argparse", "decimal", "http", "json", "math", "os", "re", "socket", "stat", "sys",
-                            "threading", "urllib"})
-
 
 def contract_request(**changes):
     """The contract's request, with the given fields replaced (MISSING removes a field)."""
@@ -255,13 +245,14 @@ class JudgeTest(unittest.TestCase):
         self.addCleanup(service.stop)
         return service
 
-    def run_program(self, arguments, stdin, python=None, program=None, environment=None):
+    def run_program(self, arguments, stdin, program=None, environment=None):
         """Runs the program once. `stdin` is a request (a dict), text or bytes."""
         if isinstance(stdin, dict):
             stdin = json.dumps(stdin, ensure_ascii=False) + "\n"
         data = stdin.encode("utf-8") if isinstance(stdin, str) else stdin
         started = time.monotonic()
-        done = subprocess.run([python or sys.executable, str(program or PROGRAM)] + [str(item) for item in arguments],
+        binary = Path(program) if program is not None else helper_binary(PROGRAM)
+        done = subprocess.run([str(binary)] + [str(item) for item in arguments],
                               input=data, capture_output=True, cwd=str(self.work),
                               env=self.environment if environment is None else environment, timeout=90)
         result = Result(done.returncode, done.stdout.decode("utf-8"), done.stderr.decode("utf-8"),
@@ -946,105 +937,60 @@ class BadInputTest(JudgeTest):
 
 
 class ProgramTest(JudgeTest):
-    """E. One stand-alone file that needs nothing but the standard library of Python 3.9 or newer."""
+    """The Go adapter is independently built and runs without an interpreter."""
 
     def test_imports_only_the_standard_library(self):
-        tree = ast.parse(PROGRAM.read_text(encoding="utf-8"))
-        modules = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                modules.update(alias.name.split(".")[0] for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                self.assertEqual(node.level, 0, "a relative import")
-                modules.add((node.module or "").split(".")[0])
-            elif isinstance(node, ast.Name):
-                self.assertNotEqual(node.id, "__import__")
-            elif isinstance(node, ast.Attribute):
-                self.assertNotEqual(node.attr, "import_module")
-        standard = getattr(sys, "stdlib_module_names", None) or KNOWN_STANDARD
-        self.assertNotIn("laneboss", modules)
-        self.assertEqual(sorted(modules - set(standard)), [])
-        self.assertEqual(sorted(modules - KNOWN_STANDARD), [], "a new import: add it to KNOWN_STANDARD on purpose")
-        self.assertIn("urllib", modules)
+        source = PROGRAM.read_text(encoding="utf-8")
+        imports = re.search(r"import \(\n(.*?)\n\)", source, re.S)
+        self.assertIsNotNone(imports, "the Go import block must be reviewable")
+        packages = re.findall(r'"([^"]+)"', imports.group(1))
+        self.assertTrue(packages)
+        self.assertIn("net/http", packages)
+        self.assertTrue(all("." not in name.split("/")[0] for name in packages),
+                        "the standalone adapter must use standard-library imports")
+        self.assertNotIn("os/exec", packages, "the adapter must not need another executable")
 
     def test_one_writer_per_stream(self):
-        """Decision 1: ONE place writes to standard output and ONE to standard error, and it is the same os.write,
-        so that the check for the key stands in front of every byte; nothing else prints, not even argparse."""
-        tree = ast.parse(PROGRAM.read_text(encoding="utf-8"))
-        writes = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                  and node.func.attr == "write" and isinstance(node.func.value, ast.Name) and node.func.value.id == "os"]
-        self.assertEqual(len(writes), 1, "exactly one call of os.write writes to standard output and standard error")
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                self.assertNotEqual(node.func.id, "print")
-            if isinstance(node, ast.Attribute):
-                self.assertNotIn(node.attr, ("stdout", "stderr", "print_help", "print_usage", "_print_message"))
-        switches = [keyword for node in ast.walk(tree) if isinstance(node, ast.Call) for keyword in node.keywords
-                    if keyword.arg == "add_help"]
-        self.assertTrue(switches and all(isinstance(keyword.value, ast.Constant) and keyword.value.value is False
-                                         for keyword in switches), "argparse's own help would print by itself")
+        source = PROGRAM.read_text(encoding="utf-8")
+        self.assertEqual(len(re.findall(r"io\.WriteString\(out,", source)), 1)
+        writer = source[source.index("func write("):source.index("\nfunc fail(")]
+        remainder = source.replace(writer, "")
+        self.assertNotRegex(remainder, r"os\.(Stdout|Stderr)|fmt\.(Print|Fprint)")
+        self.assertIn("strings.Contains(text, secret)", writer)
+        self.assertLess(writer.index("strings.Contains(text, secret)"), writer.index("io.WriteString"))
 
-    def test_runs_under_3_9_and_own_python(self):
-        """The suite's own Python, and the Python 3.9 that LANEBOSS_TEST_PYTHON39 names, which must really be a 3.9.
-        The variable is required: with no Python 3.9 named this test FAILS, it does not pass and it does not skip,
-        because a title claiming a 3.9 run that never happens would otherwise prove nothing. Nothing is searched for
-        on PATH."""
-        named = os.environ.get("LANEBOSS_TEST_PYTHON39")
-        if not named:
-            self.fail(NO_PYTHON39)
-        interpreters = [("the suite's own Python", sys.executable, "{}.{}".format(*sys.version_info[:2])),
-                        ("the Python 3.9 that LANEBOSS_TEST_PYTHON39 names", named, "3.9")]
-        copy = self.directory / "copy" / "typesafe_jev.py"
+    def test_binary_without_interpreter(self):
+        copy = self.directory / "copy" / "typesafe_jev"
         copy.parent.mkdir()
-        shutil.copy2(str(PROGRAM), str(copy))
-        for label, python, version in interpreters:
-            with self.subTest(label):
-                found = subprocess.run([python, "-c", "import sys; print('%d.%d' % sys.version_info[:2])"],
-                                       capture_output=True, text=True, timeout=30).stdout.strip()
-                self.assertEqual(found, version, "{} reports {!r}, not {}".format(label, found, version))
-                service = self.stand_in(answering(0.25, request_id="req_01PYTHON"))
-                result = self.judge(contract_request(), service, python=python, program=copy)
-                self.assertEqual((result.code, result.err), (0, ""), result.err)
-                self.assertEqual(json.loads(result.out), {"probability": 0.25, "model": "jev-1.13.0",
-                                                          "request": "req_01PYTHON"})
-                self.assert_no_answer(self.judge(contract_request(kind="choice"), service, python=python, program=copy), 2)
-                failing = self.stand_in(fixed(500, b'{"detail": "no"}'))
-                self.assert_no_answer(self.judge(contract_request(), failing, python=python, program=copy), 4)
-                silent = self.stand_in(hang)
-                self.assert_no_answer(self.judge(contract_request(), silent, options=["--timeout", "1"], python=python,
-                                                 program=copy), 5)
-                self.write_key_file(mode=0o644)
-                self.assert_no_answer(self.judge(contract_request(), service, python=python, program=copy), 3)
-                self.write_key_file(mode=0o600)
+        shutil.copy2(str(helper_binary(PROGRAM)), str(copy))
+        environment = dict(self.environment, PATH="")
+        service = self.stand_in(answering(0.25, request_id="req_01GO"))
+        result = self.judge(contract_request(), service, program=copy, environment=environment)
+        self.assertEqual((result.code, result.err), (0, ""), result.err)
+        self.assertEqual(json.loads(result.out), {"probability": 0.25, "model": "jev-1.13.0",
+                                                  "request": "req_01GO"})
+        self.assert_no_answer(self.judge(contract_request(kind="choice"), service,
+                                         program=copy, environment=environment), 2)
+        failing = self.stand_in(fixed(500, b'{"detail": "no"}'))
+        self.assert_no_answer(self.judge(contract_request(), failing, program=copy,
+                                         environment=environment), 4)
+        silent = self.stand_in(hang)
+        self.assert_no_answer(self.judge(contract_request(), silent, options=["--timeout", "1"],
+                                         program=copy, environment=environment), 5)
+        self.write_key_file(mode=0o644)
+        self.assert_no_answer(self.judge(contract_request(), service, program=copy,
+                                         environment=environment), 3)
 
-    def nested(self, variable):
-        """That test alone, in a process of its own, with LANEBOSS_TEST_PYTHON39 set to `variable` or not set."""
-        environment = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.home), "PYTHONDONTWRITEBYTECODE": "1"}
-        if variable is not None:
-            environment["LANEBOSS_TEST_PYTHON39"] = str(variable)
-        return subprocess.run([sys.executable, "-m", "unittest", "tests.e2e.test_judge_jev.ProgramTest."
-                               "test_runs_under_3_9_and_own_python"], cwd=str(ROOT), env=environment,
-                              capture_output=True, text=True, timeout=300)
+    def test_unexecutable_binary_fails(self):
+        invalid = self.directory / "not-executable"
+        invalid.write_bytes(b"not an executable")
+        invalid.chmod(0o600)
+        with self.assertRaises(OSError):
+            self.run_program(["--help"], b"", program=invalid)
 
-    def test_wrong_python39_fails(self):
-        liar = self.directory / "python39"
-        liar.write_text("#!/bin/sh\necho 3.8\n", encoding="utf-8")
-        liar.chmod(0o755)
-        for label, variable in (("an interpreter that reports 3.8", liar), ("a path that is not there", self.directory / "none")):
-            with self.subTest(label):
-                done = self.nested(variable)
-                self.assertNotEqual(done.returncode, 0, "a wrong interpreter did not fail the test:\n" + done.stderr)
-                self.assertIn("FAILED", done.stderr)
-
-    def test_missing_interpreter_fails(self):
-        """No LANEBOSS_TEST_PYTHON39 at all: the test is red, not green and not skipped, and the one line it fails
-        with names the variable and says how to provide a Python 3.9."""
-        done = self.nested(None)
-        self.assertNotEqual(done.returncode, 0,
-                            "the test passed with no Python 3.9 named:\n" + done.stdout + done.stderr)
-        self.assertIn("FAILED", done.stderr)
-        self.assertIn(NO_PYTHON39, done.stderr)
-        self.assertNotIn("skipped", done.stderr)
+    def test_missing_binary_fails(self):
+        with self.assertRaises(FileNotFoundError):
+            self.run_program(["--help"], b"", program=self.directory / "missing")
 
 
 if __name__ == "__main__":

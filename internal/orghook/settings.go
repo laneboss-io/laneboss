@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 func hookExecutable() (string, error) {
@@ -62,7 +64,7 @@ func hookCommand(inst *instance, runner string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	words := []string{executable, "hook", "--runner", runner, "--instance", filepath.Join(inst.directory, "instance.toml")}
+	words := append([]string{executable}, selfexec.Args("org", "hook", "--runner", runner, "--instance", filepath.Join(inst.directory, "instance.toml"))...)
 	for i, word := range words {
 		words[i] = shellQuote(word)
 	}
@@ -285,7 +287,9 @@ func RenderHookSettings(org string) (map[string]map[string][]string, error) {
 							}
 						}
 						// Migrate legacy generated registrations as well as our own direct Go registrations.
-						own = contains(words, filepath.Join(home, "shared", "hooks", "org-hook.py")) || (len(words) > 1 && words[0] == manifest["executable"] && words[1] == "hook")
+						direct := len(words) > 1 && words[0] == manifest["executable"] &&
+							(words[1] == "hook" || (len(words) > 2 && words[1] == "org" && words[2] == "hook"))
+						own = contains(words, filepath.Join(home, "shared", "hooks", "org-hook.py")) || direct
 					}
 					if !own {
 						kept = append(kept, hook)

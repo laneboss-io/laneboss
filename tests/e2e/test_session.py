@@ -41,7 +41,7 @@ SESSION_PATH = "~/.claude/projects/*/{session}.jsonl"
 BRIEF = "# Brief\n\nSay hello from the stand-in. Non-ASCII stays: é中\n"
 MESSAGE = "# Follow-up\n\nThe account changed; carry on from where you stopped.\n"
 FILLER = "A line of plain words that only gives the brief its size.\n"
-CONTINUE = support.ROOT / "src" / "laneboss" / "protocol" / "continue.md"
+CONTINUE = support.ROOT / "internal" / "protocol" / "continue.md"
 EMPTY = support.digest(b"")
 # The keys of the `lane.started` payload as main's launcher wrote it before this change (lanes.py of 919af68), written
 # out here and not computed: `session` is the tmux session, an object of socket and name.

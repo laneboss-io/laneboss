@@ -1,7 +1,5 @@
-// Command laneboss-lane is the Go implementation of `laneboss lane`. The Python launcher forwards
-// `laneboss lane ...` here, unchanged, when LANEBOSS_LANE_GO_BIN names this binary.
-// Two packages share it: lane (start, resume, stop, status, check, mark, clean, scan, refusals, review) and
-// laneturns (adopt, turn, send, attach, loop).
+// Command laneboss-lane is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (
@@ -14,7 +12,7 @@ import (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "adopt", "turn", "send", "attach", "loop":
+		case "adopt", "turn", "send", "attach", "loop", "__probe":
 			os.Exit(laneturns.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 		}
 	}

@@ -1,5 +1,5 @@
-// Command laneboss-judge is the Go implementation of `laneboss judge`. The Python launcher forwards
-// `laneboss judge ...` here, unchanged, when LANEBOSS_JUDGE_GO_BIN names this binary.
+// Command laneboss-judge is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

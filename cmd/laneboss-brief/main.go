@@ -1,5 +1,5 @@
-// Command laneboss-brief is the Go implementation of `laneboss brief`. The Python launcher forwards
-// `laneboss brief ...` here, unchanged, when LANEBOSS_BRIEF_GO_BIN names this binary.
+// Command laneboss-brief is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

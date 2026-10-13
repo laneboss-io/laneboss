@@ -208,7 +208,11 @@ func (c *checks) instanceFields(data map[string]any, prefix string) {
 
 func checkOrg(value any, label, root string) []problem {
 	c := checks{label: label}
-	data := c.table(value, "document", orgOrder, orgOrder)
+	// The Discord command consumes this optional service table. It must also be
+	// accepted by render/validate; otherwise registering a channel invalidates
+	// the same org that channel add has just written.
+	allowed := append(append([]string{}, orgOrder...), "services")
+	data := c.table(value, "document", allowed, orgOrder)
 	if value, exists := data["schema_version"]; exists {
 		c.version(value)
 	}
@@ -259,6 +263,35 @@ func checkOrg(value any, label, root string) []problem {
 		c.instanceFields(defaults, "defaults.")
 		if level, ok := integer(defaults["level"]); ok && levelsOK && !hasLevel(levels, level) {
 			c.fail("defaults.level", "must be an enabled level")
+		}
+	}
+	if value, exists := data["services"]; exists {
+		// Python's Discord reader consumes only its own table and leaves other
+		// services and unknown service settings alone. Preserve that behavior.
+		services, ok := value.(map[string]any)
+		if !ok {
+			c.fail("services", "must be a table")
+			return c.problems
+		}
+		if value, exists := services["discord"]; exists {
+			discord, ok := value.(map[string]any)
+			if !ok {
+				c.fail("services.discord", "must be a table")
+				return c.problems
+			}
+			for _, field := range []string{"guild_id", "token_secret"} {
+				if _, exists := discord[field]; !exists {
+					c.fail("services.discord."+field, "is required")
+				}
+			}
+			for _, field := range []string{"guild_id", "owner_id"} {
+				if value, exists := discord[field]; exists {
+					c.text(value, "services.discord."+field, regexp.MustCompile(`^[1-9][0-9]{0,19}$`), 20)
+				}
+			}
+			if value, exists := discord["token_secret"]; exists {
+				c.text(value, "services.discord.token_secret", secretNamePattern, 64)
+			}
 		}
 	}
 	return c.problems

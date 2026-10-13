@@ -8,12 +8,14 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/identity"
 )
 
 //go:embed protocol.md
 var protocolBytes []byte
 
-const launcherVersion = "0.6.0-dev4"
+const launcherVersion = identity.Version
 
 //go:embed continue.md
 var continueBytes []byte

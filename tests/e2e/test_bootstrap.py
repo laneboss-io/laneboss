@@ -31,7 +31,7 @@ from . import support
 SCRIPT = support.ROOT / "install.sh"
 SH = "/bin/sh"
 PROGRAM = support.PROGRAM
-VERSION_LINE = re.compile(r'^VERSION = "([^"]+)"$', re.M)
+VERSION_LINE = re.compile(r'^\s*Version\s*= "([^"]+)"$', re.M)
 SYNTAX_ERROR = re.compile(r"(?i)syntax error|unexpected|unterminated|end of file")
 INTERPRETERS = ("python3", "python3.14", "python3.13", "python3.12", "python3.11")
 # What install.sh and the installer it runs may call. Each is linked into a private directory that is the whole PATH of
@@ -42,24 +42,25 @@ TOOLS = ("awk", "basename", "cat", "chmod", "cp", "cut", "date", "dirname", "env
 
 
 def tree_version(root):
-    return VERSION_LINE.search((root / "src" / "laneboss" / "identity.py").read_text(encoding="utf-8")).group(1)
+    return VERSION_LINE.search((root / "internal" / "identity" / "identity.go").read_text(encoding="utf-8")).group(1)
 
 
 def copy_tree(destination):
     """The parts of the checkout that the installer reads, copied without caches."""
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc")
     destination.mkdir()
-    for name in ("src", "scripts", "plugins"):
-        shutil.copytree(str(support.ROOT / name), str(destination / name), ignore=ignore)
+    for name in ("cmd", "internal", "scripts", "plugins", "go.mod", "go.sum"):
+        (shutil.copytree(str(support.ROOT / name), str(destination / name), ignore=ignore)
+         if (support.ROOT / name).is_dir() else shutil.copy2(support.ROOT / name, destination / name))
     return destination
 
 
 def change_version(root, suffix):
     """Give the copy at `root` another version number, the old one with `suffix` after it; returns the new one."""
-    identity = root / "src" / "laneboss" / "identity.py"
+    identity = root / "internal" / "identity" / "identity.go"
     text = identity.read_text(encoding="utf-8")
     current = VERSION_LINE.search(text).group(1)
-    identity.write_text(text.replace('VERSION = "{}"'.format(current), 'VERSION = "{}{}"'.format(current, suffix)),
+    identity.write_text(text.replace('Version   = "{}"'.format(current), 'Version   = "{}{}"'.format(current, suffix)),
                         encoding="utf-8")
     return current + suffix
 
@@ -72,7 +73,7 @@ def make_archive(root, target, top=None):
         return None if "__pycache__" in member.name or member.name.endswith(".pyc") else member
 
     with tarfile.open(str(target), "w:gz" if str(target).endswith(".gz") else "w") as archive:
-        for name in ("src", "scripts", "plugins"):
+        for name in ("cmd", "internal", "scripts", "plugins", "go.mod", "go.sum"):
             archive.add(str(root / name), arcname=(top + "/" + name) if top else name, filter=clean)
     return target
 
@@ -173,6 +174,10 @@ class BootstrapTest(unittest.TestCase):
     def environment(self, path=None, **variables):
         environment = {key: value for key, value in os.environ.items() if not key.startswith(("LANEBOSS_", "PYTHON"))}
         environment.update(HOME=str(self.home), TMPDIR=str(self.scratch), PATH=str(path or self.tools))
+        build = support.install_environment(self.home)
+        for key in ("LANEBOSS_GO", "GOCACHE", "GOPATH", "GOMODCACHE", "XDG_CONFIG_HOME"):
+            if key in build:
+                environment[key] = build[key]
         environment.update(variables)
         return environment
 
@@ -328,33 +333,33 @@ class BootstrapTest(unittest.TestCase):
 
     # What it checks, each with one plain line and a non-zero exit when it is missing.
 
-    def python_refusal(self, tools):
-        """With an archive as the source, a bootstrap that checks Python itself stops before it makes a temporary
-        directory; one that leaves the check to the version's installer would unpack first."""
+    def go_refusal(self, tools, go):
+        """A missing Go executable is refused before fetching or creating temporary files."""
         archive = make_archive(support.ROOT, self.directory / "laneboss.tar.gz", top="laneboss-main")
         log = self.logged_mktemp(tools)
-        run = self.run_script(environment=self.environment(path=tools, LANEBOSS_SOURCE=str(archive)))
-        self.assert_refused(run, "Python 3.11")
-        self.assertEqual(log.read_text(encoding="utf-8"), "", "a temporary directory was made before the Python check")
+        run = self.run_script(environment=self.environment(path=tools, LANEBOSS_SOURCE=str(archive), LANEBOSS_GO=str(go)))
+        self.assert_refused(run, "Go is required")
+        self.assertEqual(log.read_text(encoding="utf-8"), "", "a temporary directory was made before the Go check")
 
-    def test_old_python_is_refused(self):
-        tools = self.toolbox("tools-old-python", python=False)
-        for name in INTERPRETERS:
-            self.stub(tools, name, "#!/bin/sh\necho 'Python 3.8.10' >&2\nexit 1\n")
-        self.python_refusal(tools)
+    def test_nonexecutable_go_is_refused(self):
+        tools = self.toolbox("tools-nonexecutable-go", python=False)
+        go = self.directory / "not-executable-go"
+        go.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        go.chmod(0o644)
+        self.go_refusal(tools, go)
 
-    def test_no_python_is_refused(self):
-        self.python_refusal(self.toolbox("tools-no-python", python=False))
+    def test_no_go_is_refused(self):
+        self.go_refusal(self.toolbox("tools-no-go", python=False), self.directory / "missing-go")
 
-    def test_one_python_is_used(self):
-        tools = self.toolbox("tools-two-pythons", python=False)
-        log = self.directory / "python.log"
-        for name in ("python3", "python3.14"):
-            self.stub(tools, name, '#!/bin/sh\necho {} >> {}\nexec {} "$@"\n'.format(
-                name, shlex.quote(str(log)), shlex.quote(sys.executable)))
-        self.install_ok(path=tools, LANEBOSS_SOURCE=str(support.ROOT))
-        self.assertEqual(set(log.read_text(encoding="utf-8").split()), {"python3"},
-                         "the version's installer chose another interpreter than the one the script checked")
+    def test_one_go_is_used(self):
+        tools = self.toolbox("tools-two-go-commands", python=False)
+        log = self.directory / "go.log"
+        chosen = self.stub(tools, "chosen-go", '#!/bin/sh\necho chosen >> {}\nexec {} "$@"\n'.format(
+            shlex.quote(str(log)), shlex.quote(support.go_executable())))
+        self.stub(tools, "go", '#!/bin/sh\necho wrong >> {}\nexit 19\n'.format(shlex.quote(str(log))))
+        self.install_ok(path=tools, LANEBOSS_GO=str(chosen), LANEBOSS_SOURCE=str(support.ROOT))
+        self.assertEqual(log.read_text(encoding="utf-8").split(), ["chosen", "chosen"],
+                         "the source installer must use the chosen Go for both builds")
 
     def test_run_as_root_is_refused(self):
         tools = self.toolbox("tools-root")
@@ -682,7 +687,7 @@ class BootstrapTest(unittest.TestCase):
         self.assertEqual(list(self.scratch.iterdir()), [])
         # The same version with other content: the installer it runs refuses, and the script fails with it.
         changed = copy_tree(self.directory / "changed")
-        protocol = changed / "src" / "laneboss" / "protocol" / "protocol.md"
+        protocol = changed / "internal" / "protocol" / "protocol.md"
         protocol.write_text(protocol.read_text(encoding="utf-8") + "\nAn unreleased change.\n", encoding="utf-8")
         bad = make_archive(changed, self.directory / "bad.tar.gz", top="laneboss-main")
         log.write_text("", encoding="utf-8")
@@ -698,7 +703,7 @@ class BootstrapTest(unittest.TestCase):
     def test_a_read_only_tree_is_removed(self):
         """An archive can hold directories that nobody may write to; they must not keep the temporary directory."""
         tree = copy_tree(self.directory / "locked")
-        locked = (tree / "src" / "laneboss", tree / "src")
+        locked = (tree / "internal" / "protocol", tree / "internal")
         for directory in locked:
             directory.chmod(0o555)
         self.addCleanup(lambda: [directory.chmod(0o755) for directory in locked])

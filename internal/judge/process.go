@@ -6,9 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"laneboss.io/laneboss/internal/faults"
 )
 
 type result struct {
@@ -30,6 +33,15 @@ func askJudge(c *configuration, o options, j judgeDefinition, r request) (result
 		return res, "", false, err
 	}
 	defer state.close()
+	return askJudgeInState(c, state, o, j, r)
+}
+
+func askJudgeInState(c *configuration, state *directory, o options, j judgeDefinition, r request) (result, string, bool, error) {
+	res := result{Judge: o.judge, Question: o.question, Withheld: r.withheld, Cut: r.cut}
+	expected, err := filepath.EvalSymlinks(c.statePath)
+	if err != nil || expected != state.real {
+		return res, "", false, refused("the state directory does not belong to this configuration")
+	}
 	if err = state.recordOwner(c); err != nil {
 		return res, "", false, err
 	}
@@ -41,7 +53,7 @@ func askJudge(c *configuration, o options, j judgeDefinition, r request) (result
 	interrupts := make(chan os.Signal, 1)
 	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(interrupts)
-	if err = state.file.Sync(); err != nil {
+	if err = faults.Sync(state.file); err != nil {
 		return res, "", false, egressProblem(nothingAsked + ": the state directory cannot be synced (" + safeOSMessage(err) + ")")
 	}
 	ask, err := newID()
@@ -135,6 +147,10 @@ func collectPipe(f *os.File, limit int, rejectOverflow bool, overflow chan<- str
 // All three pipes are pumped independently. Waiting for the leader never waits
 // for a child that inherited a pipe, and every read has the total ask deadline.
 func runCommand(argv []string, input []byte, seconds int, interrupts <-chan os.Signal) (string, int, []byte, []byte, bool) {
+	return runCommandEnvironment(argv, input, seconds, interrupts, nil)
+}
+
+func runCommandEnvironment(argv []string, input []byte, seconds int, interrupts <-chan os.Signal, environment []string) (string, int, []byte, []byte, bool) {
 	var opened []*os.File
 	closeOpened := func() {
 		for _, f := range opened {
@@ -168,11 +184,15 @@ func runCommand(argv []string, input []byte, seconds int, interrupts <-chan os.S
 			cmd.Env = append(cmd.Env, variable)
 		}
 	}
+	if environment != nil {
+		cmd.Env = environment
+	}
 	select {
 	case <-interrupts:
 		return "exit", -1, nil, nil, true
 	default:
 	}
+	faults.BeforeJudgeStart()
 	if err = cmd.Start(); err != nil {
 		return "not-found", -1, nil, nil, false
 	}

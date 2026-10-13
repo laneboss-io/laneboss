@@ -1,5 +1,5 @@
-// Command laneboss-state is the Go implementation of `laneboss state`. The Python launcher forwards
-// `laneboss state ...` here, unchanged, when LANEBOSS_STATE_GO_BIN names this binary.
+// Command laneboss-state is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

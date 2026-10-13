@@ -812,13 +812,10 @@ class DetachTest(LoopTest):
         """The command that `lane loop --detach` starts in the pane of the loop, as the installed launcher builds it
         (`loopcmd.loop_argv`). It is asked of the installed package in a process of its own, so that this test imports
         nothing of the package."""
-        library = Path(self.command).resolve().parent.parent / "lib"
-        self.assertTrue((library / "laneboss" / "loopcmd.py").is_file(), "no installed package at {}".format(library))
-        code = ("import json, sys; sys.path.insert(0, {!r}); from laneboss import loopcmd; "
-                "print(json.dumps(loopcmd.loop_argv(sys.argv[1])))").format(str(library))
-        result = subprocess.run([sys.executable, "-I", "-B", "-c", code, str(fifo)], env=self.env("alpha"),
-                                capture_output=True, text=True, encoding="utf-8", timeout=60)
-        self.assertEqual(result.returncode, 0, "the installed package gave no command: " + result.stderr)
+        result = subprocess.run([str(support.faults_binary()), "lane", "__probe"],
+                                input=json.dumps({"action": "loop-argv", "fifo": str(fifo)}),
+                                env=self.env("alpha"), capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
     def hand_over(self, fifo, message, process, output):

@@ -1,28 +1,37 @@
 # integrations/claudock
 
-`cos.py` is an interactive terminal front for accounts whose credit only headless requests may use. Each message you
+Build from the repository root with the pinned Go toolchain:
+
+```sh
+GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/profile_swap ./integrations/claudock/profile_swap
+GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/cos ./integrations/claudock/cos
+```
+
+The tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
+requirement, not a runtime dependency of the helper.
+
+`cos` is an interactive terminal front for accounts whose credit only headless requests may use. Each message you
 type becomes one headless request through Claudock (`claudock run ACCOUNT -- ...`), and a session id keeps the
-conversation going. It is one stand-alone file that uses only the Python standard library: nothing in the launcher
-imports it and it imports nothing of the launcher. Its tests are `tests/e2e/test_cos.py`.
-Start it with `python3 cos.py ACCOUNT [MODEL]`; `python3 cos.py -h` lists the options.
+conversation going. It is one stand-alone file that uses Go and the shared process-group stopper in `internal/cosprocess/`. Its tests are `tests/e2e/test_cos.py`.
+Start it with `cos ACCOUNT [MODEL]`; `cos -h` lists the options.
 
 How to start it, its permission default, its limits and what is not proven are on the page
 [docs/claudock.md](../../docs/claudock.md).
 
 ## Profile swap
 
-`profile_swap.py` selects a Claudock profile with quota left and resumes the **same** Claude Code session on it.
-It is another standalone Python 3.11 standard-library tool. Profile names come from `claudock usage` or your
+`profile_swap` selects a Claudock profile with quota left and resumes the **same** Claude Code session on it.
+It is a standalone Go program using the module's pinned TOML parser. Profile names come from `claudock usage` or your
 own TOML settings; keep real settings outside the public checkout. The example
 [profile-swap.toml](../../examples/claudock/profile-swap.toml) contains invented names only.
 
 From the checkout root:
 
 ```sh
-python3 integrations/claudock/profile_swap.py pick --max-used 85 --max-age 30
-python3 integrations/claudock/profile_swap.py limited LOG
-python3 integrations/claudock/profile_swap.py resume --session ID --from NAME --max-age 30 --cwd DIR --dry-run
-python3 integrations/claudock/profile_swap.py resume --continue --from NAME --cwd DIR -- --verbose
+bin/profile_swap pick --max-used 85 --max-age 30
+bin/profile_swap limited LOG
+bin/profile_swap resume --session ID --from NAME --max-age 30 --cwd DIR --dry-run
+bin/profile_swap resume --continue --from NAME --cwd DIR -- --verbose
 ```
 
 `pick` and `resume` accept repeated `--exclude NAME`, `--settings FILE`, `--max-used PCT`, and `--max-age S`,

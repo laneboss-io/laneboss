@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 // Run executes hook, refusals or check-hooks and returns the process exit code.
@@ -16,9 +19,11 @@ func Run(action string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		runner, pinned := "", ""
 		for i := 0; i < len(args); i++ {
 			key, value, next, err := cliOption(args, i)
-			if err != nil || (key != "--runner" && key != "--instance") {
-				fmt.Fprintln(stderr, "laneboss org hook: expected --runner claude|codex [--instance FILE]")
-				return 2
+			if err != nil {
+				return cliargs.Print(stderr, "laneboss org hook", "usage: laneboss org hook --runner {claude,codex} [--instance FILE]", err.Error())
+			}
+			if key != "--runner" && key != "--instance" {
+				return cliargs.Print(stderr, "laneboss org hook", "usage: laneboss org hook --runner {claude,codex} [--instance FILE]", cliargs.Reject(""))
 			}
 			i = next
 			if key == "--runner" {
@@ -27,9 +32,11 @@ func Run(action string, args []string, stdin io.Reader, stdout, stderr io.Writer
 				pinned = value
 			}
 		}
+		if runner == "" {
+			return cliargs.Print(stderr, "laneboss org hook", "usage: laneboss org hook --runner {claude,codex} [--instance FILE]", cliargs.Required("--runner"))
+		}
 		if runner != "claude" && runner != "codex" {
-			fmt.Fprintln(stderr, "laneboss org hook: --runner must be claude or codex")
-			return 2
+			return cliargs.Print(stderr, "laneboss org hook", "usage: laneboss org hook --runner {claude,codex} [--instance FILE]", cliargs.Reject("--runner"))
 		}
 		allowed, reason := hookDecision(stdin, runner, pinned)
 		decision := "deny"
@@ -47,20 +54,25 @@ func Run(action string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		for i := 0; i < len(args); i++ {
 			if len(args[i]) > 0 && args[i][0] == '-' {
 				key, value, next, err := cliOption(args, i)
-				if err != nil || key != "--format" || (value != "text" && value != "json") {
-					fmt.Fprintln(stderr, "laneboss org refusals: expected ORG [--format text|json]")
-					return 2
+				if err != nil {
+					return cliargs.Print(stderr, "laneboss org refusals", "usage: laneboss org refusals ORG [--format {text,json}]", err.Error())
+				}
+				if key != "--format" {
+					return cliargs.Print(stderr, "laneboss org refusals", "usage: laneboss org refusals ORG [--format {text,json}]", cliargs.Reject(""))
+				}
+				if value != "text" && value != "json" {
+					return cliargs.Print(stderr, "laneboss org refusals", "usage: laneboss org refusals ORG [--format {text,json}]", cliargs.Reject("--format"))
 				}
 				format, i = value, next
 			} else if org == "" {
 				org = args[i]
 			} else {
-				fmt.Fprintln(stderr, "laneboss org refusals: expected one org path")
+				fmt.Fprintln(stderr, "laneboss org refusals: error: "+cliargs.Reject(""))
 				return 2
 			}
 		}
 		if org == "" {
-			fmt.Fprintln(stderr, "laneboss org refusals: ORG is required")
+			fmt.Fprintln(stderr, "laneboss org refusals: error: "+cliargs.Required("ORG"))
 			return 2
 		}
 		records, err := listRefusals(org)
@@ -82,7 +94,7 @@ func Run(action string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		return 0
 	case "check-hooks":
 		if len(args) != 1 {
-			fmt.Fprintln(stderr, "laneboss org check-hooks: expected ORG")
+			fmt.Fprintln(stderr, "laneboss org check-hooks: error: "+cliargs.Reject(""))
 			return 2
 		}
 		report, err := CheckHooks(args[0])
@@ -97,23 +109,24 @@ func Run(action string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		}
 		return 1
 	default:
-		fmt.Fprintln(stderr, "laneboss org: unknown hook action")
+		fmt.Fprintln(stderr, "laneboss org: error: "+cliargs.Reject("ACTION"))
 		return 2
 	}
 }
 
 func cliOption(args []string, index int) (string, string, int, error) {
-	for i, c := range args[index] {
-		if c == '=' {
-			return args[index][:i], args[index][i+1:], index, nil
-		}
+	key, value, inline := strings.Cut(args[index], "=")
+	if key != "--runner" && key != "--instance" && key != "--format" {
+		return "", "", index, invalid(cliargs.Reject(""))
 	}
-	if index+1 >= len(args) {
-		return "", "", index, invalid("a command option needs a value")
+	if inline {
+		return key, value, index, nil
 	}
-	return args[index], args[index+1], index + 1, nil
+	if index+1 >= len(args) || strings.HasPrefix(args[index+1], "--") {
+		return "", "", index, invalid(cliargs.Expected(key))
+	}
+	return key, args[index+1], index + 1, nil
 }
-
 func hookDecision(stdin io.Reader, runner, pinned string) (allowed bool, reason string) {
 	defer func() {
 		if recover() != nil {

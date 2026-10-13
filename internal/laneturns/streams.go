@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"laneboss.io/laneboss/internal/jsontext"
 )
 
 func cutText(s string, n int) string {
@@ -42,7 +44,7 @@ func readStream(name, line string) []object {
 	if strings.TrimSpace(line) == "" {
 		return []object{}
 	}
-	p, err := decodeJSON([]byte(line))
+	p, err := decodeJSON([]byte(jsontext.FiniteJSON(line)))
 	if err != nil {
 		return raw()
 	}

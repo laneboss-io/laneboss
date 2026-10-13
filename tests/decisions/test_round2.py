@@ -101,26 +101,22 @@ class ConcurrentWriterTest(StoreCase):
         return stdout
 
 
-class LibraryTest(unittest.TestCase):
+class LibraryTest(StoreCase):
     def test_verify_then_add_is_clean(self):
-        source = str(ROOT / "src")
-        sys.path.insert(0, source)
-        self.addCleanup(sys.path.remove, source)
-        from laneboss.decisions.store import Store
-        with tempfile.TemporaryDirectory() as directory:
-            store = Store(os.path.join(directory, "library.sqlite"), initialize=True)
-            try:
-                store.add(record("L-1"))
-                self.assertFalse(store.connection.in_transaction)
-                self.assertTrue(store.verify()["ok"])
-                self.assertFalse(store.connection.in_transaction)
-                store.add(record("L-2"))
-                self.assertFalse(store.connection.in_transaction)
-                self.assertTrue(store.verify()["ok"])
-                self.assertEqual(store.stats()["records"], 2)
-                self.assertFalse(store.connection.in_transaction)
-            finally:
-                store.close()
+        def assert_unlocked():
+            with closing(sqlite3.connect(str(self.db), timeout=0)) as other_writer:
+                other_writer.execute("BEGIN IMMEDIATE")
+                self.assertTrue(other_writer.in_transaction)
+                other_writer.rollback()
+        self.add(record("L-1"))
+        assert_unlocked()
+        self.assertTrue(self.json_cli("verify")["ok"])
+        assert_unlocked()
+        self.add(record("L-2"))
+        assert_unlocked()
+        self.assertTrue(self.json_cli("verify")["ok"])
+        self.assertEqual(self.json_cli("stats")["records"], 2)
+        assert_unlocked()
 
 
 class EgressChainTest(StoreCase):
@@ -356,17 +352,19 @@ class ScannerCheckoutTest(StoreCase):
         environment = dict(self.environment)
         environment.pop("PYTHONDONTWRITEBYTECODE", None)
         environment.pop("PYTHONPYCACHEPREFIX", None)
-        environment["PYTHONPATH"] = str(checkout / "src")
         # Some system interpreters keep bytecode in a per-user cache instead of beside the sources;
         # clearing the prefix makes this run leave __pycache__ directories inside the checkout.
-        program = ("import runpy, sys; sys.pycache_prefix = None; database = sys.argv[1]; "
-                   "sys.argv = ['laneboss.decisions', 'init', '--db', database]; "
-                   "runpy.run_module('laneboss.decisions', run_name='__main__')")
-        run = subprocess.run(
-            [sys.executable, "-c", program, str(self.directory / "scan.sqlite")],
-            cwd=str(checkout), env=environment, capture_output=True, text=True, timeout=60)
+        # Bytecode is a harness fixture; the product is always the Go executable.
+        run = subprocess.run(self.command_line("init", (), self.directory / "scan.sqlite"),
+                             cwd=str(checkout), env=environment, capture_output=True, text=True, timeout=60)
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertTrue(list(checkout.rglob("*.pyc")), "the run must leave bytecode inside the checkout")
+        compiled = subprocess.run([sys.executable, "-c",
+                                   "import py_compile, sys; sys.pycache_prefix = None; "
+                                   "py_compile.compile(sys.argv[1], doraise=True)",
+                                   str(checkout / "tests" / "decisions" / "support.py")],
+                                  env=environment, capture_output=True, text=True, timeout=60)
+        self.assertEqual(compiled.returncode, 0, compiled.stderr)
+        self.assertTrue(list(checkout.rglob("*.pyc")), "fixture compilation must leave bytecode inside the checkout")
         scan = subprocess.run(["sh", str(checkout / "scripts" / "scan.sh"), str(checkout)],
                               capture_output=True, text=True, timeout=120)
         self.assertEqual(scan.returncode, 0, scan.stdout)

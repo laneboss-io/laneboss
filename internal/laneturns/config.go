@@ -12,6 +12,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+
+	"laneboss.io/laneboss/internal/identity"
 )
 
 var namePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
@@ -22,7 +24,7 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 var hashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var launchPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
-const launcherVersion = "0.6.0-dev4"
+const launcherVersion = identity.Version
 const protocolVersion = "1.2.0"
 const maxMessage = 262144
 const maxBrief = 4 * 1024 * 1024

@@ -51,23 +51,6 @@ answer = table.get(account, {"room": False, "slots": 0, "reason": "no room for "
 sys.stdout.write(answer if isinstance(answer, str) else json.dumps(answer))
 """
 
-# What is asked of the installed package. It reads one runner of one configuration and asks the choice of the account
-# for one turn. Its standard output is exactly one line holding the checked answer, never anything a room command wrote.
-DRIVER = """\
-import json, sys
-sys.path.insert(0, sys.argv[1])
-from laneboss import accounts, config
-configuration = config.load("alpha")
-runner = configuration.data["runners"]["local"]
-choice = accounts.choose_account(
-    runner, account=json.loads(sys.argv[2]), previous=json.loads(sys.argv[3]),
-    excluded=json.loads(sys.argv[4]), timeout_seconds=float(sys.argv[5]), grace_seconds=float(sys.argv[6]),
-    started=json.loads(sys.argv[7]))
-print(json.dumps({"account": choice.account, "chosen_by": choice.chosen_by, "reason": choice.reason,
-                  "outcome": choice.outcome}))
-"""
-
-
 def room(slots=1, reason=""):
     """The documented object of an account that can take a turn."""
     return {"room": True, "slots": slots, "reason": reason}
@@ -98,13 +81,6 @@ class RoomChoiceTest(support.LauncherTest):
 
     # The installed package, the configured command and the check about it.
 
-    def library(self):
-        """The installed package's directory, asked of the installed command, so this module imports nothing."""
-        library = Path(self.command).resolve().parent.parent / "lib"
-        self.assertTrue((library / "laneboss" / "accounts.py").is_file(),
-                        "there is no installed package at " + str(library))
-        return library
-
     def program(self, body):
         self.written += 1
         path = self.programs / "program-{}".format(self.written)
@@ -134,10 +110,11 @@ class RoomChoiceTest(support.LauncherTest):
 
     def ask(self, account=None, previous=None, excluded=None, started=None, timeout=20, grace=1):
         """Ask the installed package for one account choice, in a process of its own."""
-        command = [sys.executable, "-I", "-B", "-c", DRIVER, str(self.library()), json.dumps(account),
-                   json.dumps(previous), json.dumps([] if excluded is None else excluded), str(timeout), str(grace),
-                   json.dumps(started)]
-        return subprocess.run(command, env=self.environment, capture_output=True, text=True, encoding="utf-8",
+        command = [str(support.faults_binary()), "__test", "room-choice"]
+        request = {"config": "alpha", "runner": "local", "account": account, "previous": previous,
+                   "excluded": [] if excluded is None else excluded, "started": started,
+                   "timeout": timeout, "grace": grace}
+        return subprocess.run(command, input=json.dumps(request), env=self.environment, capture_output=True, text=True, encoding="utf-8",
                               timeout=120)
 
     def answer(self, **options):

@@ -39,5 +39,5 @@ Python-specific lookaround, back references, and unsupported flags are refused.
 Supporting those configuration patterns remains a compatibility limitation.
 
 Runtime verification belongs on the disposable test box. The existing black-box
-rows are in `tests/e2e/test_judges.py` and `tests/e2e/test_judge_jev.py`; the Jev adapter
-and its Python 3.9 run remain external programs and are unchanged by this package.
+rows are in `tests/e2e/test_judges.py`. Provider adapters are external programs;
+the Jev example builds from `examples/judges/typesafe_jev/`.

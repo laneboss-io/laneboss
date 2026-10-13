@@ -1,7 +1,5 @@
-// Command laneboss-decisions is the Go implementation of `laneboss decisions`. The Python launcher forwards
-// `laneboss decisions ...` here, unchanged, when LANEBOSS_DECISIONS_GO_BIN names this binary.
-// Two packages share it: decisions (init, migrate, add, supersede, annotate, get, search, embed, egress, stats,
-// verify, export, import, load) and decisionsrv (serve, ingest-lane, ingest-records and the org history parts).
+// Command laneboss-decisions is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (
@@ -12,9 +10,12 @@ import (
 )
 
 func main() {
+	if code, handled := decisionsrv.TryProbe(os.Args[1:], os.Stdin, os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "serve", "ingest-lane", "ingest-records", "hook-history", "history-worker", "capture-decision", "probe":
+		case "serve", "ingest-lane", "ingest-records", "hook-history", "history-worker", "capture-decision":
 			os.Exit(decisionsrv.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 		}
 	}

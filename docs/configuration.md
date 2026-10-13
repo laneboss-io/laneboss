@@ -58,7 +58,7 @@ files while the launcher runs (`docs/architecture.md`, "What isolation covers").
 
 ## Generic rules files
 
-The package ships two rules files of its own, under `src/laneboss/protocol/`, and they belong to every
+The package ships two rules files of its own, under `internal/protocol/`, and they belong to every
 configuration: `executor.md` for executor lanes and `supervisor.md` for a supervisor's briefing and no lane
 brief. They name no company, no host and no user, so a second company installs them as they are written.
 

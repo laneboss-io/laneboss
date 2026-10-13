@@ -28,11 +28,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlencode
 from collections import OrderedDict
 
-from .support import GO_DECISIONS, ROOT, StoreCase, decisions_go_binary, plain_record
-
-
-def decisions_program():
-    return [str(decisions_go_binary())] if GO_DECISIONS else [sys.executable, "-m", "laneboss.decisions"]
+from .support import GO_DECISIONS, ROOT, StoreCase, decisions_go_binary, decisions_program, plain_record
+from tests.e2e.support import faults_binary
 
 
 class GoProbe:
@@ -41,7 +38,7 @@ class GoProbe:
     def __init__(self, case):
         self.case = case
         self.errors = tempfile.TemporaryFile(mode="w+b")
-        self.process = subprocess.Popen([str(decisions_go_binary()), "probe"], cwd=str(ROOT),
+        self.process = subprocess.Popen([str(faults_binary()), "decisions", "probe"], cwd=str(ROOT),
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.errors,
                                         text=True, encoding="utf-8")
         case.addCleanup(self.close)

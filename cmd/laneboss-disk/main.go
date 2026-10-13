@@ -1,5 +1,5 @@
-// Command laneboss-disk is the Go implementation of `laneboss disk`. The Python launcher forwards
-// `laneboss disk ...` here, unchanged, when LANEBOSS_DISK_GO_BIN names this binary.
+// Command laneboss-disk is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

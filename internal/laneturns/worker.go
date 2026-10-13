@@ -16,6 +16,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 func hangupSignal() syscall.Signal { return syscall.SIGHUP }
@@ -149,7 +151,7 @@ func beginWorker(s *laneSession, lane string, spec, environment object) (object,
 	if err != nil {
 		return nil, err
 	}
-	process, err := tmuxNew(str(obj(obj(spec["started"])["session"])["socket"]), sessionName(lane), str(spec["cwd"]), []string{binary, "turn", "__turn_supervise", s.state.lanePath(lane, name)})
+	process, err := tmuxNew(str(obj(obj(spec["started"])["session"])["socket"]), sessionName(lane), str(spec["cwd"]), append([]string{binary}, selfexec.Args("lane", "turn", "__turn_supervise", s.state.lanePath(lane, name))...))
 	if err != nil {
 		return nil, err
 	}

@@ -39,12 +39,15 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"laneboss.io/laneboss/internal/cliargs"
+	"laneboss.io/laneboss/internal/identity"
 )
 
 const (
-	Program             = "laneboss"
-	Version             = "0.6.0-dev4"
-	EnvPrefix           = "LANEBOSS_"
+	Program             = identity.Program
+	Version             = identity.Version
+	EnvPrefix           = identity.EnvPrefix
 	SchemaVersion       = 1
 	NameRule            = "[a-z0-9][a-z0-9-]{0,31}"
 	MaxFileBytes        = 1024 * 1024
@@ -359,7 +362,6 @@ func printError(err error, stderr io.Writer) int {
 }
 
 const usage = "usage: laneboss config {list,show,validate,path} ..."
-const usageRefused = "the command line was not accepted; arguments are not repeated because they may contain credentials"
 
 // Run executes laneboss config ARGS and returns the exit code. Usage errors omit
 // supplied tokens, which might themselves contain credentials.
@@ -367,18 +369,18 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	_ = stdin
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, usage)
-		return printError(refused("an action is required"), stderr)
+		return printError(refused(cliargs.Required("ACTION")), stderr)
 	}
 	if args[0] == "--help" || args[0] == "-h" {
 		if len(args) != 1 {
-			return printError(refused(usageRefused), stderr)
+			return printError(refused(cliargs.Reject("")), stderr)
 		}
 		fmt.Fprintln(stdout, usage+"\n\nlist\nshow NAME\nvalidate NAME | --all\npath NAME")
 		return 0
 	}
 	action := args[0]
 	if action != "list" && action != "show" && action != "validate" && action != "path" {
-		return printError(refused(usageRefused), stderr)
+		return printError(refused(cliargs.Reject("ACTION")), stderr)
 	}
 	if len(args) == 2 && (args[1] == "--help" || args[1] == "-h") {
 		fmt.Fprintln(stdout, usage)
@@ -401,7 +403,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		if action == "list" || len(remaining) != 1 || strings.HasPrefix(remaining[0], "-") {
 			fmt.Fprintln(stderr, usage)
-			return printError(refused(usageRefused), stderr)
+			return printError(refused(cliargs.Reject("")), stderr)
 		}
 		// An explicitly empty CLI name is invalid, even though Load("") lets
 		// library callers request the environment binding.

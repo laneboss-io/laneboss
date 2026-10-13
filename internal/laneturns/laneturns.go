@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 type problem struct {
@@ -60,13 +62,14 @@ var options = map[string]string{
 
 func parseArgs(args []string) (arguments, error) {
 	a := arguments{values: map[string]string{}, flags: map[string]bool{}}
+	loopFlag := ""
 	if len(args) == 0 {
-		return a, refused("lane action is required")
+		return a, refused("%s", cliargs.Required("ACTION"))
 	}
 	a.action = args[0]
 	allowed, ok := options[a.action]
 	if !ok {
-		return a, refused("unknown turn-based lane action")
+		return a, refused("%s", cliargs.Reject("ACTION"))
 	}
 	for i := 1; i < len(args); i++ {
 		value := args[i]
@@ -79,25 +82,31 @@ func parseArgs(args []string) (arguments, error) {
 			boolean := a.action == "turn" && name == "idle" || a.action == "loop" && (name == "detach" || name == "status" || name == "stop")
 			if boolean {
 				if hasInline {
-					return a, refused("a boolean option takes no value")
+					return a, refused("%s", cliargs.Reject("--"+name))
+				}
+				if a.action == "loop" {
+					if loopFlag != "" && loopFlag != name {
+						return a, refused("%s", cliargs.Conflict("--"+name, "--"+loopFlag))
+					}
+					loopFlag = name
 				}
 				a.flags[name] = true
 				continue
 			}
 			if !strings.Contains(" "+allowed+" ", " "+name+" ") {
-				return a, refused("unrecognized option; use lane %s --help", a.action)
+				return a, refused("%s", cliargs.Reject(""))
 			}
 			if !hasInline {
 				i++
 				if i == len(args) || strings.HasPrefix(args[i], "--") {
-					return a, refused("--%s needs a value", name)
+					return a, refused("%s", cliargs.Expected("--"+name))
 				}
 				inline = args[i]
 			}
 			a.values[name] = inline
 		} else {
 			if a.action != "send" || a.source != nil {
-				return a, refused("unexpected argument; use lane %s --help", a.action)
+				return a, refused("%s", cliargs.Reject(""))
 			}
 			copy := value
 			a.source = &copy
@@ -105,6 +114,11 @@ func parseArgs(args []string) (arguments, error) {
 	}
 	if a.flags["help"] {
 		return a, nil
+	}
+	if a.action != "loop" {
+		if _, supplied := a.values["lane"]; !supplied {
+			return a, refused("%s", cliargs.Required("--lane"))
+		}
 	}
 	if a.action == "loop" {
 		n := 0
@@ -120,9 +134,9 @@ func parseArgs(args []string) (arguments, error) {
 		return a, refused("--lane: must match [a-z0-9][a-z0-9._-]{0,63}")
 	}
 	if a.action == "adopt" {
-		for _, key := range []string{"session", "runner", "model", "brief"} {
+		for _, key := range []string{"session", "runner", "model", "worktree", "brief"} {
 			if _, ok := a.values[key]; !ok {
-				return a, refused("--%s is required", key)
+				return a, refused("%s", cliargs.Required("--"+key))
 			}
 		}
 	}

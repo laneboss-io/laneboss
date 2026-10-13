@@ -25,16 +25,6 @@ MARKER = "DO-NOT-SHOW-6f2a"
 ROOM_ANCHOR = 'secrets = ["E2E_TEST_KEY"]\n\n[supervisors'
 # What is asked of the installed package. It reads one runner of one configuration and asks its room command; its
 # standard output is exactly one line holding the checked answer, never anything the room command wrote.
-DRIVER = """\
-import json, sys
-sys.path.insert(0, sys.argv[1])
-from laneboss import accounts, config
-configuration = config.load("alpha")
-runner = configuration.data["runners"]["local"]
-answer = accounts.room_of(runner, sys.argv[2], float(sys.argv[3]), float(sys.argv[4]))
-print(json.dumps(None if answer is None else
-                 {"room": answer.room, "slots": answer.slots, "reason": answer.reason}))
-"""
 
 # A command that does not end within the timeout and leaves two children behind: one in its own process group, one in
 # a session of its own (so that only the walk of the command's tree finds it). It writes the three ids before it
@@ -125,9 +115,10 @@ class RoomTest(support.LauncherTest):
 
     def ask(self, account=ACCOUNT, timeout=20, grace=1):
         """Ask the installed package for one account's room answer, in a process of its own."""
-        command = [sys.executable, "-I", "-B", "-c", DRIVER, str(self.library()), account, str(timeout), str(grace)]
-        return subprocess.run(command, env=self.environment, capture_output=True, text=True, encoding="utf-8",
-                              timeout=120)
+        return subprocess.run([str(support.faults_binary()), "lane", "__probe"], env=self.environment,
+                              input=json.dumps({"action": "room", "config": "alpha", "runner": "local",
+                                                "account": account, "timeout": timeout, "grace": grace}),
+                              capture_output=True, text=True, encoding="utf-8", timeout=120)
 
     def answer(self, **options):
         """The one line the check printed, read as JSON."""

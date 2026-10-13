@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"laneboss.io/laneboss/internal/faults"
 )
 
 const exportFormat = "laneboss-decisions-jsonl"
-const earlierExportFormat = "su" + "p-decisions-jsonl"
+const earlierExportFormat = "sup-decisions-jsonl"
 const olderExport = "this export comes from an older release whose egress receipts have no previous_entry_sha256 (they predate the egress hash chain), so it cannot be imported as it is and its egress history cannot be carried into this store. Its records can: keep the manifest line and the record lines, set the models, vectors and egress counts in the manifest to 0, and import that; see the Older layout section of docs/decisions.md"
 
 func exportIntoPipe(path string) (bool, error) {
@@ -21,6 +23,9 @@ func exportIntoPipe(path string) (bool, error) {
 		return false, invalid("cannot write export file")
 	}
 	if info.Mode()&os.ModeNamedPipe != 0 {
+		if err := faults.Reach("pipe-checked"); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	return false, invalid("export destination already exists")

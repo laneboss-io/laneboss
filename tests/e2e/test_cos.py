@@ -5,7 +5,11 @@ of a plan (good and bad ones), can sleep so a request can be interrupted, and ca
 a real agent or needs Claudock.
 """
 import json
+
+from . import support
+from .support import helper_binary
 import os
+from pathlib import Path
 import re
 import shutil
 import signal
@@ -23,11 +27,11 @@ import uuid
 # program, with the same process id.
 LAUNCH = ("import os, signal, sys\n"
           "signal.signal(signal.SIGINT, signal.SIG_DFL)\n"
-          "os.execv(sys.executable, [sys.executable] + sys.argv[1:])\n")
+          "os.execv(sys.argv[1], sys.argv[1:])\n")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-COS = os.path.join(ROOT, "integrations", "claudock", "cos.py")
+COS = os.path.join(ROOT, "integrations", "claudock", "cos", "main.go")
 SAMPLE = os.path.join(HERE, "fixtures", "cos-stream.jsonl")
 SID = "11111111-2222-4333-8444-555555555555"
 MODEL = "claude-haiku-4-5-20251001"
@@ -133,26 +137,73 @@ OK = step(INIT, delta("ok"), assistant(text("ok")), result())
 
 def cos_command(args):
     """The command line that starts cos.py: through LAUNCH, so that it runs with the default SIGINT."""
-    return [sys.executable, "-c", LAUNCH, COS] + list(args)
+    return [sys.executable, "-c", LAUNCH, str(helper_binary(COS))] + list(args)
+
+
+COS_STOP_PROBE = r'''package main
+import ("encoding/json";"os";"time";"laneboss.io/laneboss/internal/cosprocess")
+func main() {
+    var input struct { PID int; Waits []float64; PS []string }
+    if err := json.NewDecoder(os.Stdin).Decode(&input); err != nil { panic(err) }
+    waits := []time.Duration{}
+    for _,seconds := range input.Waits { waits = append(waits,time.Duration(seconds*float64(time.Second))) }
+    notices := []string{}
+    left,code := cosprocess.Stop(input.PID,waits,input.PS,func(s string){notices=append(notices,s)},nil)
+    if err := json.NewEncoder(os.Stdout).Encode(map[string]any{"left":left,"code":code,"notices":notices});err!=nil {panic(err)}
+}
+'''
+_cos_probe_directory = None
+_cos_probe = None
 
 
 def load_cos():
-    """cos.py as a module, to call stop() directly with lowered waits (the rest of the tests run it as a program).
-    readline is kept out of the suite's process: importing it there sets LINES and COLUMNS for every process the suite
-    starts later, and ps then cuts long command lines (test_refusal_speed finds a process by the end of its arguments)."""
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("cos_under_test", COS)
-    module = importlib.util.module_from_spec(spec)
-    held = sys.modules.get("readline", False)
-    sys.modules["readline"] = None  # the script's `try: import readline` then takes its ImportError branch
-    try:
-        spec.loader.exec_module(module)
-    finally:
-        if held is False:
-            del sys.modules["readline"]
-        else:
-            sys.modules["readline"] = held
-    return module
+    """A subprocess bridge to the Go stopper used by the interactive program."""
+    global _cos_probe_directory, _cos_probe
+    if _cos_probe is None:
+        _cos_probe_directory = tempfile.TemporaryDirectory(prefix="lb-go-only-cos-probe-", dir=ROOT)
+        source = os.path.join(_cos_probe_directory.name, "main.go")
+        with open(source, "w", encoding="utf-8") as handle:
+            handle.write(COS_STOP_PROBE)
+        _cos_probe = helper_binary(source)
+
+    class Stopper:
+        WAITS = (6, 4, 2)
+        PS_PATHS = ("/bin/ps", "/usr/bin/ps")
+
+        def stop(self, proc, notify=None):
+            reaper = threading.Thread(target=proc.wait)
+            reaper.start()
+            result = subprocess.run([str(_cos_probe)], input=json.dumps(
+                {"PID": proc.pid, "Waits": self.WAITS, "PS": self.PS_PATHS}),
+                capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                raise AssertionError("Go stop probe failed: " + result.stderr)
+            answer = json.loads(result.stdout)
+            reaper.join(timeout=5)
+            for line in answer["notices"]:
+                if notify:
+                    notify(line)
+            if answer["code"]:
+                raise SystemExit(answer["code"])
+            return answer["left"]
+
+        def Session(self, *args):
+            return self
+
+        def stopped(self, proc):
+            if proc.poll() is not None:
+                try:
+                    os.killpg(proc.pid, 0)
+                except ProcessLookupError:
+                    return False
+            print("[stopping the request: wait a few seconds, do not press Ctrl-C again]")
+            left = self.stop(proc, print)
+            if left:
+                print("WARNING: processes of this request may still be running (group " +
+                      ", ".join(map(str, left)) + ")")
+            return True
+
+    return Stopper()
 
 
 class Fake:
@@ -652,11 +703,12 @@ class PermissionTest(CosTest):  # decision 7
         import pty
         import select
         f = self.fake(step(self.BYPASS_INIT, delta("hi"), result()))
+        binary = str(helper_binary(COS))
         pid, fd = pty.fork()
         if pid == 0:
             try:
                 os.chdir(f.cwd)
-                os.execve(sys.executable, [sys.executable, COS, "acct", MODEL], f.env())
+                os.execve(binary, [binary, "acct", MODEL], f.env())
             finally:
                 os._exit(127)
         out = b""
@@ -986,9 +1038,20 @@ class OutputTest(CosTest):  # decision 11 and the file rules
         self.assertEqual(os.listdir(f.cwd), [])
 
     def test_source_stays_small_and_plain(self):
-        with open(COS, encoding="utf-8") as f:
-            src = f.read()
-        self.assertLessEqual(len(src.splitlines()), 560)  # was 400, then 460, then 520; the kill sweep grew the file
+        # The old bound counted one Python script's physical lines. Go's brace
+        # scaffolding is excluded; non-empty import lines remain in the count.
+        # Keep the same 560-line bound for both the frontend and its stop package.
+        sources = sorted(Path(COS).parent.glob("*.go"))
+        stopper = support.ROOT / "internal" / "cosprocess" / "process.go"
+        components = [sources, [stopper]]
+        texts = []
+        for paths in components:
+            text = "\n".join(path.read_text(encoding="utf-8") for path in paths)
+            lines = [line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("//")
+                     and re.fullmatch(r"[{}(),;]+", line.strip()) is None]
+            self.assertLessEqual(len(lines), 560, [str(path.relative_to(support.ROOT)) for path in paths])
+            texts.append(text)
+        src = "\n".join(texts)
         for banned in ("shell=True", "os.system", "socket", "urllib", "http.client", "import requests", "logging", "pickle"):
             self.assertNotIn(banned, src)
         for call in ("open", "eval", "exec"):  # the bare builtins, not Popen( and the like

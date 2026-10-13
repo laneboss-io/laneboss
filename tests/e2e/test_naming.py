@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 import re
 import subprocess
-import tomllib
 import unittest
 
 from . import support
@@ -27,7 +26,7 @@ NOT_WALKED = {".git", "__pycache__", ".venv", "venv", "build", "dist"}
 # sentence updates the line here on purpose.
 EXPORT_IDENTIFIER = OLD + "-decisions-jsonl"
 ALLOWED_LINES = {
-    "src/laneboss/decisions/store.py": 'EARLIER_EXPORT_FORMAT = "{}"'.format(EXPORT_IDENTIFIER),
+    "internal/decisions/portable.go": 'const earlierExportFormat = "{}"'.format(EXPORT_IDENTIFIER),
     "docs/decisions.md": "project had its name, say `{}`. They are rebuild points and stay".format(EXPORT_IDENTIFIER),
 }
 IDENTIFIER_FILES = tuple(ALLOWED_LINES)
@@ -79,8 +78,10 @@ class NamingTest(support.LauncherTest):
                          os.path.join("..", "share", "laneboss", "versions", version, "bin", "laneboss"))
         self.assertEqual(sorted(os.listdir(str(prefix / "bin"))), ["laneboss"])
         self.assertEqual(sorted(os.listdir(str(prefix / "share"))), ["laneboss"])
-        self.assertEqual(sorted(os.listdir(str(prefix / "share" / "laneboss" / "versions" / version / "lib"))),
-                         ["laneboss", "laneboss-launch.py"])
+        directory = prefix / "share" / "laneboss" / "versions" / version
+        self.assertEqual(sorted(os.listdir(directory)), ["MANIFEST", "bin", "plugins"])
+        self.assertEqual(sorted(os.listdir(directory / "bin")), ["laneboss"])
+        self.assertFalse((directory / "lib").exists())
         result = subprocess.run([str(link), "--version"], env=self.clean_environment(), capture_output=True,
                                 text=True, encoding="utf-8", timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -103,19 +104,14 @@ class NamingTest(support.LauncherTest):
         self.assertTrue(result.stdout.startswith("usage: laneboss-decisions "), result.stdout[:80])
 
     def test_distribution_and_console_scripts(self):
-        with open(str(support.ROOT / "pyproject.toml"), "rb") as handle:
-            project = tomllib.load(handle)
-        self.assertEqual(project["project"]["name"], "laneboss")
-        scripts = project["project"]["scripts"]
-        self.assertEqual(scripts, {"laneboss": "laneboss.cli:main", "laneboss-decisions": "laneboss.decisions.cli:main"})
-        setuptools = project["tool"]["setuptools"]
-        self.assertEqual(setuptools["dynamic"]["version"], {"attr": "laneboss.identity.VERSION"})
-        self.assertEqual(list(setuptools["package-data"]), ["laneboss.protocol"])
-        self.assertFalse((support.ROOT / "src" / OLD).exists())
-        for target in scripts.values():
-            module, function = target.split(":")
-            source = (support.ROOT / "src" / Path(*module.split("."))).with_suffix(".py")
-            self.assertRegex(source.read_text(encoding="utf-8"), r"(?m)^def {}\(".format(function))
+        module = (support.ROOT / "go.mod").read_text(encoding="utf-8")
+        self.assertRegex(module, r"(?m)^module laneboss\.io/laneboss$")
+        source = support.ROOT / "cmd" / "laneboss" / "main.go"
+        self.assertRegex(source.read_text(encoding="utf-8"), r"(?m)^func main\(")
+        self.assertIn("internal/cli", source.read_text(encoding="utf-8"))
+        self.assertFalse((support.ROOT / "src" / "laneboss").exists())
+        self.assertFalse((support.ROOT / "pyproject.toml").exists())
+        self.assertIn("//go:embed", (support.ROOT / "internal" / "protocol" / "embed.go").read_text(encoding="utf-8"))
 
     def test_default_directories(self):
         self.home = self.user_home / ".config" / "laneboss"
@@ -172,7 +168,7 @@ class ExceptionRuleTest(unittest.TestCase):
     """The exception is narrow: the complete identifier, in the two named files, and nothing attached to it."""
 
     others = ("README.md", "CHANGELOG.md", "CONTRIBUTING.md", "docs/architecture.md", "docs/configuration.md",
-              "scripts/scan.sh", "scripts/install.sh", "src/laneboss/brief.py", "src/laneboss/decisions/load.py",
+              "scripts/scan.sh", "scripts/install.sh", "internal/brief/brief.go", "internal/decisions/load.go",
               "tests/decisions/support.py", "tests/e2e/test_naming.py", "docs/decisions.md.txt")
 
     def test_complete_identifier_allowed(self):

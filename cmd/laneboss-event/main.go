@@ -1,5 +1,5 @@
-// Command laneboss-event is the Go implementation of `laneboss event`. The Python launcher forwards
-// `laneboss event ...` here, unchanged, when LANEBOSS_EVENT_GO_BIN names this binary.
+// Command laneboss-event is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

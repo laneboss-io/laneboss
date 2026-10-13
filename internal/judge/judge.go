@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 const (
@@ -84,14 +86,14 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 func parseOptions(args []string) (options, bool, error) {
 	var o options
 	if len(args) == 0 {
-		return o, false, refused("a judge action is required")
+		return o, false, refused(cliargs.Required("ACTION"))
 	}
 	if args[0] == "--help" || args[0] == "-h" {
 		return o, true, nil
 	}
 	o.action = args[0]
 	if o.action != "list" && o.action != "ask" && o.action != "egress" {
-		return o, false, refused("the judge action must be list, ask or egress")
+		return o, false, refused(cliargs.Reject("ACTION"))
 	}
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
@@ -101,11 +103,11 @@ func parseOptions(args []string) (options, bool, error) {
 		key, value, equal := strings.Cut(arg, "=")
 		allowed := key == "--config" || (o.action == "egress" && key == "--since") || (o.action == "ask" && (key == "--judge" || key == "--question" || key == "--prompt-file" || key == "--subject" || key == "--lane"))
 		if !allowed {
-			return o, false, refused("an unrecognized argument was given (it is not repeated)")
+			return o, false, refused(cliargs.Reject(""))
 		}
 		if !equal {
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
-				return o, false, refused(key + ": a value is required")
+				return o, false, refused(cliargs.Expected(key))
 			}
 			i++
 			value = args[i]
@@ -137,7 +139,7 @@ func parseOptions(args []string) (options, bool, error) {
 		}
 	}
 	if o.action == "ask" && (o.judge == "" || !o.questionSet || o.promptFile == "" || len(o.subjects) == 0) {
-		return o, false, refused("ask requires --judge, --question, --prompt-file and --subject")
+		return o, false, refused(cliargs.Required("--judge", "--question", "--prompt-file", "--subject"))
 	}
 	return o, false, nil
 }

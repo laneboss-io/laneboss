@@ -176,6 +176,8 @@ class DiscordStub:
 class OrgDiscordTests(support.LauncherTest):
     def setUp(self):
         super().setUp()
+        # HTTP test-stub routing is absent from the release launcher.
+        self.command = support.faults_binary()
         self.guild, self.owner, self.decider, self.informer = [snowflake() for _ in range(4)]
         self.decide_group, self.inform_group, self.stranger = [snowflake() for _ in range(3)]
         self.channel_a, self.channel_b = snowflake(), snowflake()

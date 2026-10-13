@@ -48,7 +48,7 @@ def tearDownModule():
 class DecisionsPassthroughTest(support.LauncherTest):
     def module(self, *arguments):
         environment = dict(self.environment, PYTHONPATH=str(support.ROOT / "src"), PYTHONDONTWRITEBYTECODE="1")
-        program = [str(decisions_go_binary())] if GO_DECISIONS else [sys.executable, "-m", "laneboss.decisions"]
+        program = [str(decisions_go_binary())]
         return subprocess.run(program + list(map(str, arguments)), cwd=str(self.directory),
                               env=environment, capture_output=True, text=True, encoding="utf-8", timeout=60)
 

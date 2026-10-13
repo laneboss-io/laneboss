@@ -3,6 +3,8 @@ package eventstore
 import (
 	"strconv"
 	"strings"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 type Options struct {
@@ -15,7 +17,7 @@ type Options struct {
 func ParseOptions(group string, args []string) (Options, error) {
 	o := Options{}
 	if len(args) == 0 {
-		return o, Refuse("the following arguments are required: ACTION")
+		return o, Refuse("%s", cliargs.Required("ACTION"))
 	}
 	if args[0] == "--help" || args[0] == "-h" {
 		o.Help = true
@@ -27,7 +29,7 @@ func ParseOptions(group string, args []string) (Options, error) {
 		actions = []string{"events", "lanes", "rebuild", "verify"}
 	}
 	if !contains(actions, o.Action) {
-		return o, Refuse("the command line was not accepted; run with --help")
+		return o, Refuse("%s", cliargs.Reject("ACTION"))
 	}
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
@@ -38,23 +40,23 @@ func ParseOptions(group string, args []string) (Options, error) {
 		name, value, inline := strings.Cut(arg, "=")
 		if name == "--follow" && group == "event" && o.Action == "tail" {
 			if inline {
-				return o, Refuse("argument --follow was not accepted")
+				return o, Refuse("%s", cliargs.Reject("--follow"))
 			}
 			o.Follow = true
 			continue
 		}
 		allowed := name == "--config" || group == "event" && (o.Action == "append" && name == "--file" || o.Action == "tail" && contains([]string{"--since", "--lane", "--until"}, name))
 		if !allowed {
-			return o, Refuse("the command line was not accepted; run with --help")
+			return o, Refuse("%s", cliargs.Reject(""))
 		}
 		if !inline {
 			i++
 			if i >= len(args) {
-				return o, Refuse("argument %s: expected one argument", name)
+				return o, Refuse("%s", cliargs.Expected(name))
 			}
 			value = args[i]
 			if strings.HasPrefix(value, "--") {
-				return o, Refuse("argument %s: expected one argument", name)
+				return o, Refuse("%s", cliargs.Expected(name))
 			}
 		}
 		switch name {
@@ -78,7 +80,7 @@ func ParseOptions(group string, args []string) (Options, error) {
 		case "--since":
 			n, err := strconv.ParseInt(value, 10, 64)
 			if err != nil || n < 0 {
-				return o, Refuse("argument --since: must be a whole number that is not negative")
+				return o, Refuse("%s", cliargs.Reject("--since"))
 			}
 			o.Since = n
 		}
@@ -87,7 +89,7 @@ func ParseOptions(group string, args []string) (Options, error) {
 		return o, nil
 	}
 	if group == "event" && o.Action == "append" && o.File == "" {
-		return o, Refuse("the following arguments are required: --file")
+		return o, Refuse("%s", cliargs.Required("--file"))
 	}
 	if o.Lane != "" {
 		if err := envelopeGrammar(o.Lane, laneGrammar, "--lane", false); err != nil {

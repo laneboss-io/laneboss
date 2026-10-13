@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"laneboss.io/laneboss/internal/faults"
 	"math"
 	"net/url"
 	"os"
@@ -142,6 +143,9 @@ func (s *store) close() {
 	}
 }
 func (s *store) exec(q string, args ...any) (sql.Result, error) {
+	if err := faults.SQL(q); err != nil {
+		return nil, err
+	}
 	for i, v := range args {
 		if n, ok := integer(v); ok {
 			args[i] = n
@@ -150,6 +154,9 @@ func (s *store) exec(q string, args ...any) (sql.Result, error) {
 	return s.conn.ExecContext(ctx, q, args...)
 }
 func (s *store) query(q string, args ...any) ([]object, error) {
+	if err := faults.SQL(q); err != nil {
+		return nil, err
+	}
 	rows, e := s.conn.QueryContext(ctx, q, args...)
 	if e != nil {
 		return nil, e

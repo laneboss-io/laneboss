@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"laneboss.io/laneboss/internal/lane"
 )
 
 // Walk every component without following links, then validate the resulting
@@ -104,7 +106,24 @@ func validateScanFile(file *os.File, zones []string) (os.FileInfo, string, error
 			return info, actual, refused("the opened record lies in a refused configuration zone")
 		}
 	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return info, actual, refused("the opened record's link count cannot be verified")
+	}
+	if stat.Nlink > 1 {
+		linked, err := scanHardlinkInZones(info, zones)
+		if err != nil {
+			return info, actual, refused("the opened record's hard links in refused zones cannot be verified; no record bytes were read")
+		}
+		if linked {
+			return info, actual, refused("the opened record has a hard link in a refused configuration zone; no record bytes were read")
+		}
+	}
 	return info, actual, nil
+}
+
+func scanHardlinkInZones(info os.FileInfo, zones []string) (bool, error) {
+	return lane.HardlinkInZones(info, zones)
 }
 
 func scanPathWithin(path, directory string) bool {

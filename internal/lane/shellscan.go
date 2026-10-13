@@ -211,6 +211,10 @@ func expandHome(s string) string {
 	}
 	return s
 }
+
+// ResolveShellPath shares the scanner's path rules with structured record fields.
+func ResolveShellPath(word, directory string) string { return shellResolve(word, directory) }
+
 func shellResolve(word, directory string) string {
 	if word == "" || strings.Contains(word, "\x00") || strings.Contains(word, "://") || strings.IndexFunc(word, func(r rune) bool { return r < 32 }) >= 0 {
 		return ""
@@ -347,6 +351,13 @@ func writtenBy(name string, a []string, directory string) []string {
 	}
 	return nil
 }
+
+// AnalyseShell is the shared scanner for ordinary and turn-based lanes. It
+// returns write candidates and named paths without executing any command.
+func AnalyseShell(command, directory string) ([]string, []string) {
+	return analyseShell(command, directory)
+}
+
 func analyseShell(command, directory string) ([]string, []string) {
 	writes, named := []string{}, []string{}
 	add := func(word, here string, write bool) {

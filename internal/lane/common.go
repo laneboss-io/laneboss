@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"laneboss.io/laneboss/internal/jsontext"
 	"math"
 	"math/big"
 	"regexp"
@@ -16,6 +17,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 type object = map[string]any
@@ -376,46 +379,7 @@ func readJSON(d *json.Decoder) (any, error) {
 	}
 }
 
-func validJSONUnicode(b []byte) bool {
-	quoted := false
-	for i := 0; i < len(b); i++ {
-		if b[i] == '"' {
-			quoted = !quoted
-			continue
-		}
-		if !quoted || b[i] != '\\' {
-			continue
-		}
-		i++
-		if i >= len(b) {
-			return false
-		}
-		if b[i] != 'u' {
-			continue
-		}
-		if i+4 >= len(b) {
-			return false
-		}
-		value, err := strconv.ParseUint(string(b[i+1:i+5]), 16, 16)
-		if err != nil {
-			return false
-		}
-		i += 4
-		if value >= 0xd800 && value <= 0xdbff {
-			if i+6 >= len(b) || b[i+1] != '\\' || b[i+2] != 'u' {
-				return false
-			}
-			low, e := strconv.ParseUint(string(b[i+3:i+7]), 16, 16)
-			if e != nil || low < 0xdc00 || low > 0xdfff {
-				return false
-			}
-			i += 6
-		} else if value >= 0xdc00 && value <= 0xdfff {
-			return false
-		}
-	}
-	return true
-}
+func validJSONUnicode(b []byte) bool { return jsontext.ValidUnicode(b) }
 
 type arguments struct {
 	action   string
@@ -429,7 +393,7 @@ func (a arguments) has(k string) bool   { return a.booleans[k] }
 func parseArgs(args []string) (arguments, error) {
 	a := arguments{values: map[string]string{}, booleans: map[string]bool{}, touches: []string{}}
 	if len(args) == 0 {
-		return a, refuse("a lane action is required")
+		return a, refuse("%s", cliargs.Required("ACTION"))
 	}
 	a.action = args[0]
 	options := map[string]string{
@@ -437,7 +401,7 @@ func parseArgs(args []string) (arguments, error) {
 		"resume": "config lane message account budget", "stop": "config lane run", "status": "config lane", "check": "config lane", "mark": "config lane state landing gone accept-uncovered", "clean": "config lane", "scan": "config lane", "refusals": "config lane", "review": "config lane refusal path verdict note"}
 	allowed, ok := options[a.action]
 	if !ok {
-		return a, refuse("unknown lane action")
+		return a, refuse("%s", cliargs.Reject("ACTION"))
 	}
 	for i := 1; i < len(args); i++ {
 		key := strings.TrimPrefix(args[i], "--")
@@ -449,19 +413,19 @@ func parseArgs(args []string) (arguments, error) {
 			inline = true
 		}
 		if !strings.HasPrefix(args[i], "--") || !contains(strings.Fields(allowed), key) {
-			return a, refuse("unrecognized lane option")
+			return a, refuse("%s", cliargs.Reject(""))
 		}
 		if contains([]string{"reuse", "turns", "gone", "accept-uncovered"}, key) {
 			if inline {
-				return a, refuse("--%s takes no value", key)
+				return a, refuse("%s", cliargs.Reject("--"+key))
 			}
 			a.booleans[key] = true
 			continue
 		}
 		if !inline {
 			i++
-			if i == len(args) {
-				return a, refuse("--%s requires a value", key)
+			if i == len(args) || strings.HasPrefix(args[i], "--") {
+				return a, refuse("%s", cliargs.Expected("--"+key))
 			}
 			v = args[i]
 		}
@@ -475,17 +439,17 @@ func parseArgs(args []string) (arguments, error) {
 		}
 	}
 	if !contains([]string{"status", "check", "refusals"}, a.action) && a.get("lane") == "" {
-		return a, refuse("--lane is required")
+		return a, refuse("%s", cliargs.Required("--lane"))
 	}
 	if a.get("lane") != "" && !match(`[a-z0-9][a-z0-9._-]{0,63}`, a.get("lane")) {
 		return a, refuse("--lane must match [a-z0-9][a-z0-9._-]{0,63}")
 	}
 	if a.action == "start" && a.get("brief") == "" {
-		return a, refuse("--brief is required")
+		return a, refuse("%s", cliargs.Required("--brief"))
 	}
 	for _, k := range []string{"refusal", "path", "verdict"} {
 		if a.action == "review" && a.get(k) == "" {
-			return a, refuse("--%s is required", k)
+			return a, refuse("%s", cliargs.Required("--"+k))
 		}
 	}
 	return a, nil

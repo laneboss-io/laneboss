@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"laneboss.io/laneboss/internal/testenv"
 )
 
 type claim struct{ holder, name string }
 
 func claimsRegistry() (string, error) {
-	p := os.Getenv("LANEBOSS_TEST_CLAIMS_DIR")
+	p := testenv.ClaimsDirectory()
 	if p != "" {
 		if !filepath.IsAbs(p) {
 			return "", refuse("LANEBOSS_TEST_CLAIMS_DIR must be an absolute path")

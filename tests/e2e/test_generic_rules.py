@@ -1,6 +1,6 @@
 """LB-96 P1: the two generic rules files ship inside the launcher and carry no company's name.
 
-`src/laneboss/protocol/executor.md` (G1) reaches every lane brief; `src/laneboss/protocol/supervisor.md` (G2)
+`internal/protocol/executor.md` (G1) reaches every lane brief; `internal/protocol/supervisor.md` (G2)
 reaches a supervisor's briefing and no lane brief. Both travel inside the package, so a second company installs
 them as they are written here, and this test is what keeps them the files the design describes.
 
@@ -20,7 +20,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-PROTOCOL = ROOT / "src" / "laneboss" / "protocol"
+PROTOCOL = ROOT / "internal" / "protocol"
 
 # One top-level item of a generic file: "- `id`: its text." The deployed rule-id check reads the same shape.
 ITEM = re.compile(r"^- `(?P<id>[a-z][a-z0-9-]+)`: (?P<text>\S.*)$")

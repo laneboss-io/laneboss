@@ -9,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 const loopSession = "laneboss+loop"
@@ -448,6 +450,10 @@ func stopLoop(c *configuration) (object, error) {
 	}
 	return object{"stopped": true, "pid": r["pid"], "event": event}, nil
 }
+func loopArguments(binary, fifo string) []string {
+	return append([]string{binary}, selfexec.Args("lane", "loop", "__turn_loop", fifo)...)
+}
+
 func detachLoop(c *configuration) (object, error) {
 	s, err := openSession(c, true)
 	if err != nil {
@@ -482,7 +488,7 @@ func detachLoop(c *configuration) (object, error) {
 	if err != nil {
 		return nil, err
 	}
-	process, err := tmuxNew(socket, loopSession, s.state.path, []string{binary, "loop", "__turn_loop", s.state.path + "/" + name})
+	process, err := tmuxNew(socket, loopSession, s.state.path, loopArguments(binary, s.state.path+"/"+name))
 	if err != nil {
 		return nil, err
 	}

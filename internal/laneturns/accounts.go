@@ -152,6 +152,38 @@ func probeRoom(c *configuration, r object, account string) roomAnswer {
 	return readRoom(output, account)
 }
 func chooseAccount(c *configuration, r object, named, previous any, project object, started map[string]int) (any, any, error) {
+	choice := accountChoice(c, r, named, previous, project, started)
+	if choice.Account == nil {
+		return nil, nil, refused("%s", str(choice.Reason))
+	}
+	return choice.Account, choice.ChosenBy, nil
+}
+
+type choice struct {
+	Account  any    `json:"account"`
+	ChosenBy any    `json:"chosen_by"`
+	Reason   any    `json:"reason"`
+	Outcome  string `json:"outcome"`
+}
+
+// accountChoice is the shared decision used by real turns and private probes.
+func accountChoice(c *configuration, r object, named, previous any, project object, started map[string]int) choice {
+	if named != nil && (!contains(r["accounts"], str(named)) || contains(project["excluded_accounts"], str(named))) {
+		reason := "the named account is not one the runner lists"
+		if contains(r["accounts"], str(named)) {
+			reason = fmt.Sprintf("account %s is excluded by the project", screened(str(named)))
+		}
+		return choice{Reason: reason, Outcome: "named-unusable"}
+	}
+	if r["room"] == nil {
+		if named != nil {
+			return choice{Account: named, ChosenBy: "supervisor", Outcome: "chosen"}
+		}
+		if previous != nil {
+			return choice{Account: previous, ChosenBy: "previous", Outcome: "chosen"}
+		}
+		return choice{Reason: "runner has no room command and the lane has no previous run's account", Outcome: "no-check"}
+	}
 	candidates := []string{}
 	if named != nil {
 		candidates = append(candidates, str(named))
@@ -175,19 +207,19 @@ func chooseAccount(c *configuration, r object, named, previous any, project obje
 			} else if account == str(previous) {
 				by = "previous"
 			}
-			return account, by, nil
+			return choice{Account: account, ChosenBy: by, Outcome: "chosen"}
 		}
 		reason := answer.reason
 		if answer.room {
 			reason = fmt.Sprintf("account %s has taken its %d turn(s) for this pass", account, answer.slots)
 		}
 		if named != nil {
-			return nil, nil, refused("%s", reason)
+			return choice{Reason: reason, Outcome: "named-no-room"}
 		}
 		asked = append(asked, account+": "+reason)
 	}
 	if len(asked) == 0 {
-		return nil, nil, refused("no account is left to ask")
+		return choice{Reason: "no account is left to ask", Outcome: "no-room"}
 	}
-	return nil, nil, refused("no account has room (%s)", strings.Join(asked, "; "))
+	return choice{Reason: fmt.Sprintf("no account has room (%s)", strings.Join(asked, "; ")), Outcome: "no-room"}
 }

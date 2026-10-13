@@ -39,7 +39,7 @@ from . import serving
 from .serving import (
     DIMENSION, MODEL, ServeCase, UnixConnection, inet_sockets, search_params, search_words, semantic_vector,
 )
-from .support import FAULTS, GO_DECISIONS, ROOT, decisions_go_binary, ids, plain_record
+from .support import FAULTS, GO_DECISIONS, ROOT, decisions_go_binary, decisions_program, ids, plain_record
 
 try:
     from math import sumprod
@@ -1127,7 +1127,7 @@ class KeyTest(ServeCase):
         self.assertTrue(all(request["auth"] == "Bearer " + self.key for request in self.stub.requests))
         seen = [reply.body.decode("utf-8") + repr(reply.headers) for reply in replies]
         listing = subprocess.run(["ps", "-eo", "args="], capture_output=True, text=True, timeout=60).stdout
-        self.assertIn(str(decisions_go_binary()) if GO_DECISIONS else "laneboss.decisions", listing)
+        self.assertIn(decisions_program()[0], listing)
         seen.append(listing)
         server.stop()
         self.assertTrue(server.stdout_complete,
@@ -1300,8 +1300,8 @@ class ProtocolTest(ServeCase):
         bin_directory.mkdir()
         log = self.scratch / "launcher.log"
         launcher = bin_directory / "laneboss"
-        dispatch = ('exec "$LB_TEST_DECISIONS" "$@"\n' if GO_DECISIONS else
-                    'exec "$LB_TEST_PYTHON" -m laneboss.decisions "$@"\n')
+        dispatch = ('exec "$LB_TEST_DECISIONS" decisions "$@"\n' if "LANEBOSS_BIN" in os.environ else
+                    'exec "$LB_TEST_DECISIONS" "$@"\n')
         launcher.write_text('#!/bin/sh\necho run >> "$LB_TEST_LOG"\n[ "$1" = decisions ] || exit 64\nshift\n'
                             + dispatch, encoding="utf-8")
         launcher.chmod(0o755)
@@ -1310,7 +1310,7 @@ class ProtocolTest(ServeCase):
                            LB_TEST_LOG=str(log), LB_TEST_PYTHON=sys.executable,
                            PATH=str(bin_directory) + os.pathsep + os.environ["PATH"])
         if GO_DECISIONS:
-            environment["LB_TEST_DECISIONS"] = str(decisions_go_binary())
+            environment["LB_TEST_DECISIONS"] = decisions_program()[0]
 
         def call(arguments):
             return subprocess.run(["sh", "-c", blocks[0] + "\nsearch " + arguments + "\n"], env=environment,

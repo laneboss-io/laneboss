@@ -151,6 +151,12 @@ func verifyMessage(reply map[string]any, role Role, text, messageID string) (str
 }
 
 func addChannel(arguments addArguments) (map[string]any, error) {
+	return addChannelClient(arguments, nil)
+}
+
+// A supplied client keeps registration policy and persistence identical for
+// callers that resolve credentials and decorate their HTTP transport themselves.
+func addChannelClient(arguments addArguments, supplied *discordREST) (map[string]any, error) {
 	files, err := openOrg(arguments.org)
 	if err != nil {
 		return nil, err
@@ -192,16 +198,24 @@ func addChannel(arguments addArguments) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	token, err := loadToken(b.discord, b.store)
-	if err != nil {
-		return nil, err
+	token := ""
+	if supplied != nil {
+		token = supplied.token
+	} else {
+		token, err = loadToken(b.discord, b.store)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if bytesContainToken(b.agent.raw, token) || bytesContainToken(renderRoles(b.roles), token) {
 		return nil, refused("instance.toml or discord-roles.toml contains credential material; registration refused")
 	}
-	api, err := newREST(token)
-	if err != nil {
-		return nil, err
+	api := supplied
+	if api == nil {
+		api, err = newREST(token)
+		if err != nil {
+			return nil, err
+		}
 	}
 	defer api.client.CloseIdleConnections()
 	var metadata map[string]any

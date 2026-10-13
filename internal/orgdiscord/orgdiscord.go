@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 const rolesPath = ".laneboss/shared/services/discord-roles.toml"
@@ -376,22 +378,21 @@ type addArguments struct {
 	members, groups        []string
 }
 
-// Run executes org channel actions. _probe is an internal adapter used by the
-// black-box event/read/validate probes and calls the same Go implementation.
+// Run executes org channel actions. Test adapters are isolated in tagged builds.
 func Run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, "usage: laneboss org channel add ORG INSTANCE (--channel-id ID | --create)")
 		return 2
 	}
-	if args[0] == "_probe" {
-		return runProbe(args[1:], stdout, stderr)
+	if code, handled := runTestProbe(args, stdout, stderr); handled {
+		return code
 	}
 	if args[0] == "-h" || args[0] == "--help" {
 		fmt.Fprintln(stdout, "usage: laneboss org channel add ORG INSTANCE (--channel-id ID | --create) [--member ID:AUTHORITY] [--role-id ID:AUTHORITY] [--dry-run]")
 		return 0
 	}
 	if args[0] != "add" {
-		fmt.Fprintln(stderr, "laneboss org channel: unknown action")
+		fmt.Fprintln(stderr, "laneboss org channel: error: "+cliargs.Reject("ACTION"))
 		return 2
 	}
 	for _, argument := range args[1:] {
@@ -435,7 +436,7 @@ func parseAdd(args []string) (addArguments, error) {
 		switch key {
 		case "--create", "--dry-run":
 			if assigned {
-				return result, refused("boolean options do not take values")
+				return result, refused(cliargs.Reject(key))
 			}
 			if key == "--create" {
 				result.create = true
@@ -446,7 +447,7 @@ func parseAdd(args []string) (addArguments, error) {
 			if !assigned {
 				index++
 				if index == len(args) || strings.HasPrefix(args[index], "--") {
-					return result, refused("channel options require a value")
+					return result, refused(cliargs.Expected(key))
 				}
 				value = args[index]
 			}
@@ -458,14 +459,21 @@ func parseAdd(args []string) (addArguments, error) {
 				result.groups = append(result.groups, value)
 			}
 		default:
-			return result, refused("unrecognized channel option")
+			return result, refused(cliargs.Reject(""))
 		}
 	}
 	if len(positional) != 2 {
-		return result, refused("ORG and INSTANCE are required")
+		if len(positional) < 2 {
+			labels := []string{"ORG-DIR", "INSTANCE"}
+			return result, refused(cliargs.Required(labels[len(positional):]...))
+		}
+		return result, refused(cliargs.Reject(""))
 	}
 	if channelSet == result.create {
-		return result, refused("choose exactly one of --channel-id or --create")
+		if channelSet {
+			return result, refused(cliargs.Conflict("--create", "--channel-id"))
+		}
+		return result, refused(cliargs.Screen("one of the arguments --channel-id --create is required"))
 	}
 	if channelSet {
 		if _, err := checkedString(result.channel, "--channel-id", idPattern); err != nil {

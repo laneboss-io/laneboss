@@ -138,90 +138,10 @@ elif mode == "wait":
 # The installed command with the reader's size limit lowered, so its actual writer and reader face the same bound.
 # The Python implementation uses its module constant; the Go implementation uses its operator-configurable lower cap.
 # A Python monkeypatch alone cannot cross the launcher's forwarding boundary into the Go process.
-LIMITED = r"""
-import os
-import sys
-sys.path.insert(0, sys.argv[1])
-from laneboss import cli, judges
-judges.MAX_EGRESS_BYTES = int(sys.argv[2])
-os.environ["LANEBOSS_JUDGE_MAX_EGRESS_BYTES"] = sys.argv[2]
-sys.exit(cli.main(sys.argv[3:]))
-"""
 
 # Runs one ask of the judge "guard" through the public function while it records, in order, every fsync (with what the
 # descriptor is: the state directory, the judges directory or a file, and what existed at that moment) and the start of
 # the judge. In mode "kill" the launcher kills itself at the moment it would start the judge.
-PROBE = r"""
-import json
-import os
-import signal
-import stat
-import subprocess
-import sys
-
-sys.path.insert(0, sys.argv[1])
-from laneboss import config, judges
-from laneboss.statedir import StateDir
-
-mode, name, record = sys.argv[2], sys.argv[3], sys.argv[4]
-configuration = config.load(name)
-zones = config.Zones(configuration)
-state_dir = os.path.realpath(str(configuration.state_dir))
-log_path = os.path.join(state_dir, "judges", "egress.jsonl")
-events = []
-
-
-def snapshot():
-    return {"marker": os.path.exists(os.path.join(state_dir, ".laneboss-state")),
-            "judges": os.path.isdir(os.path.join(state_dir, "judges")), "log": os.path.exists(log_path),
-            "log_lines": len(open(log_path).read().splitlines()) if os.path.exists(log_path) else 0}
-
-
-def target(descriptor):
-    info = os.fstat(descriptor)
-    for label, path in (("state", state_dir), ("judges", os.path.join(state_dir, "judges"))):
-        try:
-            other = os.stat(path)
-        except OSError:
-            continue
-        if (info.st_dev, info.st_ino) == (other.st_dev, other.st_ino):
-            return label
-    return "file" if stat.S_ISREG(info.st_mode) else "other"
-
-
-def save():
-    with open(record, "w") as handle:
-        json.dump(events, handle)
-
-
-real_fsync, real_popen = os.fsync, subprocess.Popen
-
-
-def fsync(descriptor):
-    events.append(dict(snapshot(), event="fsync", target=target(descriptor)))
-    return real_fsync(descriptor)
-
-
-class Popen(real_popen):
-    def __init__(self, *arguments, **options):
-        events.append(dict(snapshot(), event="start"))
-        save()
-        if mode == "kill":
-            os.kill(os.getpid(), signal.SIGKILL)
-        super().__init__(*arguments, **options)
-
-
-os.fsync = fsync
-subprocess.Popen = Popen
-state = StateDir.open(configuration, zones, create=True)
-try:
-    judges.ask(configuration, state, "guard", "test.probe", "A question?", {"result": "text"})
-finally:
-    state.close()
-save()
-"""
-
-
 def toml(value):
     return json.dumps(value)
 
@@ -300,17 +220,11 @@ class JudgeTest(support.LauncherTest):
         self.state = self.state_home / "alpha"
         self.counter = 0
 
-    def installed_library(self):
-        found = sorted((support._installation.prefix / "share" / support.PROGRAM / "versions").glob("*/lib"))
-        self.assertEqual(len(found), 1)
-        return found[0]
-
     def limited(self, limit, *arguments, code=0):
         """The installed command line with the reader's size limit set to `limit` bytes (see LIMITED)."""
-        script = self.directory / "limited.py"
-        script.write_text(LIMITED, encoding="utf-8")
-        result = subprocess.run([sys.executable, "-I", "-B", str(script), str(self.installed_library()), str(limit),
-                                 *map(str, arguments)], cwd=str(self.directory), env=self.environment,
+        environment = dict(self.environment, LANEBOSS_JUDGE_MAX_EGRESS_BYTES=str(limit))
+        result = subprocess.run([str(self.command), *map(str, arguments)],
+                                cwd=str(self.directory), env=environment,
                                 capture_output=True, text=True, encoding="utf-8", timeout=60)
         if code is not None:
             self.assertEqual(result.returncode, code, "limit {}: {}: exit {}; stdout={!r}; stderr={!r}".format(
@@ -319,11 +233,11 @@ class JudgeTest(support.LauncherTest):
 
     def probe(self, mode, code=0):
         """Run PROBE; the list of events it recorded, in order."""
-        script = self.directory / "probe.py"
-        script.write_text(PROBE, encoding="utf-8")
         record = self.directory / "probe-events.json"
-        result = subprocess.run([sys.executable, "-I", "-B", str(script), str(self.installed_library()), mode, "alpha",
-                                 str(record)], cwd=str(self.directory), env=self.environment, capture_output=True,
+        environment = dict(self.environment, LANEBOSS_FAULTS=json.dumps(
+            {"point": "judge-" + mode, "state": str(self.state), "record": str(record)}))
+        result = subprocess.run([str(support.faults_binary()), *self.ask_arguments(question="test.probe")],
+                                cwd=str(self.directory), env=environment, capture_output=True,
                                 text=True, encoding="utf-8", timeout=60)
         self.assertEqual(result.returncode, code, "probe {}: exit {}; stderr={!r}".format(
             mode, result.returncode, result.stderr))
@@ -1460,29 +1374,31 @@ class OwnerTest(JudgeTest):
 
     def test_function_refuses_foreign_state(self):
         """Decision 6: judges.ask() with a configuration and a state directory that do not belong together is refused
-        before anything is run or written. The installed package is imported in a separate process."""
+        before anything is run or written. A tagged bridge supplies the state to the real Go ask path."""
         self.one("answer", "guard", "alpha")
         self.one("answer", "guard", "beta")
-        library = self.installed_library()
-        code = ("import json, sys\nsys.path.insert(0, sys.argv[1])\n"
-                "from laneboss import config, judges\nfrom laneboss.errors import LauncherError\n"
-                "from laneboss.statedir import StateDir\n"
-                "states, judge = config.load(sys.argv[2]), config.load(sys.argv[3])\n"
-                "state = StateDir.open(states, config.Zones(states), create=True)\n"
-                "try:\n"
-                "    judges.ask(judge, state, 'guard', 'test.api', 'A question?', {'result': 'text'})\n"
-                "    print(json.dumps({'refused': False}))\n"
-                "except LauncherError as error:\n"
-                "    print(json.dumps({'refused': True, 'kind': type(error).__name__}))\n"
-                "finally:\n    state.close()\n")
         for states, judge in (("beta", "alpha"), ("alpha", "beta")):
             with self.subTest(state=states, judge=judge):
-                result = subprocess.run([sys.executable, "-I", "-B", "-c", code, str(library), states, judge],
+                result = subprocess.run([str(support.faults_binary()), "__test", "judge-owner"],
+                                        input=json.dumps({"state": states, "config": judge, "judge": "guard",
+                                                          "question": "test.api", "prompt": "A question?",
+                                                          "subjects": {"result": "text"}}),
                                         env=self.environment, capture_output=True, text=True, timeout=60)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(json.loads(result.stdout)["refused"], True, result.stdout)
                 self.assertEqual(self.runs(), [], "a judge ran for a state that is not its configuration's")
                 self.assertFalse((self.state_home / states / "judges").exists(), "a log was written")
+
+        # A control through the same bridge must run the judge for its own state,
+        # so an unconditional refusal cannot satisfy the foreign-state cases.
+        result = subprocess.run([str(support.faults_binary()), "__test", "judge-owner"],
+                                input=json.dumps({"state": "alpha", "config": "alpha", "judge": "guard",
+                                                  "question": "test.api", "prompt": "A question?",
+                                                  "subjects": {"result": "text"}}),
+                                env=self.environment, capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIs(json.loads(result.stdout)["refused"], False)
+        self.assertEqual(len(self.runs()), 1, "the own-state control did not run the real judge")
 
     def test_first_ask_waits_for_the_state_lock(self):
         """Decision 5: an ask for a state directory that has no ownership marker takes the state directory's lock to

@@ -24,20 +24,25 @@ def main():
         checkout = Path(temporary) / "checkout"
         shutil.copytree(ROOT, checkout, ignore=shutil.ignore_patterns(
             ".git", "__pycache__", "*.pyc", ".venv", "build", "dist", "*.egg-info"))
-        go = "decisions" in os.environ.get("LANEBOSS_TEST_GO_GROUPS", "").split(",")
-        path = checkout / ("internal/decisionsrv/history.go" if go else "src/laneboss/decisions/history.py")
+        path = checkout / "internal/decisionsrv/history.go"
         original = path.read_text(encoding="utf-8")
-        anchor = ('useServer = obj(status) != nil && obj(status)["store_id"] == digest(o.db)' if go else
-                  'use_server = status.get("store_id") == sha256(str(org.db))')
+        anchor = 'useServer = obj(status) != nil && obj(status)["store_id"] == digest(o.db)'
         if original.count(anchor) != 1:
             raise RuntimeError("resident comparison mutation has no unique anchor")
-        replacement = 'useServer = obj(status) != nil' if go else "use_server = True"
+        replacement = 'useServer = obj(status) != nil'
         path.write_text(original.replace(anchor, replacement), encoding="utf-8")
         module = "tests.e2e.test_org_history"
         case = module + ".HistoryTest.test_foreign_resident"
+        binary = Path(temporary) / "laneboss-mutant"
+        environment = dict(os.environ, GOTOOLCHAIN="go1.26.0", GOWORK="off", CGO_ENABLED="0", GOFLAGS="")
+        build = subprocess.run([shutil.which(os.environ.get("LANEBOSS_GO", "go")), "build", "-o", str(binary),
+                                "./cmd/laneboss"], cwd=checkout, env=environment, capture_output=True, text=True)
+        if build.returncode:
+            raise RuntimeError("mutant Go build failed: " + build.stderr)
+        environment["LANEBOSS_BIN"] = str(binary)
         # Isolation ensures no Python path from the supervising test process selects the original checkout.
         return subprocess.run([sys.executable, "-I", "-B", str(checkout / "tests/e2e/orgmutant.py"),
-                               "--run-case", case], cwd=checkout).returncode
+                               "--run-case", case], cwd=checkout, env=environment).returncode
 
 
 if __name__ == "__main__":

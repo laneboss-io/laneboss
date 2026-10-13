@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"laneboss.io/laneboss/internal/faults"
 	"os"
 	"path/filepath"
 	"strings"
@@ -270,7 +271,7 @@ func (d *directory) writeNew(name string, data []byte, replace bool) error {
 	if _, err = f.Write(data); err != nil {
 		return err
 	}
-	if err = f.Sync(); err != nil {
+	if err = faults.Sync(f); err != nil {
 		return err
 	}
 	if err = f.Close(); err != nil {
@@ -423,7 +424,7 @@ func (d *directory) writeLog(line []byte, sending bool, failure string) error {
 		}
 	}
 	if err = d.writeNew("egress.jsonl", append(data, line...), true); err == nil {
-		err = d.file.Sync()
+		err = faults.Sync(d.file)
 	}
 	if err != nil {
 		return egressProblem(failure + ": the egress log cannot be written (" + safeFailure(err) + ")")

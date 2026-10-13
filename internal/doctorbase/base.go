@@ -21,6 +21,8 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/cliargs"
 )
 
 const MarkerName = ".laneboss-state"
@@ -303,8 +305,8 @@ func Bind(args []string) (string, error) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--config" {
-			if i+1 == len(args) {
-				return "", Refuse("argument --config: expected one argument")
+			if i+1 == len(args) || strings.HasPrefix(args[i+1], "--") {
+				return "", Refuse("%s", cliargs.Expected("--config"))
 			}
 			i++
 			value := args[i]
@@ -313,7 +315,7 @@ func Bind(args []string) (string, error) {
 			value := strings.TrimPrefix(arg, "--config=")
 			selected = &value
 		} else {
-			return "", Refuse("the command line was not accepted; a typed value is never repeated here, see the usage line above or run with --help")
+			return "", Refuse("%s", cliargs.Reject(""))
 		}
 	}
 	bound := os.Getenv("LANEBOSS_CONFIG")

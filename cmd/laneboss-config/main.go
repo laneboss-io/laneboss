@@ -1,5 +1,5 @@
-// Command laneboss-config is the Go implementation of `laneboss config`. The Python launcher forwards
-// `laneboss config ...` here, unchanged, when LANEBOSS_CONFIG_GO_BIN names this binary.
+// Command laneboss-config is retained for the GO_GROUPS migration harness.
+// The installed laneboss binary calls the same internal command entry points.
 package main
 
 import (

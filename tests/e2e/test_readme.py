@@ -33,7 +33,8 @@ def quick_start():
 
 LINK = re.compile(r"\]\(([^)\s]+)\)")
 HEADING = re.compile(r"(?m)^#{1,6}[ \t]+(.+?)[ \t]*$")
-DOCUMENTS = ("docs/architecture.md", "docs/configuration.md", "docs/decisions.md", "src/laneboss/protocol/protocol.md",
+DOCUMENTS = ("docs/architecture.md", "docs/configuration.md", "docs/decisions.md", "internal/protocol/protocol.md",
+             "internal/protocol/executor.md", "internal/protocol/supervisor.md", "internal/protocol/continue.md",
              "examples/minimal/", "CONTRIBUTING.md", "CHANGELOG.md")
 
 
@@ -107,8 +108,11 @@ class QuickStartTest(unittest.TestCase):
         environment["TMUX_TMPDIR"] = str(self.tmux_dir)
         # The claims registry is the account's own, whatever HOME says; the test keeps it in its scratch directory.
         environment["LANEBOSS_TEST_CLAIMS_DIR"] = str(self.scratch / "claims")
-        # The suite installs with the interpreter that runs it, so every platform tests one Python.
-        environment["LANEBOSS_PYTHON"] = sys.executable
+        # Supply Go explicitly while preserving this example's scratch and tmux paths.
+        build = support.install_environment(self.home)
+        for key in ("LANEBOSS_GO", "GOCACHE", "GOPATH", "GOMODCACHE", "XDG_CONFIG_HOME"):
+            if key in build:
+                environment[key] = build[key]
         return environment
 
     def test_quick_start_is_straight_line(self):

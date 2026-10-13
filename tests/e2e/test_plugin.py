@@ -256,11 +256,7 @@ class PluginTest(support.LauncherTest):
         return prefix / "share" / "laneboss" / "versions" / self.version() / "plugins" / "claude-code"
 
     def copy_checkout(self, plugins=True):
-        copy = self.directory / "checkout-copy"
-        ignore = shutil.ignore_patterns("__pycache__", "*.pyc")
-        for name in ("src", "scripts") + (("plugins",) if plugins else ()):
-            shutil.copytree(str(support.ROOT / name), str(copy / name), ignore=ignore)
-        return copy
+        return support.copy_go_tree(self.directory / "checkout-copy", plugins=plugins)
 
     def install_from(self, source, prefix, code=0):
         result = support.run_install(source, prefix, self.user_home)
@@ -594,8 +590,8 @@ class PluginTest(support.LauncherTest):
 
     def test_checkout_prints_its_own(self):
         environment = support.base_environment(self.user_home)
-        environment["PYTHONPATH"] = str(support.ROOT / "src")
-        result = subprocess.run([sys.executable, "-B", "-m", "laneboss", "plugin", "path"], env=environment,
+        environment["LANEBOSS_PLUGIN_ROOT"] = str(support.ROOT)
+        result = subprocess.run([str(support.helper_binary(support.ROOT / "cmd" / "laneboss" / "main.go")), "plugin", "path"], env=environment,
                                 capture_output=True, text=True, encoding="utf-8", timeout=60, cwd=str(self.directory))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), str(PLUGIN))

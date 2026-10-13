@@ -37,9 +37,30 @@ announcement channel in the configured org server.
 
 ### Org configuration and named secrets
 
-Known gap in this version: `org validate` does not yet accept the `[services.discord]`
-and `[secret_store]` tables below, so an org set up for `org channel add` fails
-`org validate` with an unknown-field error until the schema allows them.
+The Go org validator accepts the `[services.discord]` table below and checks its
+required guild id and secret name and optional owner id. Like the Python Discord
+reader, it leaves other services and extra Discord settings alone. The
+legacy Python org validator still lacks the service-table schema; select the
+Go org binary when running the combined init/render/channel/validate workflow.
+
+The existing top-level org fields and `secret_store` schema still match
+`src/laneboss/orgschema.py`: the original seven top-level fields are required,
+and `secret_store.kind` and `secret_store.path` are required with no extra store
+fields. The Go fix adds only the optional top-level `services` table. Within
+`services.discord`, required `guild_id` and `token_secret`, optional `owner_id`,
+positive string ids of 1–20 digits and uppercase secret-name syntax match
+`src/laneboss/orgdiscord.py::_settings`.
+
+There are pre-existing Python inconsistencies that exact equivalence cannot
+preserve while fixing this bug. Its org schema rejects `services` entirely;
+its `validate_org_channels` checks channel/instance coverage without validating
+service credentials/settings; and its keychain Discord reader requires
+`secret_store.service`, while its org schema requires `secret_store.path` and
+rejects `service`. This change does not alter the secret-store schema or channel
+coverage rules. The Go schema now validates the added service table during
+render/validate; the Python reader performs those field checks during channel
+registration. A malformed non-table `services` is also rejected by the Go schema,
+whereas Python's channel-coverage helper alone ignores it when no role exists.
 
 Add the Discord service and a reference to the org secret store in
 `.laneboss/org.toml`. All Discord ids are strings. These fields contain public

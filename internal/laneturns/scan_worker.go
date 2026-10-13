@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"laneboss.io/laneboss/internal/selfexec"
 )
 
 type scanProcess struct {
@@ -26,7 +28,7 @@ func startScanProcess(s *laneSession, lane string, run int, offset int64, record
 	if err != nil {
 		return nil, err
 	}
-	command := exec.Command(binary, "turn", "__turn_scan")
+	command := exec.Command(binary, selfexec.Args("lane", "turn", "__turn_scan")...)
 	input, err := command.StdinPipe()
 	if err != nil {
 		return nil, err

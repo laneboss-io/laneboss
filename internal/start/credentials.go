@@ -22,8 +22,8 @@ func rx(s string) *regexp.Regexp { return regexp.MustCompile(s) }
 
 var shapes = []shape{
 	{"private-key", rx(`-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----`), false, false, false},
-	{"authorization-header", rx(`(?i)\b(?:proxy-)?authorization["']?\s*[:=]\s*["']?(?:bearer|basic|token|digest)\s+[A-Za-z0-9._~+/=-]{8,}`), false, false, false},
-	{"bearer-token", rx(`(?i)\bbearer\s+[A-Za-z0-9._~+/-]{16,}`), false, false, false},
+	{"authorization-header", rx(`(?i)\b(?:proxy-)?authorization["']?[\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]*[:=][\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]*["']?(?:bearer|basic|token|digest)[\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]+[A-Za-z0-9._~+/=-]{8,}`), false, false, false},
+	{"bearer-token", rx(`(?i)\bbearer[\s\v\p{Z}\x{0085}\x{001c}-\x{001f}]+[A-Za-z0-9._~+/-]{16,}`), false, false, false},
 	{"code-host-token", rx(`\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|glpat-[A-Za-z0-9_-]{20,})`), false, false, false},
 	{"chat-token", rx(`\bxox[abposr]-[A-Za-z0-9-]{10,}`), false, false, false},
 	{"chat-bot-token", rx(`\b[MNO][A-Za-z0-9_-]{23,27}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,40}`), false, false, true},
