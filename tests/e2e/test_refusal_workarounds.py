@@ -3,6 +3,8 @@ same command with the matched words removed and (3) the same command split into 
 lane.workaround_suspected naming the path and the way; (4) a later file-tool write to that path, (5) a later shell write
 to another path and (6) a later read of that path give none. Both structured formats go through it."""
 
+import shlex
+
 from . import refusalsupport, support
 from .refusalsupport import REFUSED, REWORDED, SPLIT, expected_path, hook, hooked_steps, refused_steps, shell_steps
 
@@ -69,6 +71,109 @@ class WorkaroundTest(refusalsupport.RefusalTest):
 
     def test_claude_code(self):
         self.check_workarounds("claude-code", "b-claude")
+
+    def test_unsupported_copier_writes(self):
+        lane = "b-copy-backup"
+        fmt = "claude-code"
+        relative = "notes/blocked.txt"
+        copy = "c" + "p"
+        refused = "printf '%s' withheld > " + relative
+        steps = [{"open": {}}] + refused_steps(fmt, "r1", refused)
+        steps += shell_steps("read-control", shlex.join([copy, relative, "elsewhere.txt"]))
+        steps += shell_steps("other-control", "cd notes && " + shlex.join([copy, "-b", "../public-source.txt", "other.txt"]))
+        retries = (
+            ("copy-backup", "cd notes && " + shlex.join([copy, "-b", "../public-source.txt", "blocked.txt"])),
+            ("copy-target", shlex.join([copy, "-b", "-t", "notes", "elsewhere/blocked.txt"])),
+            ("copy-directory", shlex.join([copy, "-b", "elsewhere/blocked.txt", "notes/"])),
+        )
+        for call_id, command in retries:
+            steps += shell_steps(call_id, command)
+        steps += [{"exit": 0}]
+        started = self.start_session(lane, fmt, steps)
+        self.wait_event("lane.ended", lane)
+        refusals = self.kind_events(lane, "lane.refusal")
+        self.assertEqual(len(refusals), 1)
+        refusal = refusals[0]["payload"]
+        target = expected_path(started["worktree"], relative)
+        self.assertEqual(refusal["targets"], [target])
+        for call_id, _ in retries:
+            with self.subTest(call=call_id):
+                found = self.suspicion_of(lane, call_id)
+                self.assertEqual(len(found), 1)
+                payload = found[0]["payload"]
+                self.assertEqual(payload["refusal"], refusal["refusal"])
+                self.assertEqual(payload["how"], ["shell-write"])
+                self.assertEqual(payload["paths"], [target])
+                self.assertIsNone(payload["similarity"])
+                self.assertEqual(payload["call"]["id"], call_id)
+                self.assertLess(refusals[0]["seq"], found[0]["seq"])
+        for call_id in ("read-control", "other-control"):
+            self.assertEqual(self.suspicion_of(lane, call_id), [])
+        self.assertEqual(len(self.kind_events(lane, "lane.workaround_suspected")), len(retries))
+        self.assertEqual(self.scan(lane)["appended"], {"refusals": 0, "suspicions": 0})
+        self.assert_sound()
+
+    def test_late_terminator_bsd_write(self):
+        lane = "b-literal-dashes"
+        fmt = "claude-code"
+        copy = "c" + "p"
+        steps = [{"open": {}}]
+        steps += refused_steps(fmt, "r-dashes", "printf '%s' withheld > ./--")
+        steps += refused_steps(fmt, "r-child", "printf '%s' withheld > d/--")
+        steps += shell_steps("leading-control", shlex.join([copy, "--", "source.txt", "other.txt"]))
+        steps += shell_steps("late-dashes", shlex.join([copy, "source.txt", "--"]))
+        steps += shell_steps("late-directory", shlex.join([copy, "source.txt", "--", "d/"]))
+        steps += [{"exit": 0}]
+        started = self.start_session(lane, fmt, steps)
+        self.wait_event("lane.ended", lane)
+        refusals = {item["payload"]["call"]["id"]: item["payload"]
+                    for item in self.kind_events(lane, "lane.refusal")}
+        self.assertEqual(set(refusals), {"r-dashes", "r-child"})
+        root_target = expected_path(started["worktree"], "--")
+        child_target = expected_path(started["worktree"], "d/--")
+        self.assertEqual(self.suspicion_of(lane, "leading-control"), [])
+        for call, expected in (("late-dashes", {refusals["r-dashes"]["refusal"]: root_target}),
+                               ("late-directory", {refusals["r-dashes"]["refusal"]: root_target,
+                                                   refusals["r-child"]["refusal"]: child_target})):
+            with self.subTest(call=call):
+                found = self.suspicion_of(lane, call)
+                actual = {}
+                for suspicion in found:
+                    payload = suspicion["payload"]
+                    self.assertEqual(payload["how"], ["shell-write"])
+                    self.assertIsNone(payload["similarity"])
+                    self.assertEqual(len(payload["paths"]), 1)
+                    actual[payload["refusal"]] = payload["paths"][0]
+                self.assertEqual(actual, expected)
+        self.assertEqual(self.scan(lane)["appended"], {"refusals": 0, "suspicions": 0})
+        self.assert_sound()
+
+    def test_gnu_bsd_candidates_combined(self):
+        lane = "b-copy-late-flag"
+        fmt = "claude-code"
+        copy = "c" + "p"
+        steps = [{"open": {}}]
+        steps += refused_steps(fmt, "r1", "printf '%s' withheld > d/a")
+        steps += shell_steps("other-control", shlex.join([copy, "a", "other/", "-v"]))
+        steps += shell_steps("late-flag", shlex.join([copy, "a", "d/", "-v"]))
+        steps += [{"exit": 0}]
+        started = self.start_session(lane, fmt, steps)
+        self.wait_event("lane.ended", lane)
+        refusal = self.kind_events(lane, "lane.refusal")
+        self.assertEqual(len(refusal), 1)
+        target = expected_path(started["worktree"], "d/a")
+        self.assertEqual(refusal[0]["payload"]["targets"], [target])
+        self.assertEqual(self.suspicion_of(lane, "other-control"), [])
+        found = self.suspicion_of(lane, "late-flag")
+        self.assertEqual(len(found), 1)
+        payload = found[0]["payload"]
+        self.assertEqual(payload["refusal"], refusal[0]["payload"]["refusal"])
+        self.assertEqual(payload["how"], ["shell-write"])
+        self.assertEqual(payload["paths"], [target])
+        self.assertIsNone(payload["similarity"])
+        self.assertLess(refusal[0]["seq"], found[0]["seq"])
+        self.assertEqual(self.scan(lane)["appended"], {"refusals": 0, "suspicions": 0})
+        self.assert_sound()
 
     def test_known_limits_of_the_detector(self):
         # Fix round 1, decision 12: the review's six cases, with today's behaviour asserted (each is a known limit in

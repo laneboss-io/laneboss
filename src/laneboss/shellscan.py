@@ -52,6 +52,67 @@ COPIERS = {"cp": {"-t", "-S", "--target-directory", "--suffix"}, "mv": {"-t", "-
            "ln": {"-t", "-S", "--target-directory", "--suffix"},
            "install": {"-m", "-o", "-g", "-t", "-S", "--mode", "--owner", "--group", "--target-directory"},
            "rsync": {"-e", "--rsh", "--exclude", "--include", "--filter", "-f"}}
+# Only options with understood file effects are supported. Backup, suffix,
+# parents, hardlink and external-program modes need dedicated adapters.
+COPIER_OPTIONS = {
+    "cp": {
+        "flags": "adfHiLnPpRrTuvxZ",
+        "long_flags": {"--archive", "--attributes-only", "--copy-contents", "--dereference", "--force",
+                       "--interactive", "--no-clobber", "--no-dereference", "--no-target-directory",
+                       "--one-file-system", "--recursive", "--remove-destination", "--strip-trailing-slashes",
+                       "--verbose", "--help", "--version", "--debug"},
+        "values": {"--target-directory", "--no-preserve", "--sparse"},
+        "optional_values": {"--context", "--preserve", "--reflink", "--update"},
+    },
+    "mv": {
+        "flags": "finTuvZ",
+        "long_flags": {"--force", "--interactive", "--no-clobber", "--no-target-directory",
+                       "--strip-trailing-slashes", "--verbose", "--help", "--version", "--context",
+                       "--no-copy", "--debug"},
+        "values": {"--target-directory"},
+        "optional_values": {"--update"},
+    },
+    "install": {
+        "flags": "cpvZ",
+        "long_flags": {"--preserve-timestamps", "--verbose", "--help", "--version", "--no-target-directory"},
+        "values": {"-m", "-o", "-g", "--target-directory", "--mode", "--owner", "--group"},
+        "optional_values": {"--context"},
+    },
+}
+# GNU: the coreutils declarations in COPIERS and the original COPIER_OPTIONS.
+# BSD: getopt strings from macOS /usr/bin/{cp,mv,install}, supplied by the review.
+# A short value option is inspectable only when both vendors require its value.
+COPIER_SHORT_ARITY = {
+    "cp": {"gnu_flags": "adfHiLnPpRrTuvxZ", "gnu_values": "St", "bsd_getopt": "HLPRacfilNnprSsvXx"},
+    "mv": {"gnu_flags": "finTuvZ", "gnu_values": "St", "bsd_getopt": "fhinv"},
+    "install": {"gnu_flags": "cDpvTZ", "gnu_values": "gmotS", "bsd_getopt": "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uv"},
+}
+
+
+def copier_short_value_arity(name, letter):
+    source = COPIER_SHORT_ARITY[name]
+    position = source["bsd_getopt"].find(letter)
+    bsd_value = position >= 0 and source["bsd_getopt"][position + 1:position + 2] == ":"
+    return letter in source["gnu_values"], bsd_value
+
+
+def copier_file_candidates(arguments, takes):
+    """Conservative BSD operands, including '--' and option words after a file."""
+    found = []
+    index = 0
+    options = True
+    while index < len(arguments):
+        argument = arguments[index]
+        index += 1
+        if options and not found and argument == "--":
+            options = False
+        elif options and not found and argument.startswith("-") and argument != "-":
+            if argument in takes:
+                index += 1
+        else:
+            found.append(argument)
+            options = False
+    return found
 OPERAND_WRITERS = {"touch": {"-d", "-t", "-r", "--date", "--reference"}, "truncate": {"-s", "-r", "--size", "--reference"},
                    "rm": set(), "unlink": set(), "shred": {"-n", "-s", "--iterations", "--size"},
                    "tee": set()}
@@ -59,8 +120,8 @@ PATH_LIKE = re.compile(r"[^\s=:]+\.[A-Za-z0-9]{1,8}")
 LETTERS = re.compile(r"[^\W_]+")
 
 
-def tokens(text):
-    """The command's tokens: ("word", text without quotes) and ("op", operator) pairs."""
+def tokens(text, *, reject_ansi_c=False):
+    """The command's tokens; strict callers refuse ANSI-C quoting rather than misread escapes."""
     text = text[:MAX_COMMAND]
     found = []
     word = []
@@ -84,6 +145,8 @@ def tokens(text):
             i += 2
             continue
         if c == "'" or (c == "$" and text[i + 1:i + 2] == "'"):
+            if c == "$" and reject_ansi_c:
+                raise ValueError("ANSI-C shell quoting cannot be inspected")
             start = i + (2 if c == "$" else 1)
             end = text.find("'", start)
             end = n if end < 0 else end
@@ -218,15 +281,93 @@ def operands(arguments, takes=()):
     return found
 
 
-def option_values(arguments, short, long):
-    """The values given to an option, as `-o VALUE`, `--long VALUE` or `--long=VALUE`."""
+def option_values(arguments, short, long, *, joined=False):
+    """Option values; callers can also recognise a joined short value such as `-tDIR`."""
     found = []
     for index, argument in enumerate(arguments):
+        if joined and argument == "--":
+            break
         if argument in (short, long) and index + 1 < len(arguments):
             found.append(arguments[index + 1])
         elif argument.startswith(long + "="):
             found.append(argument[len(long) + 1:])
+        elif joined and len(short) == 2 and argument.startswith(short) and len(argument) > 2:
+            found.append(argument[2:])
     return found
+
+
+def copier_operands(name, arguments):
+    """(files, target, supported) from one literal copier-option grammar.
+
+    A value-taking short option may be separate or first with a joined value.
+    Flag-only clusters are supported; clusters mixing flags and values are
+    opaque. Long options must match an exact supported name. Consumed values
+    are never reinterpreted as options or as the option terminator. A terminator
+    must precede the first operand; positional copies need a source and destination.
+    """
+    spec = COPIER_OPTIONS.get(name)
+    if spec is None:  # ln and rsync already need dedicated file-effects adapters.
+        return [], [], False
+    files, target = [], []
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        index += 1
+        if argument == "--":
+            if files:
+                return [], [], False
+            files.extend(arguments[index:])
+            break
+        # BSD getopt stops at the first operand; GNU may permute later options.
+        if files and argument.startswith("-"):
+            return [], [], False
+        if argument.startswith("--"):
+            option, joined, value = argument.partition("=")
+            if option in spec["long_flags"]:
+                if joined:
+                    return [], [], False
+                continue
+            if option in spec["optional_values"]:
+                if not joined:
+                    continue
+            elif option not in spec["values"]:
+                return [], [], False
+            elif not joined:
+                if index >= len(arguments):
+                    return [], [], False
+                value = arguments[index]
+                index += 1
+        elif argument.startswith("-") and argument != "-":
+            option, value = argument[:2], argument[2:]
+            gnu_value, bsd_value = copier_short_value_arity(name, argument[1])
+            if gnu_value != bsd_value:
+                return [], [], False
+            if option not in spec["values"]:
+                if any(flag not in spec["flags"] or any(copier_short_value_arity(name, flag))
+                       for flag in argument[1:]):
+                    return [], [], False
+                continue
+            if len(argument) == 2:
+                if index >= len(arguments):
+                    return [], [], False
+                value = arguments[index]
+                index += 1
+        else:
+            files.append(argument)
+            continue
+        if not value or any(c in value for c in "$`*?[]{}") or value.startswith("~") or any(ord(c) < 32 for c in value):
+            return [], [], False
+        if option in {"-t", "--target-directory"}:
+            if target:
+                return [], [], False
+            target.append(value)
+    if not target and len(files) < 2:
+        return [], [], False
+    sources = files if target else files[:-1]
+    # BSD cp copies a slash-ended directory's contents, unlike GNU cp.
+    if name == "cp" and any(source.endswith("/") for source in sources):
+        return [], [], False
+    return files, target, True
 
 
 def unwrap(argv):
@@ -262,8 +403,33 @@ def written_by(name, arguments, directory):
     if name in OPERAND_WRITERS:
         return operands(arguments, OPERAND_WRITERS[name])
     if name in COPIERS:
-        target = option_values(arguments, "-t", "--target-directory") if name != "rsync" else []
-        found = operands(arguments, COPIERS[name])
+        if name in COPIER_OPTIONS:
+            found, target, supported = copier_operands(name, arguments)
+            if not supported:
+                # The org hook treats this command as opaque. The
+                # workaround detector has no opaque outcome: retain possible
+                # source and destination writes instead of silently losing them.
+                gnu_files = operands(arguments, COPIERS[name])
+                bsd_files = copier_file_candidates(arguments, COPIERS[name])
+                found = list(dict.fromkeys(gnu_files + bsd_files))
+                target = option_values(arguments, "-t", "--target-directory", joined=True)
+                writes = list(found)
+                for destination in dict.fromkeys(target):
+                    writes.extend(os.path.join(destination, os.path.basename(source.rstrip("/")))
+                                  for source in found)
+                # Each interpretation has its own positional destination.
+                for files in (gnu_files, bsd_files):
+                    if len(files) < 2:
+                        continue
+                    destination, sources = files[-1], files[:-1]
+                    resolved = resolve(destination, directory)
+                    if len(sources) > 1 or destination.endswith("/") or (resolved and os.path.isdir(resolved)):
+                        writes.extend(os.path.join(destination, os.path.basename(source.rstrip("/")))
+                                      for source in sources)
+                return writes or [directory]
+        else:
+            target = option_values(arguments, "-t", "--target-directory", joined=True) if name != "rsync" else []
+            found = operands(arguments, COPIERS[name])
         if target:
             return [os.path.join(target[0], os.path.basename(source.rstrip("/"))) for source in found]
         if len(found) < 2:

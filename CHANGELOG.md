@@ -332,6 +332,27 @@ tagged, so there is one entry, for what exists now.
 
 ### Changed
 
+- **Org-hook copier inspection** requires options and the `--` terminator to precede the first file operand,
+  so GNU option permutation cannot conceal a destination from BSD tools. A leading `--` permits literal
+  dash-prefixed filenames; a copier without a target option requires at least two file operands. Copier
+  modes without supported file effects are opaque, including `install -Dm644`, `install -d`, `install -C`,
+  `cp -l`, `cp -s`, and Python `rsync -a`. Separate supported options, such as `install -m644`, remain
+  inspectable when they precede the operands. `cp --sparse` requires a value, supplied separately or with `=`.
+- **Copier short-option arities** are checked against both GNU declarations and macOS BSD getopt strings.
+  `install -D` and `install -T` are opaque because BSD consumes a value while GNU treats them as flags.
+  Short `-t` is also opaque for cp, mv and install because only GNU defines its required value; use the exact
+  long target-directory form for GNU inspection. Shared `install -m`, `-o` and `-g` value handling remains
+  supported. Python path inspection rejects traversal through a regular file while allowing missing future
+  write paths. The workaround detector retains a literal `--` after a file operand and its directory destination.
+- **Refusal workaround detection** conservatively retains copier file operands and possible destination
+  basenames when a copier option is unsupported, including backup copies after a directory change. The
+  org hook continues to refuse these commands; the detector can still flag their recorded writes as suspected
+  workarounds.
+- **Recursive copy inspection** refuses cp source operands ending in `/`, because BSD copies directory
+  contents while GNU destination accounting may include the source directory name. A destination may still
+  end in `/`, and a source without that suffix stays inspectable. The workaround detector combines GNU and
+  BSD operand candidates and derives positional destinations separately for each interpretation.
+
 - The publication scan, `scripts/scan.sh`, refuses a scan that would read nothing: a root that is missing or is not a
   directory, and (unless `--staged`, where an empty index is a real answer) a tree that yields no file, exit 2 with one
   `SCAN ERROR:` line, and a denylist named by `LANEBOSS_SCAN_DENYLIST` that holds no rule is refused the same way

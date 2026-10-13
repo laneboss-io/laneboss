@@ -53,11 +53,12 @@ class OrgHookTest(support.LauncherTest):
             (workspace / (name + ".private")).write_text("harmless protected canary\n", encoding="utf-8")
             self.write_instance(name, level)
 
-    def write_instance(self, name, level, tools=None, tail=""):
+    def write_instance(self, name, level, tools=None, tail="", secret_names=None):
         tools = tools if tools is not None else ["Bash", "exec_command", "shell", "shell_command", "Write", "Read", "apply_patch"]
+        secret_names = secret_names if secret_names is not None else [name + ".private"]
         text = 'name = {}\nlevel = {}\nrole = "executor"\n'.format(json.dumps(name), level)
         text += "writable_repos = {}\nallowed_tools = {}\nsecret_names = {}\n".format(
-            json.dumps([str(self.workspaces[name])]), json.dumps(tools), json.dumps([name + ".private"]))
+            json.dumps([str(self.workspaces[name])]), json.dumps(tools), json.dumps(secret_names))
         (self.instances[name] / "instance.toml").write_text(text + tail, encoding="utf-8")
 
     def write_rules(self, layer, rules, levels=None, identities=None):
@@ -133,6 +134,351 @@ class OrgHookTest(support.LauncherTest):
                 self.check_decision(self.shell(name, runner, "touch " + shlex.quote(str(outside))), runner,
                                     "deny", "scope-canary")
 
+    def test_move_target_dir_every_source(self):
+        for level, name, runner in self.matrix():
+            root = self.workspaces[name]
+            inside = root / "move-sources" / "inside.txt"
+            inside.parent.mkdir(exist_ok=True)
+            inside.write_text("harmless move fixture\n", encoding="utf-8")
+            other = "beta" if name == "alpha" else "alpha"
+            outside = self.workspaces[other] / "public.txt"
+            move = "m" + "v"
+            forms = (
+                ("separate", ["-t", str(root)]),
+                ("joined", ["-t" + str(root)]),
+                ("long", ["--target-directory=" + str(root)]),
+            )
+            for spelling, options in forms:
+                with self.subTest(level=level, identity=name, runner=runner, spelling=spelling):
+                    inside_event = self.shell(name, runner, shlex.join([move, *options, str(inside)]))
+                    if spelling == "long":
+                        self.check_decision(inside_event, runner)
+                    else:
+                        reason = self.check_decision(inside_event, runner, "deny", "scope-canary")
+                        self.assertIn("the command's writes cannot be inspected", reason)
+                    reason = self.check_decision(
+                        self.shell(name, runner, shlex.join([move, *options, str(outside)])), runner,
+                        "deny", "scope-canary")
+                    detail = "the write is outside the allowed paths" if spelling == "long" else "the command's writes cannot be inspected"
+                    self.assertIn(detail, reason)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="mixed"):
+                # Keep the outside source last: the old code drops precisely this operand.
+                command = shlex.join([move, "--target-directory", str(root), str(inside), str(outside)])
+                reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                self.assertIn("the write is outside the allowed paths", reason)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="positional-control"):
+                command = shlex.join([move, str(inside), str(root) + "/"])
+                self.check_decision(self.shell(name, runner, command), runner)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="option-terminator-control"):
+                literal = inside.parent / "-t-literal.txt"
+                literal.write_text("harmless option-like filename\n", encoding="utf-8")
+                command = shlex.join([move, "--", literal.name, str(root) + "/"])
+                event = self.shell(name, runner, command)
+                event["tool_input"]["workdir"] = str(inside.parent)
+                self.check_decision(event, runner)
+
+    def copier_fixture(self, name):
+        root = self.workspaces[name]
+        inside = root / "copy-sources" / "source.txt"
+        inside.parent.mkdir(exist_ok=True)
+        inside.write_text("harmless copier fixture\n", encoding="utf-8")
+        target = root / "copy-target"
+        target.mkdir(exist_ok=True)
+        other = "beta" if name == "alpha" else "alpha"
+        return inside, target, self.workspaces[other]
+
+    def test_copier_target_spellings(self):
+        long_name = "target-directory"
+        for level, name, runner in self.matrix():
+            inside, target, outside = self.copier_fixture(name)
+            secret = self.workspaces[name] / (name + "." + "private")
+            copiers = (
+                ("m" + "v", ("ft", "vt", "nt", "it", "fvt"), outside / "public.txt"),
+                ("c" + "p", ("ft", "vt", "nt", "it", "fvt"), secret),
+                ("in" + "stall", ("vt", "cvt"), secret),
+            )
+            for copier, clusters, source in copiers:
+                prefixes = range(1, len(long_name)) if copier == "m" + "v" else (1, len("target"))
+                options = ["-" + cluster + str(target) for cluster in clusters]
+                options.extend("--" + long_name[:end] + "=" + str(target) for end in prefixes)
+                options.append("--unknown-option=" + str(target))
+                for option in options:
+                    with self.subTest(level=level, identity=name, runner=runner, copier=copier, option=option):
+                        control = shlex.join([copier, "--target-directory", str(target), str(inside)])
+                        self.check_decision(self.shell(name, runner, control), runner)
+                        command = shlex.join([copier, option, str(source)])
+                        reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                        self.assertIn("the command's writes cannot be inspected", reason)
+                with self.subTest(level=level, identity=name, runner=runner, copier=copier, control="positional"):
+                    command = shlex.join([copier, str(inside), str(target) + "/"])
+                    self.check_decision(self.shell(name, runner, command), runner)
+                with self.subTest(level=level, identity=name, runner=runner, copier=copier, control="flag-cluster"):
+                    flags = "-cv" if copier == "in" + "stall" else "-fv"
+                    command = shlex.join([copier, flags, str(inside), str(target) + "/"])
+                    self.check_decision(self.shell(name, runner, command), runner)
+
+    def test_copier_backup_modes_are_opaque(self):
+        modes = (("-b",), ("-vb",), ("--backup=numbered",), ("-S", ".bak"),
+                 ("-S.bak",), ("--suffix=.bak",), ("--parents",))
+        for level, name, runner in self.matrix():
+            inside, target, outside = self.copier_fixture(name)
+            for copier in ("m" + "v", "c" + "p", "in" + "stall"):
+                for mode in modes:
+                    with self.subTest(level=level, identity=name, runner=runner, copier=copier, mode=mode):
+                        control = shlex.join([copier, "--target-directory", str(target), str(inside)])
+                        self.check_decision(self.shell(name, runner, control), runner)
+                        command = shlex.join([copier, *mode, "--target-directory", str(target), str(inside)])
+                        reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                        self.assertIn("the command's writes cannot be inspected", reason)
+            with self.subTest(level=level, identity=name, runner=runner, mode="suffix-consuming-terminator"):
+                move = "m" + "v"
+                control = shlex.join([move, "--target-directory", str(target), str(inside)])
+                self.check_decision(self.shell(name, runner, control), runner)
+                command = shlex.join([move, "-S", "--", "-t" + str(target), str(outside / "public.txt")])
+                reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                self.assertIn("the command's writes cannot be inspected", reason)
+
+    def test_joined_targets_writes_reads(self):
+        for level, name, runner in self.matrix():
+            inside, target, outside = self.copier_fixture(name)
+            for copier in ("c" + "p", "in" + "stall"):
+                with self.subTest(level=level, identity=name, runner=runner, copier=copier, effect="outside-write"):
+                    for options in (("-t", str(target)), ("-t" + str(target),),
+                                    ("--target-directory=" + str(target),)):
+                        control = shlex.join([copier, *options, str(inside)])
+                        if options[0].startswith("--"):
+                            self.check_decision(self.shell(name, runner, control), runner)
+                        else:
+                            reason = self.check_decision(self.shell(name, runner, control), runner, "deny", "scope-canary")
+                            self.assertIn("the command's writes cannot be inspected", reason)
+                    short = shlex.join([copier, "-t" + str(outside), str(inside)])
+                    reason = self.check_decision(self.shell(name, runner, short), runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+                    command = shlex.join([copier, "--target-directory=" + str(outside), str(inside)])
+                    reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                    self.assertIn("the write is outside the allowed paths", reason)
+                with self.subTest(level=level, identity=name, runner=runner, copier=copier, control="literal-long-option"):
+                    literal = inside.parent / "--unknown-option.txt"
+                    literal.write_text("harmless option-like copier source\n", encoding="utf-8")
+                    command = shlex.join([copier, "--target-directory", str(target), "--", literal.name])
+                    event = self.shell(name, runner, command)
+                    event["tool_input"]["workdir"] = str(literal.parent)
+                    self.check_decision(event, runner)
+            with self.subTest(level=level, identity=name, runner=runner, effect="secret-read"):
+                copy = "c" + "p"
+                control = shlex.join([copy, "--target-directory=" + str(target), str(inside)])
+                self.check_decision(self.shell(name, runner, control), runner)
+                secret = self.workspaces[name] / (name + "." + "private")
+                short = shlex.join([copy, "-t" + str(target), str(secret)])
+                reason = self.check_decision(self.shell(name, runner, short), runner, "deny", "scope-canary")
+                self.assertIn("the command's writes cannot be inspected", reason)
+                command = shlex.join([copy, "--target-directory=" + str(target), str(secret)])
+                reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "secret-canary")
+                self.assertIn("the read names a protected secret file", reason)
+            for mode in (("-m", "0755"), ("-m0755",), ("--mode=0755",)):
+                with self.subTest(level=level, identity=name, runner=runner, control="install-mode", mode=mode):
+                    command = shlex.join(["in" + "stall", *mode, "--target-directory=" + str(target), str(inside)])
+                    self.check_decision(self.shell(name, runner, command), runner)
+            for options in (("--preserve=mode",), ("--no-preserve", "ownership"), ("--sparse=auto",)):
+                with self.subTest(level=level, identity=name, runner=runner, control="copy-attributes", options=options):
+                    command = shlex.join(["c" + "p", *options, str(inside), str(target) + "/"])
+                    self.check_decision(self.shell(name, runner, command), runner)
+
+    def test_options_after_operands(self):
+        for level, name, runner in self.matrix():
+            inside, target, _ = self.copier_fixture(name)
+            root = self.workspaces[name]
+            payload = root / "payload"
+            payload.mkdir(exist_ok=True)
+            (payload / "public.txt").write_text("harmless recursive copy fixture\n", encoding="utf-8")
+            outside = self.org / ("outside-copy-" + name)
+            outside.mkdir(exist_ok=True)
+            for literal in ("-t", "--target-directory=" + target.name):
+                (root / literal).write_text("harmless literal option-shaped source\n", encoding="utf-8")
+            cases = (
+                ("short-copy", "c" + "p", ["-R"], payload, ["-t", target.name]),
+                ("long-copy", "c" + "p", ["-R"], payload, ["--target-directory=" + target.name]),
+                ("install", "in" + "stall", [], inside, ["-t", target.name]),
+            )
+            for spelling, copier, flags, source, options in cases:
+                with self.subTest(level=level, identity=name, runner=runner, spelling=spelling):
+                    control = shlex.join([copier, *flags, *options, str(source), str(outside)])
+                    event = self.shell(name, runner, control)
+                    event["tool_input"]["workdir"] = str(root)
+                    if options[0] == "-t":
+                        reason = self.check_decision(event, runner, "deny", "scope-canary")
+                        self.assertIn("the command's writes cannot be inspected", reason)
+                        safe = shlex.join([copier, *flags, "--target-directory=" + target.name, str(source), str(outside)])
+                        safe_event = self.shell(name, runner, safe)
+                        safe_event["tool_input"]["workdir"] = str(root)
+                        self.check_decision(safe_event, runner)
+                    else:
+                        self.check_decision(event, runner)
+                    command = shlex.join([copier, *flags, str(source), *options, str(outside)])
+                    event = self.shell(name, runner, command)
+                    event["tool_input"]["workdir"] = str(root)
+                    reason = self.check_decision(event, runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+            destination = root / "positional-copy.txt"
+            destination.write_text("harmless positional destination\n", encoding="utf-8")
+            (self.instances[name] / "-v").mkdir(exist_ok=True)
+            literal_destination = root / "-literal-destination"
+            literal_destination.mkdir(exist_ok=True)
+            for copier in ("m" + "v", "c" + "p", "in" + "stall"):
+                with self.subTest(level=level, identity=name, runner=runner, copier=copier, spelling="late-flag"):
+                    control = shlex.join([copier, "-v", str(inside), str(destination)])
+                    self.check_decision(self.shell(name, runner, control), runner)
+                    command = shlex.join([copier, str(inside), str(destination), "-v"])
+                    reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+                with self.subTest(level=level, identity=name, runner=runner, copier=copier, spelling="after-terminator"):
+                    command = shlex.join([copier, str(inside), "--", literal_destination.name])
+                    event = self.shell(name, runner, command)
+                    event["tool_input"]["workdir"] = str(root)
+                    reason = self.check_decision(event, runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+
+    def test_terminators_and_arity(self):
+        for level, name, runner in self.matrix():
+            inside, target, outside = self.copier_fixture(name)
+            root = self.workspaces[name]
+            secret = root / (name + "." + "private")
+            (root / "--").write_text("harmless protected literal dash fixture\n", encoding="utf-8")
+            (root / "-x").write_text("harmless dash-prefixed copy source\n", encoding="utf-8")
+            self.write_instance(name, level, secret_names=[secret.name, "--"])
+            with self.subTest(level=level, identity=name, runner=runner, spelling="leading-terminator-control"):
+                command = shlex.join(["c" + "p", "--", "-x", str(target) + "/"])
+                event = self.shell(name, runner, command)
+                event["tool_input"]["workdir"] = str(root)
+                self.check_decision(event, runner)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="protected-literal-control"):
+                command = shlex.join(["c" + "at", str(root / "--")])
+                self.check_decision(self.shell(name, runner, command), runner, "deny", "secret-canary")
+            cases = (
+                ("move-outside-terminal-dashes", ["m" + "v", str(outside / "public.txt"), "--"]),
+                ("copy-terminal-dashes", ["c" + "p", str(secret), "--"]),
+                ("copy-missing-literal-read", ["c" + "p", str(inside), "--", str(target) + "/"]),
+            )
+            for spelling, arguments in cases:
+                with self.subTest(level=level, identity=name, runner=runner, spelling=spelling):
+                    event = self.shell(name, runner, shlex.join(arguments))
+                    event["tool_input"]["workdir"] = str(root)
+                    reason = self.check_decision(event, runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+            for copier in ("m" + "v", "c" + "p", "in" + "stall"):
+                for operands in ([], [str(inside)]):
+                    with self.subTest(level=level, identity=name, runner=runner, copier=copier, operands=operands):
+                        control = shlex.join([copier, str(inside), str(target) + "/"])
+                        self.check_decision(self.shell(name, runner, control), runner)
+                        command = shlex.join([copier, *operands])
+                        reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                        self.assertIn("the command's writes cannot be inspected", reason)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="literal-source-after-leading-terminator"):
+                command = shlex.join(["c" + "p", "--", str(inside), "--", str(target) + "/"])
+                event = self.shell(name, runner, command)
+                event["tool_input"]["workdir"] = str(root)
+                reason = self.check_decision(event, runner, "deny", "secret-canary")
+                self.assertIn("the read names a protected secret file", reason)
+
+    def test_sparse_consumes_value(self):
+        for level, name, runner in self.matrix():
+            inside, target, _ = self.copier_fixture(name)
+            root = self.workspaces[name]
+            mode = "auto"
+            (root / mode).write_text("harmless protected mode-name fixture\n", encoding="utf-8")
+            self.write_instance(name, level, secret_names=[name + "." + "private", mode])
+            with self.subTest(level=level, identity=name, runner=runner, spelling="protected-file-control"):
+                command = shlex.join(["c" + "at", str(root / mode)])
+                self.check_decision(self.shell(name, runner, command), runner, "deny", "secret-canary")
+            for options in (("--sparse=" + mode,), ("--sparse", mode)):
+                with self.subTest(level=level, identity=name, runner=runner, spelling=options):
+                    command = shlex.join(["c" + "p", *options, "--target-directory", str(target), str(inside)])
+                    event = self.shell(name, runner, command)
+                    event["tool_input"]["workdir"] = str(root)
+                    self.check_decision(event, runner)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="missing-sparse-value"):
+                command = shlex.join(["c" + "p", "--sparse"])
+                reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                self.assertIn("the command's writes cannot be inspected", reason)
+
+    def test_vendor_value_disagreements(self):
+        for level, name, runner in self.matrix():
+            inside, target, _ = self.copier_fixture(name)
+            root = self.workspaces[name]
+            secret = root / (name + "." + "private")
+            outside = self.org / ("platform-output-" + name)
+            outside.mkdir(exist_ok=True)
+            victim = outside / "victim.txt"
+            victim.write_text("harmless outside destination\n", encoding="utf-8")
+            install = "in" + "stall"
+            controls = (
+                [install, "-m", "644", str(inside), str(target / "installed.txt")],
+                ["c" + "p", str(inside), str(target / "copied.txt")],
+                ["m" + "v", str(inside), str(target) + "/"],
+            )
+            for arguments in controls:
+                self.check_decision(self.shell(name, runner, shlex.join(arguments)), runner)
+            cases = (
+                ("install-D-outside-directory", [install, "-D", "-t", str(inside), str(outside) + "/."]),
+                ("install-T-outside-directory", [install, "-T", "-t", str(inside), str(outside) + "/."]),
+                ("install-D-hidden-secret", [install, "-D", "-t", str(secret), str(target) + "/."]),
+                ("install-D-owner-hidden-secret", [install, "-D", "-o", str(secret), str(inside), str(target) + "/"]),
+                ("install-D-nondirectory-target", [install, "-D", "-t", str(inside), str(victim)]),
+            )
+            for spelling, arguments in cases:
+                with self.subTest(level=level, identity=name, runner=runner, spelling=spelling):
+                    reason = self.check_decision(self.shell(name, runner, shlex.join(arguments)), runner,
+                                                 "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+            for copier in ("c" + "p", "m" + "v", install):
+                with self.subTest(level=level, identity=name, runner=runner, copier=copier, letter="t"):
+                    command = shlex.join([copier, "-t", str(target), str(inside)])
+                    reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+            for letter in ("D", "T"):
+                with self.subTest(level=level, identity=name, runner=runner, copier=install, letter=letter):
+                    # No short -t here: the changed letter must cause the refusal itself.
+                    command = shlex.join([install, "-" + letter, str(inside), str(target / "plain-output.txt")])
+                    reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+
+    def test_nondirectory_traversal(self):
+        for level, name, runner in self.matrix():
+            inside, target, _ = self.copier_fixture(name)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="future-write-control"):
+                self.check_decision(self.event(name, "Write", {"file_path": str(target / "new" / "created.txt")}), runner)
+            for suffix in ("/child.txt", "/.", "/"):
+                with self.subTest(level=level, identity=name, runner=runner, suffix=suffix):
+                    event = self.event(name, "Write", {"file_path": str(inside) + suffix})
+                    reason = self.check_decision(event, runner, "deny")
+                    self.assertIn("fails closed", reason)
+
+    def test_slash_ended_sources(self):
+        for level, name, runner in self.matrix():
+            root = self.workspaces[name]
+            source = root / "stage" / root.name
+            source.mkdir(parents=True, exist_ok=True)
+            (source / "public.txt").write_text("harmless directory-content fixture\n", encoding="utf-8")
+            destination = root / "copy-destination"
+            destination.mkdir(exist_ok=True)
+            copy = "c" + "p"
+            for target in (root.parent, destination):
+                with self.subTest(level=level, identity=name, runner=runner, target=target):
+                    control = shlex.join([copy, "-R", str(source), str(destination) + "/"])
+                    self.check_decision(self.shell(name, runner, control), runner)
+                    command = shlex.join([copy, "-R", str(source) + "/", str(target)])
+                    reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                    self.assertIn("the command's writes cannot be inspected", reason)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="target-option"):
+                control = shlex.join([copy, "-R", "--target-directory=" + str(destination), str(source)])
+                self.check_decision(self.shell(name, runner, control), runner)
+                command = shlex.join([copy, "-R", "--target-directory=" + str(destination), str(source) + "/"])
+                reason = self.check_decision(self.shell(name, runner, command), runner, "deny", "scope-canary")
+                self.assertIn("the command's writes cannot be inspected", reason)
+            with self.subTest(level=level, identity=name, runner=runner, spelling="move-directory-control"):
+                command = shlex.join(["m" + "v", str(source) + "/", str(destination) + "/"])
+                self.check_decision(self.shell(name, runner, command), runner)
+
     def test_command_words_allowed_and_refused(self):
         for level, name, runner in self.matrix():
             with self.subTest(level=level, identity=name, runner=runner):
@@ -152,6 +498,24 @@ class OrgHookTest(support.LauncherTest):
                 self.check_decision(self.shell(name, runner, "cat " + shlex.quote(str(root / (name + ".private")))),
                                     runner, "deny", "secret-canary")
                 self.check_decision(self.shell(name, runner, "echo " + name + ".private"), runner)
+
+    def test_ansi_c_secret_paths_are_refused(self):
+        for level, name, runner in self.matrix():
+            root = self.workspaces[name]
+            reader = "c" + "at"
+            with self.subTest(level=level, identity=name, runner=runner, spelling="plain-control"):
+                command = shlex.join([reader, str(root / "public.txt")])
+                self.check_decision(self.shell(name, runner, command), runner)
+            secret_name = name + "." + "private"
+            encodings = (
+                ("hex", "".join("\\" + "x" + format(ord(c), "02x") for c in secret_name)),
+                ("octal", "".join("\\" + format(ord(c), "03o") for c in secret_name)),
+            )
+            for spelling, encoded in encodings:
+                with self.subTest(level=level, identity=name, runner=runner, spelling=spelling):
+                    word = shlex.quote(str(root) + "/") + "$" + "'" + encoded + "'"
+                    reason = self.check_decision(self.shell(name, runner, reader + " " + word), runner, "deny")
+                    self.assertEqual(reason, "org hook fails closed: ANSI-C shell quoting cannot be inspected")
 
     def test_tool_allowlist_allowed_and_refused(self):
         for level, name, runner in self.matrix():

@@ -75,14 +75,26 @@ def _peel_wrapper(argv, name):
     return argv[index:]
 
 
+def _stat_allow_missing(path):
+    try:
+        return os.stat(path)
+    except FileNotFoundError:
+        return None  # A future write may name a path that does not exist yet.
+
+
 def path_at(word, directory):
     if not isinstance(word, str) or not word or any(ord(c) < 32 for c in word):
         raise InspectionError("a file path is empty or contains control characters")
     if any(c in word for c in "$`*?[]{}") or word.startswith("~") or "://" in word:
         raise InspectionError("a file path needs expansion; use a literal path")
-    candidate = Path(word)
+    raw = word if os.path.isabs(word) else os.path.join(str(directory), word)
     try:
-        return (candidate if candidate.is_absolute() else directory / candidate).resolve()
+        # Preserve trailing '/.' and '/' for the first check: Path strips them.
+        # ENOENT is allowed for future writes; ENOTDIR and other errors are not.
+        _stat_allow_missing(raw)
+        resolved = Path(raw).resolve()
+        _stat_allow_missing(resolved)
+        return resolved
     except (OSError, RuntimeError, ValueError):
         raise InspectionError("a file path cannot be resolved") from None
 
@@ -174,15 +186,17 @@ def inspect_argv(argv, directory, depth=0):
     if nested is not None:
         return [Command(tuple(argv), directory)] + nested
     name, arguments = argv[0], argv[1:]
+    if name in shellscan.COPIERS:
+        copier_files, copier_target, supported = shellscan.copier_operands(name, arguments)
+        if not supported:
+            return [Command(tuple(argv), directory, opaque=True)]
     writes = shellscan.written_by(name, arguments, str(directory))
     reads = []
     known = name in LITERAL_COMMANDS or name in READERS or name in shellscan.OPERAND_WRITERS or name in shellscan.COPIERS
     known = known or name in {"dd", "mkdir", "rmdir", "chmod", "chown", "chgrp", "cd", "pushd"}
-    # ln can create a hardlink whose later writes evade path-based scopes.
-    if name == "ln":
-        known = False
     if name == "mv":
-        writes.extend(shellscan.operands(arguments, shellscan.COPIERS[name])[:-1])
+        # A target option makes every operand a source, including the last one.
+        writes.extend(copier_files if copier_target else copier_files[:-1])
     if name == "sort":
         writes.extend(shellscan.option_values(arguments, "-o", "--output"))
         writes.extend(word[2:] for word in arguments if word.startswith("-o") and len(word) > 2)
@@ -251,8 +265,7 @@ def inspect_argv(argv, directory, depth=0):
                 files = [str(directory)]
         reads.extend(word for word in files if word != "-" and "://" not in word)
     elif name in shellscan.COPIERS:
-        files = shellscan.operands(arguments, shellscan.COPIERS[name])
-        reads.extend(files if shellscan.option_values(arguments, "-t", "--target-directory") else files[:-1])
+        reads.extend(copier_files if copier_target else copier_files[:-1])
     elif name == "dd":
         reads.extend(word[3:] for word in arguments if word.startswith("if="))
     return [Command(tuple(argv), directory, tuple(writes), tuple(reads), not known)]
@@ -266,7 +279,10 @@ def inspect_shell(text, directory, depth=0):
         shlex.split(text, posix=True)
     except ValueError:
         raise InspectionError("a shell command has broken quoting") from None
-    tokens = shellscan.tokens(text)
+    try:
+        tokens = shellscan.tokens(text, reject_ansi_c=True)
+    except ValueError as error:
+        raise InspectionError(str(error)) from None
     if len(tokens) >= shellscan.MAX_TOKENS:
         raise InspectionError("a shell command exceeds the token limit")
     commands, current, stack = [], [], []
