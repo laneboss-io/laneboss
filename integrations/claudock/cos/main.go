@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
+	"laneboss.io/laneboss/internal/claudockcli"
 	"laneboss.io/laneboss/internal/cosprocess"
 )
 
@@ -455,15 +456,17 @@ func (s *session) local(line string) int {
 }
 func validMode(s string) bool { return s == "default" || s == "acceptEdits" || s == "plan" }
 func (s *session) loop() int {
-	if _, e := exec.LookPath(s.wrapper); e != nil {
-		fmt.Fprintf(os.Stderr, "cos: the account wrapper was not found at %s: Claudock is required (set COS_CLAUDOCK to its claudock program)\n", s.wrapper)
+	wrapper, e := claudockcli.Resolve()
+	if e != nil {
+		fmt.Fprintln(os.Stderr, "cos: "+e.Error())
 		return 2
 	}
+	s.wrapper = wrapper
 	s.say(fmt.Sprintf("cos: account %s, model %s, session %s  (type /help for commands)", s.account, s.model, s.sid), false)
 	if s.mode == bypass {
 		s.say(warning, false)
 	} else if s.mode == "" {
-		s.say("permission mode: the account's own default (not chosen here). On this Mac that is usually bypassPermissions:", false)
+		s.say("permission mode: the account's own default (not chosen here); it may be bypassPermissions:", false)
 		s.say("the agent may then run any command and change any file. To narrow it: --mode default|acceptEdits|plan, or /mode.", false)
 	}
 	done := make(chan struct{})
@@ -599,12 +602,8 @@ func run(args []string) int {
 	if !resumed {
 		sid = uuid.NewString()
 	}
-	wrapper := os.Getenv("COS_CLAUDOCK")
-	if wrapper == "" {
-		wrapper = "/Applications/Claudock.app/Contents/MacOS/claudock"
-	}
 	zero := 0.0
-	s := session{wrapper: wrapper, account: pos[0], model: model, sid: strings.ToLower(sid), mode: mode, confirmed: resumed, tty: tty(os.Stdout), col0: true, noted: map[string]bool{}, tools: map[string]bool{}, streamed: map[string]string{}, signals: make(chan os.Signal, 16)}
+	s := session{account: pos[0], model: model, sid: strings.ToLower(sid), mode: mode, confirmed: resumed, tty: tty(os.Stdout), col0: true, noted: map[string]bool{}, tools: map[string]bool{}, streamed: map[string]string{}, signals: make(chan os.Signal, 16)}
 	if !resumed {
 		s.prev = &zero
 	}

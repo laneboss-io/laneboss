@@ -1,5 +1,10 @@
 # integrations/claudock
 
+Install [claudock-cli](https://github.com/laneboss-io/claudock-cli), the static Go CLI for macOS and Linux,
+using the [pinned source build](../../docs/claudock.md#install-claudock-cli). Put its `claudock` binary on PATH
+and check `claudock --help`. Both helpers resolve only that PATH command; an unavailable executable exits 2
+with a diagnostic naming claudock-cli and its installation URL.
+
 Build from the repository root with the pinned Go toolchain:
 
 ```sh
@@ -7,7 +12,7 @@ GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/profile_swap ./integrations/claud
 GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/cos ./integrations/claudock/cos
 ```
 
-The tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
+The separate black-box tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
 requirement, not a runtime dependency of the helper.
 
 `cos` is an interactive terminal front for accounts whose credit only headless requests may use. Each message you
@@ -35,7 +40,8 @@ bin/profile_swap resume --continue --from NAME --cwd DIR -- --verbose
 ```
 
 `pick` and `resume` accept repeated `--exclude NAME`, `--settings FILE`, `--max-used PCT`, and `--max-age S`,
-passed to Claudock's usage cache. A profile's tightest active window must be strictly below the threshold
+passed to Claudock's usage cache; claudock-cli requires whole seconds from 0 to 86400. A profile's tightest
+active window must be strictly below the threshold
 (default 85%). Past-reset windows count as empty. A reset of `unknown` is valid and retains its reported
 usage, just like `-`; it never makes a window empty. Among subscriptions, the least-used tightest window
 wins; `prefer` in the settings breaks ties in its listed order, then profile names break remaining ties.

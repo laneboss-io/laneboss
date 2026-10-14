@@ -241,7 +241,16 @@ footer { padding: 2rem 0 3rem; color: var(--ink2); font-size: 0.95rem; }
 </section>
 
 <section id="claudock">
-<p><strong>Works with Claudock:</strong> <a href="../docs/claudock.md">docs/claudock.md</a> shows one runner that starts the agent program under the account of a Claudock profile, and <code>cos</code>, a small terminal front for accounts that take only headless requests; Laneboss does not need Claudock.</p>
+<p><strong>Works with claudock-cli on macOS and Linux:</strong> install the static Go CLI and put its <code>claudock</code> binary on PATH. Build this pinned source revision with Go 1.26.0:</p>
+<pre><code>git clone https://github.com/laneboss-io/claudock-cli.git
+cd claudock-cli
+git checkout --detach d43cf40033f8
+CGO_ENABLED=0 GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/claudock ./cmd/claudock
+mkdir -p "$HOME/.local/bin"
+cp bin/claudock "$HOME/.local/bin/claudock"
+export PATH="$HOME/.local/bin:$PATH"
+claudock --help</code></pre>
+<p><a href="../docs/claudock.md">docs/claudock.md</a> shows a runner using <code>claudock run PROFILE -- ARGUMENTS</code>, <code>profile_swap</code> for quota selection and session resumption, and <code>cos</code> for accounts that take only headless requests. Both helpers resolve <code>claudock</code> only from PATH. Laneboss does not require claudock-cli.</p>
 </section>
 
 <section id="install">

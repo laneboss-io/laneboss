@@ -1,4 +1,29 @@
-# Laneboss with Claudock
+# Laneboss with claudock-cli
+
+Use [claudock-cli](https://github.com/laneboss-io/claudock-cli), the Go command line for macOS and Linux.
+It builds one static executable named `claudock`. Install it on PATH before using the runner or either helper.
+
+## Install claudock-cli
+
+Build this pinned source revision with Go 1.26.0 on macOS or Linux:
+
+```sh
+git clone https://github.com/laneboss-io/claudock-cli.git
+cd claudock-cli
+git checkout --detach d43cf40033f8
+CGO_ENABLED=0 GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/claudock ./cmd/claudock
+mkdir -p "$HOME/.local/bin"
+cp bin/claudock "$HOME/.local/bin/claudock"
+export PATH="$HOME/.local/bin:$PATH"
+claudock --help
+```
+
+Keep that binary directory on PATH in the shell or service that starts Laneboss. `claudock --help` and
+`claudock help` print the profile command syntax. The CLI also implements `claudock run PROFILE -- ARGUMENTS`
+and `claudock usage [--max-age SECONDS]`. Configure your own profiles with claudock-cli before launching an agent;
+the names below are invented. Optional zsh integration is not needed for these commands or the helpers.
+
+## Build the helpers
 
 Build from the repository root with the pinned Go toolchain:
 
@@ -7,7 +32,7 @@ GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/profile_swap ./integrations/claud
 GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/cos ./integrations/claudock/cos
 ```
 
-The tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
+The separate black-box tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
 requirement, not a runtime dependency of the helper.
 
 Claudock keeps several accounts of the agent program as profiles and runs the agent program for one of them:
@@ -19,14 +44,14 @@ it is described in `docs/configuration.md`, under `[runners.<name>]`.
 
 ```toml
 [runners.claudock]
-command = ["/Applications/Claudock.app/Contents/MacOS/claudock", "run", "{account}", "--", "-p",
+command = ["claudock", "run", "{account}", "--", "-p",
            "Read the file {brief} completely and carry out the task it describes.", "--model", "{model}"]
-resume = ["/Applications/Claudock.app/Contents/MacOS/claudock", "run", "{account}", "--", "-p", "-c",
+resume = ["claudock", "run", "{account}", "--", "-p", "-c",
           "Read the file {message} completely and carry on from it."]
 accounts = ["work", "spare"]
 ```
 
-A runner is started without a shell, so the first element of `command` is the program's own path. `{brief}` is
+A runner is started without a shell; the bare `claudock` name is resolved from PATH. `{brief}` is
 required, because the launcher always hands a brief over as a file; `{message}` is the file of a follow-up message
 for `lane resume`. How a session is continued is the runner's business: here `-c` asks the agent program to
 continue its newest session of the lane's working directory. A lane uses the account given with `--account`, else
@@ -37,8 +62,9 @@ routing entry that `lane start` picks.
 
 `integrations/claudock/profile_swap/main.go` chooses remaining quota and resumes the same Claude Code session
 on another Claudock profile. It is a Go program and stores no profile names, account details, credentials, settings, or session history.
-It finds `claudock` on PATH first, then the executable at the macOS app path shown above. `limited` and
-every `--help` work without Claudock. This integration does not change the launcher's account routing.
+It finds the `claudock` executable only on PATH on every supported OS. A missing or nonexecutable program
+exits 2 with `profile_swap: claudock is not executable on PATH; install claudock-cli from https://github.com/laneboss-io/claudock-cli and add its claudock binary to PATH`.
+`limited` and every `--help` work without claudock-cli. This integration does not change the launcher's account routing.
 
 ### Choose a profile
 
@@ -49,8 +75,8 @@ bin/profile_swap pick \
 
 Every option here is optional; repeat `--exclude NAME` for more exclusions. The tool calls `claudock usage`
 and reads its TSV header, `PROFILE PLAN WINDOW USED_PERCENT RESETS_UTC` (tabs between columns). With
-`--max-age S` it calls `claudock usage --max-age S`; S must be finite and nonnegative. Without it, Claudock's
-own cache policy applies. An exit-0 cached reading during Claudock's cooldown is usable. A nonzero usage
+`--max-age S` it calls `claudock usage --max-age S`; claudock-cli requires a whole number from 0 to 86400 seconds.
+Without it, Claudock's own cache policy applies. An exit-0 cached reading during Claudock's cooldown is usable. A nonzero usage
 exit, invalid header/row, nonfinite or negative usage, or invalid reset timestamp exits 2; partial data from
 a failed command is never used. Conflicting PLAN values for the same profile also exit 2. The usage request
 has a 60-second timeout. Vendor error output is not echoed, because it can contain account data.
@@ -73,8 +99,8 @@ ordered `prefer` list, then the profile name in case-sensitive lexical order, in
 Preference never overrides subscription priority, headroom or exclusions. The billing category comes from
 the vendor's `Console API` PLAN value. Subscription plan/window labels are not restricted to the examples;
 credit-window wording is not parsed to recover a balance. Success prints exactly one profile name on stdout.
-Names may contain spaces or Unicode but must be nonempty, contain no control characters, and not start
-with `-`; they are passed as individual arguments without a shell.
+Use profile names accepted by claudock-cli. The helper passes them as individual arguments without a shell
+and rejects empty names, control characters and names starting with `-`.
 
 With no qualifying profile, stdout is empty and exit 3 prints one line on stderr:
 
@@ -251,16 +277,11 @@ failure on a private mutated CLI copy (a setup error does not count):
 | `unknown_reset_rejected` | `test_pick_real_shape_unknown` | Rejecting the literal `unknown` in the real-shaped fixture instead of accepting the reading. |
 | `console_without_opt_in` | `test_pick_console_requires_opt_in` | Choosing a Console profile without explicit billing opt-in after subscriptions are excluded. |
 
-Only the authorized compile/help checks have run on the editing machine for this addition:
-
-```sh
-./run-e2e.sh tests.e2e.test_profile_swap -v
-```
-
-That mode compiles the tool, the test file and the stub, then calls root, `pick`, `resume`, and `limited`
-help through the stub PATH, checking the documented flags and that Claudock is never invoked. Behavioral
-RED/GREEN runs and mutant outcomes remain for the disposable-box run; live cross-profile resumption has
-not been verified by these static checks.
+The Go unit tests in `integrations/claudock/cos`, `integrations/claudock/profile_swap` and
+`internal/claudockcli` cover PATH resolution and missing-executable diagnostics. Run them on a disposable
+test machine. The helper tests invoke temporary stand-ins for claudock-cli, so their results do not establish
+live cross-profile resumption. Regression RED/GREEN runs must show the corresponding failure before a pass;
+source inspection alone does not establish either result.
 
 ## `cos`, an interactive front for accounts that take only headless requests
 
@@ -281,9 +302,10 @@ bin/cos ACCOUNT [MODEL] [--resume SESSION] [--mode default|acceptEdits|plan] [--
   whole word, and SESSION must be a UUID. Anything else prints a usage line on standard error and exits with 2;
   `-h` prints the help and exits 0.
 - MODEL defaults to the environment variable `COS_MODEL`, else `claude-sonnet-5-5`.
-- The wrapper is `/Applications/Claudock.app/Contents/MacOS/claudock`, or the program named by `COS_CLAUDOCK`. When
-  it is missing or not executable, `cos` prints one line on standard error and exits with 2, before any prompt:
-  `cos: the account wrapper was not found at WRAPPER: Claudock is required (set COS_CLAUDOCK to its claudock program)`.
+- The wrapper is `claudock`, resolved only from PATH on every supported OS. When it is missing or not executable,
+  `cos` prints one line on standard error and exits with 2, before any prompt:
+  `cos: claudock is not executable on PATH; install claudock-cli from https://github.com/laneboss-io/claudock-cli and add its claudock binary to PATH`.
+  Put the chosen binary directory on PATH; `COS_CLAUDOCK` no longer selects a wrapper.
 - Each message is one request: `WRAPPER run ACCOUNT -- -p --session-id|--resume SESSION --model MODEL --output-format
   stream-json --verbose --include-partial-messages`, with `--permission-mode MODE` added when a mode was chosen. The
   message goes to the request's standard input and never into an argument. The first request of a new session uses
@@ -312,7 +334,7 @@ bypass approvals: the agent then runs any command and changes any file without a
 same as `--mode default`. `cos` says so before you type anything, in two plain lines after its first line:
 
 ```text
-permission mode: the account's own default (not chosen here). On this Mac that is usually bypassPermissions:
+permission mode: the account's own default (not chosen here); it may be bypassPermissions:
 the agent may then run any command and change any file. To narrow it: --mode default|acceptEdits|plan, or /mode.
 ```
 

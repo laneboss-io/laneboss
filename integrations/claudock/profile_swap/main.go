@@ -22,9 +22,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+	"laneboss.io/laneboss/internal/claudockcli"
 )
 
-const wrapperDefault = "/Applications/Claudock.app/Contents/MacOS/claudock"
 const defaultPrompt = "Continue the same session from where it stopped."
 const header = "PROFILE\tPLAN\tWINDOW\tUSED_PERCENT\tRESETS_UTC"
 const nameError = "profile names must be nonempty, contain no controls, and not start with '-'"
@@ -583,18 +583,9 @@ func run(args []string) int {
 			return fail(errors.New("session directory is not a directory"))
 		}
 	}
-	wrapper, e := exec.LookPath("claudock")
-	if e == nil {
-		wrapper, e = filepath.Abs(wrapper)
-		if e == nil {
-			wrapper, e = filepath.EvalSymlinks(wrapper)
-		}
-	}
+	wrapper, e := claudockcli.Resolve()
 	if e != nil {
-		wrapper = wrapperDefault
-		if info, e := os.Stat(wrapper); e != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0111 == 0 {
-			return fail(errors.New("claudock is not executable on PATH or at its macOS app path"))
-		}
+		return fail(e)
 	}
 	argv := []string{"usage"}
 	if age != nil {

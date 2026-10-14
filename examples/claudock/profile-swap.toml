@@ -1,4 +1,11 @@
-# Invented profile names: replace these with names from your own Claudock installation.
+# Install claudock-cli for macOS or Linux; see docs/claudock.md#install-claudock-cli.
+# git clone https://github.com/laneboss-io/claudock-cli.git
+# cd claudock-cli
+# git checkout --detach d43cf40033f8
+# CGO_ENABLED=0 GOTOOLCHAIN=go1.26.0 go build -trimpath -o claudock ./cmd/claudock
+# Put the built binary on PATH, then check: claudock --help
+# The helpers call claudock from PATH on both operating systems.
+# Invented profile names: replace these with names from your own claudock-cli profiles.
 # Keep the real settings file outside the public checkout and pass it with --settings.
 exclude = ["orchard-resting"]
 max_used_percent = 85
