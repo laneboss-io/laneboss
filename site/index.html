@@ -246,7 +246,7 @@ footer { padding: 2rem 0 3rem; color: var(--ink2); font-size: 0.95rem; }
 
 <section id="install">
 <h2>Install</h2>
-<p>Linux or macOS with a POSIX <code>sh</code>, and <code>git</code> and <code>tmux</code> on <code>PATH</code>; Python 3.11 or newer for the launcher, which needs nothing beyond the standard library.</p>
+<p>Linux or macOS with a POSIX <code>sh</code>, and <code>git</code> and <code>tmux</code> on <code>PATH</code>. The installer builds one Go binary with the pinned Go 1.26.0 toolchain and installs the plugin files beside it.</p>
 <p>With no checkout, one command installs the launcher:</p>
 <pre><code>curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh</code></pre>
 <p>That line fetches <code>install.sh</code> from the repository's <code>main</code> branch; <a href="../docs/install.md">docs/install.md</a> says what it does and needs, and that it runs what it fetches with your rights, which nothing checks. The second way is from a checkout:</p>

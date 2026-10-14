@@ -1,7 +1,7 @@
 # Org history ingestion, injection and owner decisions
 
-Each org has one decision store inside its `.laneboss` home. The launcher and
-org commands require Python 3.11. History is curated markdown, finished lane
+Each org has one decision store inside its `.laneboss` home. The Go launcher provides
+all org commands. History is curated markdown, finished lane
 reports/events, and classified human decisions. No command here opens raw
 session transcripts or uses an LLM to distil supervisor records.
 
@@ -252,10 +252,10 @@ of the bounded history hook, so judge latency cannot delay history retrieval.
 
 ## Acceptance rows
 
-`tests/e2e/test_org_history.py` drives the installed CLI and temporary stores.
+`laneboss-e2e:tests/e2e/test_org_history.py` drives the installed CLI and temporary stores.
 The assertions detect missing behavior, rather than reading implementation
 literals. The resident boundary has an own-store request-counter control and a
-foreign-store canary. `tests/e2e/orgmutant.py` copies an isolated checkout and
+foreign-store canary. `laneboss-e2e:tests/e2e/orgmutant.py` copies an isolated checkout and
 removes just the store-id comparison; the canary assertion must fail. The
 mutation test checks that exact failure rather than accepting an unrelated error.
 
@@ -274,3 +274,5 @@ mutation test checks that exact failure rather than accepting an unrelated error
 | Automatic feedback | Marks/citations never become events, a re-ingest adds duplicate rewards, or it edits stored cases. |
 | Capture | Strong decisions are lost, borderline scores bypass review, questions/inform authors are stored, or verbatim is changed. |
 | Capture source/judge | Source time is replaced by judge time, supersession is ignored, or invalid scores fabricate a successful capture. |
+
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

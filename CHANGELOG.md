@@ -5,6 +5,17 @@ tagged, so there is one entry, for what exists now.
 
 ## Unreleased
 
+- Protocol 1.3.0 requires reporting refusals verbatim and taking exactly the refusal's own Instead route,
+  otherwise stopping. All brief producers now consume the canonical protocol package. Stores carrying
+  earlier protocol versions retain their recorded bytes and hashes.
+- Literal read-only sed scripts and common reader options are inspected for file effects. In-place sed,
+  script files, execution and write commands, and uncertain forms remain refused. Codex hook trust also
+  refuses unvetted permission profiles, automatic approval review, MCP servers and managed worktree flags.
+
+- Removed the unused `scripts/make_charts.py` generator; the chart and its source CSV remain.
+
+- Laneboss is now a single Go binary; the Python launcher and packaging have been removed.
+
 ### Added
 
 - **The generic rules files** (`src/laneboss/protocol/executor.md` and `supervisor.md`), one for executor lanes
@@ -143,7 +154,7 @@ tagged, so there is one entry, for what exists now.
     and `lane start --reuse` while a message waits or has returned. `state verify` checks the message files and prints
     `mail_files` and `mail_orphans`; `laneboss start` lists the idle lanes in a group of their own; `laneboss doctor` warns,
     without failing, about a runner that can take turns and has no `limit_patterns` (check `turns.limit_patterns`).
-    Configurations gain `[turns]` with `idle_message` and `idle_seconds`. The shared protocol is version 1.2.0.
+    Configurations gain `[turns]` with `idle_message` and `idle_seconds`. The shared protocol is version 1.3.0.
   - The loop ([docs/architecture.md](docs/architecture.md#turns-mail-the-loop-and-attach), "The `lane loop` command",
     and "`[turns]`" in [docs/configuration.md](docs/configuration.md)): `laneboss lane loop` is one process for each
     configuration that decides when the turns of the turn-based lanes start, and nothing else: a turn when mail waits, a
@@ -300,7 +311,7 @@ tagged, so there is one entry, for what exists now.
   vector or model has changed; it remembers the vector of a question for the embedding provider, writes the same
   egress receipt on a miss, and sends and writes nothing on a hit; the store is otherwise read-only to it. It stops
   after `--idle-exit` idle minutes (default 60) and removes its socket. It is written for Python 3.9 and newer, and its
-  tests (`tests/decisions/test_serve.py`, and one in `tests/e2e/test_passthrough.py`) have been run on Python 3.12 on
+  tests (`laneboss-e2e:tests/decisions/test_serve.py`, and one in `laneboss-e2e:tests/e2e/test_passthrough.py`) have been run on Python 3.12 on
   Linux only.
 - The disk line (`[disk]` in [docs/configuration.md](docs/configuration.md)): a new command `laneboss disk
   [--config NAME]` reads the file system a configuration watches with `os.statvfs` and prints one JSON object
@@ -316,11 +327,11 @@ tagged, so there is one entry, for what exists now.
   create nothing new and are never refused. A file system that cannot be read - and one whose `statvfs` succeeds but
   reports no usable blocks, a procfs mount for one - refuses the start with the error. The
   section is optional and its path defaults to the user's home directory.
-- Black-box tests: `tests/e2e/` drive the installed command, `tests/decisions/` drive the decision store and
+- Black-box tests: `laneboss-e2e:tests/e2e/` drive the installed command, `laneboss-e2e:tests/decisions/` drive the decision store and
   run on Python 3.9 as well. `README.md`'s quick start is run as written by a test.
 - The project is licensed under the Apache License 2.0 (`LICENSE`, `NOTICE`).
 - `integrations/claudock/cos.py`: `cos`, an interactive front for accounts that take only headless requests (Claudock).
-- `tests/e2e/test_cos.py`: its black-box tests, with a stand-in wrapper and a made-up sample; no Claudock needed.
+- `laneboss-e2e:tests/e2e/test_cos.py`: its black-box tests, with a stand-in wrapper and a made-up sample; no Claudock needed.
 - `docs/claudock.md`: Laneboss with Claudock: a runner block, and `cos` with its permission default and its limits.
 - The credential detector also refuses addresses that carry a secret in the URL itself: a Discord webhook address
   (`discord.com` or `discordapp.com`, any subdomain such as `ptb.` or `canary.`, with or without a versioned
@@ -357,8 +368,8 @@ tagged, so there is one entry, for what exists now.
   directory, and (unless `--staged`, where an empty index is a real answer) a tree that yields no file, exit 2 with one
   `SCAN ERROR:` line, and a denylist named by `LANEBOSS_SCAN_DENYLIST` that holds no rule is refused the same way
   instead of passing with `no match for 0 denylist rule(s)`.
-- The shared protocol is version 1.2.0: only its version line changes, so the rules of 1.1.0 stand, and the events that
-  the launcher writes carry it. A store written under 1.1.0 verifies, reads and rebuilds under 1.2.0 without a change: the
+- The earlier protocol step from 1.1.0 to 1.2.0 changed only its version line. The current producer records 1.3.0.
+  A store written under 1.1.0 verifies, reads and rebuilds under the current version without a change: the
   events of 1.1.0 have none of the new kinds and keys, and their lane rows have no `mail` and are what they were.
 - The shared protocol is version 1.1.0: its refusal rule adds that files are written with the file tool, that shell
   redirection and here-documents are for command output, not for writing documents or source files, and that the
@@ -566,7 +577,7 @@ tagged, so there is one entry, for what exists now.
   moment it has such a runner or `[turns]`. The key `stream` touches the configuration only: it is read by `lane attach`
   and writes nothing to the store, so a runner that has `stream` and neither `prompt` nor `{session}` leaves a store that
   0.5.0 reads. Nothing else this version writes is refused by 0.5.0: a lane whose runner uses neither writes the
-  `lane.started` and `lane.ended` that 0.5.0 wrote, the version it puts into `brief.rendered` and into every event (1.2.0)
+  `lane.started` and `lane.ended` that 0.5.0 wrote, the version it puts into `brief.rendered` and into every event (1.3.0)
   is one that 0.5.0's grammar accepts, the message files and the lock of `lanes/LANE/` are never read by it, and the new
   reason `no-session` fits 0.5.0's grammar of the `not_covered` of a `lane.state`. Each statement was read from the code of
   0.5.0 (919af68); `docs/architecture.md` ("Rolling back to 0.5.0 across the changes of this design") gives the procedure
@@ -578,3 +589,5 @@ Telling the owner about refusals, a judge that reads suspicions, the record form
 that picks a difficulty, account choice by remaining quota, messages to a running executor, test machines, owner
 messages, cost accounting, the network service in front of the event store, and binding `laneboss decisions` to a
 configuration (`docs/architecture.md`, "Left for later lanes").
+
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

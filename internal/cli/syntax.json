@@ -1,0 +1,1613 @@
+{
+  "name": "laneboss",
+  "description": "A launcher for supervised lanes: configurations, an event store, the shared protocol, brief rendering and lanes.",
+  "help": "",
+  "args": [
+    {
+      "name": "--help",
+      "short": "-h",
+      "flag": true,
+      "help": "show this help message and exit"
+    },
+    {
+      "name": "--version",
+      "help": "print the package and protocol versions",
+      "flag": true
+    }
+  ],
+  "commands": [
+    {
+      "name": "decisions",
+      "description": "",
+      "help": "the owner decision store; arguments pass through unchanged",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "plugin",
+      "description": "",
+      "help": "locate the installed plugin of an agent program (plugin path)",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "org",
+      "description": "",
+      "help": "manage the structured org, its hooks, owner channels and history",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [
+        {
+          "name": "init",
+          "description": "",
+          "help": "create an org tree with generic protocol sources and example instances",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "org_dir",
+              "metavar": "ORG_DIR",
+              "required": true
+            },
+            {
+              "name": "--levels",
+              "metavar": "LEVELS",
+              "help": "levels in 3-6: a range or comma list (default 3-6)"
+            },
+            {
+              "name": "--name",
+              "metavar": "NAME",
+              "help": "a simple org name; default the folder name"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "instance",
+          "description": "",
+          "help": "manage an agent instance",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            }
+          ],
+          "commands": [
+            {
+              "name": "add",
+              "description": "",
+              "help": "add an instance that receives its own level's rules",
+              "args": [
+                {
+                  "name": "--help",
+                  "short": "-h",
+                  "flag": true,
+                  "help": "show this help message and exit"
+                },
+                {
+                  "name": "org_dir",
+                  "metavar": "ORG_DIR",
+                  "required": true
+                },
+                {
+                  "name": "name",
+                  "required": true
+                },
+                {
+                  "name": "--level",
+                  "metavar": "N",
+                  "choices": [
+                    3,
+                    4,
+                    5,
+                    6
+                  ],
+                  "type": "int",
+                  "required": true
+                },
+                {
+                  "name": "--role",
+                  "metavar": "ROLE",
+                  "required": true
+                },
+                {
+                  "name": "--discord-channel",
+                  "metavar": "ID",
+                  "help": "a numeric channel id, never a webhook URL"
+                },
+                {
+                  "name": "--secret",
+                  "metavar": "NAME",
+                  "help": "a secret name; may be repeated"
+                }
+              ],
+              "commands": [],
+              "exclusive": []
+            }
+          ],
+          "exclusive": [],
+          "subcommand": "ACTION",
+          "subcommand_required": true
+        },
+        {
+          "name": "render",
+          "description": "",
+          "help": "regenerate all rules; refuse hand edits to generated files",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "org_dir",
+              "metavar": "ORG_DIR",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "validate",
+          "description": "",
+          "help": "check the tree, schemas, imports and absence of secret values",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "org_dir",
+              "metavar": "ORG_DIR",
+              "required": true
+            },
+            {
+              "name": "--format",
+              "help": "diagnostic format (default text)",
+              "choices": [
+                "text",
+                "json"
+              ]
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "hook",
+          "description": "",
+          "help": "inspect one PreToolUse JSON event from stdin; errors deny",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--runner",
+              "choices": [
+                "claude",
+                "codex"
+              ],
+              "required": true
+            },
+            {
+              "name": "--instance",
+              "metavar": "FILE",
+              "help": "pin the caller to an instance.toml (used by rendered hooks)"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "refusals",
+          "description": "",
+          "help": "read all structured refusal descriptions of an org",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "org",
+              "metavar": "ORG",
+              "required": true
+            },
+            {
+              "name": "--format",
+              "choices": [
+                "text",
+                "json"
+              ]
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "check-hooks",
+          "description": "",
+          "help": "exit 1 if any configured runner would start without its org hook",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "org",
+              "metavar": "ORG",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "channel",
+          "description": "",
+          "help": "register owner channels for L5/L6 instances",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            }
+          ],
+          "commands": [
+            {
+              "name": "add",
+              "description": "",
+              "help": "register a Discord channel and verify its hello",
+              "args": [
+                {
+                  "name": "--help",
+                  "short": "-h",
+                  "flag": true,
+                  "help": "show this help message and exit"
+                },
+                {
+                  "name": "org_dir",
+                  "metavar": "ORG-DIR",
+                  "required": true
+                },
+                {
+                  "name": "instance",
+                  "metavar": "INSTANCE",
+                  "required": true
+                },
+                {
+                  "name": "--channel-id",
+                  "metavar": "ID",
+                  "help": "a channel created by the owner",
+                  "exclusive": 1
+                },
+                {
+                  "name": "--create",
+                  "help": "create through the bot (Manage Channels)",
+                  "flag": true,
+                  "exclusive": 1
+                },
+                {
+                  "name": "--member",
+                  "metavar": "ID:AUTHORITY",
+                  "help": "a user id with decide or inform authority; repeat for more members"
+                },
+                {
+                  "name": "--role-id",
+                  "metavar": "ID:AUTHORITY",
+                  "help": "a Discord server role id with decide or inform authority; repeatable"
+                },
+                {
+                  "name": "--dry-run",
+                  "help": "print all changes and requests; write and post nothing",
+                  "flag": true
+                }
+              ],
+              "commands": [],
+              "exclusive": [
+                {
+                  "required": true,
+                  "names": [
+                    "--channel-id",
+                    "--create"
+                  ]
+                }
+              ]
+            }
+          ],
+          "exclusive": [],
+          "subcommand": "ACTION",
+          "subcommand_required": true
+        },
+        {
+          "name": "hook-history",
+          "description": "",
+          "help": "bounded additional context for runner hooks; failure-tolerant",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--runner",
+              "choices": [
+                "claude",
+                "codex"
+              ],
+              "required": true
+            },
+            {
+              "name": "--org-dir",
+              "help": "the org folder; otherwise the LANEBOSS_ORG variable"
+            },
+            {
+              "name": "--instance",
+              "help": "otherwise use instance.toml or LANEBOSS_INSTANCE"
+            },
+            {
+              "name": "--event",
+              "help": "otherwise read the hook input",
+              "choices": [
+                "SessionStart",
+                "UserPromptSubmit"
+              ]
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "capture-decision",
+          "description": "",
+          "help": "classify a human message with a judge Choice",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--org-dir",
+              "required": true
+            },
+            {
+              "name": "--source",
+              "help": "channel/message or terminal/session/time pointer",
+              "required": true
+            },
+            {
+              "name": "--text-file",
+              "required": true
+            },
+            {
+              "name": "--author-authority",
+              "choices": [
+                "decide",
+                "inform"
+              ],
+              "required": true
+            },
+            {
+              "name": "--instance",
+              "help": "otherwise use instance.toml or LANEBOSS_INSTANCE"
+            },
+            {
+              "name": "--judge",
+              "help": "otherwise use the org history judge"
+            },
+            {
+              "name": "--at",
+              "help": "message timestamp; otherwise use the source's time or text file's mtime"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "ACTION",
+      "subcommand_required": true
+    },
+    {
+      "name": "config",
+      "description": "",
+      "help": "list, show, validate and locate configurations",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [
+        {
+          "name": "list",
+          "description": "",
+          "help": "names of the configurations under the configuration home",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "show",
+          "description": "",
+          "help": "a validated configuration as JSON",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "name",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "validate",
+          "description": "",
+          "help": "validate one configuration or all of them",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "name",
+              "optional": true,
+              "exclusive": 1
+            },
+            {
+              "name": "--all",
+              "help": "every configuration, including state overlap",
+              "flag": true,
+              "exclusive": 1
+            }
+          ],
+          "commands": [],
+          "exclusive": [
+            {
+              "required": true,
+              "names": [
+                "name",
+                "--all"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "path",
+          "description": "",
+          "help": "the directories and store of a configuration",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "name",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "ACTION",
+      "subcommand_required": true
+    },
+    {
+      "name": "event",
+      "description": "",
+      "help": "append and read events",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [
+        {
+          "name": "append",
+          "description": "",
+          "help": "append one event read from a file",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--file",
+              "help": "the event as a JSON file, or - for stdin",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "tail",
+          "description": "",
+          "help": "print events as JSON lines",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--since",
+              "metavar": "SEQ",
+              "help": "only events after this seq",
+              "type": "non_negative"
+            },
+            {
+              "name": "--follow",
+              "help": "keep printing new events as they are appended",
+              "flag": true
+            },
+            {
+              "name": "--lane",
+              "help": "only the events of this lane"
+            },
+            {
+              "name": "--until",
+              "metavar": "KIND",
+              "help": "stop after printing the first event of this kind"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "ACTION",
+      "subcommand_required": true
+    },
+    {
+      "name": "state",
+      "description": "",
+      "help": "read and check the event store",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [
+        {
+          "name": "events",
+          "description": "",
+          "help": "every event as one JSON array",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "lanes",
+          "description": "",
+          "help": "the current state and times of every lane",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "rebuild",
+          "description": "",
+          "help": "recompute the lane projection from events alone",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "verify",
+          "description": "",
+          "help": "recompute every hash and check the store",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "ACTION",
+      "subcommand_required": true
+    },
+    {
+      "name": "brief",
+      "description": "",
+      "help": "render briefs",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [
+        {
+          "name": "render",
+          "description": "",
+          "help": "append the protocol block to a brief",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--in",
+              "metavar": "BRIEF",
+              "required": true
+            },
+            {
+              "name": "--out",
+              "metavar": "RENDERED",
+              "required": true
+            },
+            {
+              "name": "--project"
+            },
+            {
+              "name": "--touches",
+              "choices": [
+                "billing",
+                "deploy"
+              ]
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "ACTION",
+      "subcommand_required": true
+    },
+    {
+      "name": "lane",
+      "description": "",
+      "help": "start, resume, stop, watch, mark and clean lanes",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [
+        {
+          "name": "start",
+          "description": "",
+          "help": "start a lane's first run in the background",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--brief",
+              "metavar": "FILE",
+              "help": "the brief, always a file",
+              "required": true
+            },
+            {
+              "name": "--project"
+            },
+            {
+              "name": "--difficulty",
+              "help": "pick the runner and model from [routing]",
+              "choices": [
+                "mechanical",
+                "standard",
+                "hard",
+                "review"
+              ]
+            },
+            {
+              "name": "--runner"
+            },
+            {
+              "name": "--model"
+            },
+            {
+              "name": "--effort"
+            },
+            {
+              "name": "--account"
+            },
+            {
+              "name": "--budget",
+              "metavar": "MINUTES",
+              "help": "the time budget; default [lanes] budget_minutes"
+            },
+            {
+              "name": "--touches",
+              "choices": [
+                "billing",
+                "deploy"
+              ]
+            },
+            {
+              "name": "--worktree",
+              "metavar": "PATH",
+              "help": "an existing directory to work in",
+              "exclusive": 1
+            },
+            {
+              "name": "--base",
+              "metavar": "REF",
+              "help": "the commit the lane's new branch starts from",
+              "exclusive": 1
+            },
+            {
+              "name": "--reuse",
+              "help": "start a merged or abandoned lane's name again",
+              "flag": true
+            },
+            {
+              "name": "--turns",
+              "help": "make the lane turn-based: it takes mail (lane send) and one turn at a time (lane turn)",
+              "flag": true
+            },
+            {
+              "name": "--idle",
+              "metavar": "SECONDS",
+              "help": "with --turns: the lane's idle interval (default [turns] idle_seconds)"
+            }
+          ],
+          "commands": [],
+          "exclusive": [
+            {
+              "required": false,
+              "names": [
+                "--worktree",
+                "--base"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "adopt",
+          "description": "",
+          "help": "take a session something outside the launcher started and make it a turn-based lane",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--session",
+              "metavar": "ID",
+              "help": "the runner's session identifier (a lower-case UUID)",
+              "required": true
+            },
+            {
+              "name": "--runner",
+              "required": true
+            },
+            {
+              "name": "--model",
+              "required": true
+            },
+            {
+              "name": "--effort"
+            },
+            {
+              "name": "--account"
+            },
+            {
+              "name": "--worktree",
+              "metavar": "PATH",
+              "help": "the existing directory the session works in",
+              "required": true
+            },
+            {
+              "name": "--brief",
+              "metavar": "FILE",
+              "help": "the lane's standing brief, always a file",
+              "required": true
+            },
+            {
+              "name": "--project"
+            },
+            {
+              "name": "--idle",
+              "metavar": "SECONDS",
+              "help": "the idle interval (default [turns] idle_seconds)"
+            },
+            {
+              "name": "--budget",
+              "metavar": "MINUTES",
+              "help": "the time budget; default [lanes] budget_minutes"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "resume",
+          "description": "",
+          "help": "continue a lane in the same directory",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--message",
+              "metavar": "FILE",
+              "help": "a follow-up message, always a file"
+            },
+            {
+              "name": "--account"
+            },
+            {
+              "name": "--budget",
+              "metavar": "MINUTES"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "turn",
+          "description": "",
+          "help": "start the next turn of a turn-based lane",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--idle",
+              "help": "with no mail waiting, send the configuration's idle message",
+              "flag": true
+            },
+            {
+              "name": "--account"
+            },
+            {
+              "name": "--budget",
+              "metavar": "MINUTES"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "send",
+          "description": "",
+          "help": "store a message for a turn-based lane",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--file",
+              "metavar": "PATH",
+              "help": "the message, always a file"
+            },
+            {
+              "name": "source",
+              "metavar": "-",
+              "help": "- reads the message from standard input",
+              "optional": true
+            },
+            {
+              "name": "--from",
+              "metavar": "NAME",
+              "help": "who sends it (default supervisor)"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "attach",
+          "description": "",
+          "help": "show a turn-based lane's turns as they run and type messages to it",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "stop",
+          "description": "",
+          "help": "stop a lane's run and its whole process tree",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--run",
+              "metavar": "N",
+              "help": "stop only when run N is the lane's latest run",
+              "type": "positive"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "status",
+          "description": "",
+          "help": "the projection and what can be seen now",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "check",
+          "description": "",
+          "help": "record runs whose session vanished as lost",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "help": "check only this lane"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "loop",
+          "description": "",
+          "help": "decide when the turns of the turn-based lanes start",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--detach",
+              "help": "run the loop in a tmux session of its own",
+              "flag": true,
+              "exclusive": 1
+            },
+            {
+              "name": "--status",
+              "help": "the loop and its lanes; appends nothing",
+              "flag": true,
+              "exclusive": 1
+            },
+            {
+              "name": "--stop",
+              "help": "ask the loop to end; no turn is stopped",
+              "flag": true,
+              "exclusive": 1
+            }
+          ],
+          "commands": [],
+          "exclusive": [
+            {
+              "required": false,
+              "names": [
+                "--detach",
+                "--status",
+                "--stop"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "mark",
+          "description": "",
+          "help": "record a supervisor's decision about a lane",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--state",
+              "choices": [
+                "verifying",
+                "accepted",
+                "merged",
+                "abandoned"
+              ]
+            },
+            {
+              "name": "--landing",
+              "choices": [
+                "merged",
+                "deployed",
+                "landed"
+              ]
+            },
+            {
+              "name": "--gone",
+              "help": "declare the lane's open launch gone (no end event and no readable run record)",
+              "flag": true
+            },
+            {
+              "name": "--accept-uncovered",
+              "help": "with --state accepted or merged: record the decision although some session records were not scanned, and what they were",
+              "flag": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "clean",
+          "description": "",
+          "help": "remove a merged or abandoned lane's worktree",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "scan",
+          "description": "",
+          "help": "scan a lane's session records again for refusals",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "refusals",
+          "description": "",
+          "help": "refusals, suspected workarounds and what was scanned",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "review",
+          "description": "",
+          "help": "record a verdict on one path of a suspected workaround",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--lane",
+              "required": true
+            },
+            {
+              "name": "--refusal",
+              "metavar": "ID",
+              "required": true
+            },
+            {
+              "name": "--path",
+              "metavar": "PATH",
+              "help": "absolute, or relative to the lane's worktree",
+              "required": true
+            },
+            {
+              "name": "--verdict",
+              "choices": [
+                "clean",
+                "workaround"
+              ],
+              "required": true
+            },
+            {
+              "name": "--note",
+              "metavar": "FILE",
+              "help": "a note, always a file"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "ACTION",
+      "subcommand_required": true
+    },
+    {
+      "name": "judge",
+      "description": "",
+      "help": "list the configured judges, ask one a question, read the egress log",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [
+        {
+          "name": "list",
+          "description": "",
+          "help": "the configured judges",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "ask",
+          "description": "",
+          "help": "ask one judge one question; the texts come from files",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--judge",
+              "metavar": "NAME",
+              "required": true
+            },
+            {
+              "name": "--question",
+              "metavar": "ID",
+              "help": "for example refusal.is-refusal",
+              "required": true
+            },
+            {
+              "name": "--prompt-file",
+              "metavar": "FILE",
+              "help": "the question in words",
+              "required": true
+            },
+            {
+              "name": "--subject",
+              "metavar": "NAME=FILE",
+              "help": "a named text for the judge to read, one to eight times",
+              "required": true
+            },
+            {
+              "name": "--lane",
+              "help": "the lane the question is about; recorded in the egress log"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "egress",
+          "description": "",
+          "help": "print the egress log, one line per sent ask and one per outcome",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+            },
+            {
+              "name": "--since",
+              "metavar": "TIME",
+              "help": "only the lines at or after this time"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "ACTION",
+      "subcommand_required": true
+    },
+    {
+      "name": "disk",
+      "description": "",
+      "help": "read the file system the configuration watches (the disk line)",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        },
+        {
+          "name": "--config",
+          "metavar": "NAME",
+          "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "doctor",
+      "description": "",
+      "help": "check the configuration and its environment",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        },
+        {
+          "name": "--config",
+          "metavar": "NAME",
+          "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "start",
+      "description": "",
+      "help": "print the briefing a supervisor session reads when it begins",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        },
+        {
+          "name": "--config",
+          "metavar": "NAME",
+          "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
+        },
+        {
+          "name": "--role",
+          "metavar": "ROLE",
+          "help": "a [supervisors] entry of the configuration"
+        },
+        {
+          "name": "--format",
+          "help": "text (Markdown, the default) or json",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    }
+  ],
+  "exclusive": [],
+  "subcommand": "COMMAND",
+  "subcommand_required": false
+}

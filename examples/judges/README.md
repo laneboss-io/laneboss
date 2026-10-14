@@ -1,8 +1,17 @@
 # Judge adapter for TypeSafe's Jev
 
-`typesafe_jev.py` is a stand-alone example of a launcher *judge*: an external command that the launcher runs for
+Build from the repository root with the pinned Go toolchain:
+
+```sh
+GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/typesafe_jev ./examples/judges/typesafe_jev
+```
+
+The tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
+requirement, not a runtime dependency of the helper.
+
+`typesafe_jev` is a stand-alone example of a launcher *judge*: an external command that the launcher runs for
 one yes/no question. It reads one JSON object on standard input, asks TypeSafe's Jev model one question and prints
-one JSON object. It is one file, needs Python 3.9 or newer and the standard library only (`urllib`), imports nothing
+one JSON object. It is one file, uses Go's standard library only, imports nothing
 from `laneboss`, retries nothing and writes no file. Nothing that holds the key's exact text is ever printed (the
 scope of that rule is stated in [The key file](#the-key-file)).
 
@@ -43,14 +52,14 @@ In a launcher configuration the judge is a command:
 
 ```toml
 [judges.jev]
-command = ["python3", "/path/to/typesafe_jev.py", "--env-file", "/path/to/typesafe.env"]
+command = ["/path/to/typesafe_jev", "--env-file", "/path/to/typesafe.env"]
 ```
 
-`/path/to/typesafe_jev.py` is wherever you keep a copy of the file. The program can also be run by hand:
+`/path/to/typesafe_jev` is wherever you keep a copy of the file. The program can also be run by hand:
 
 ```sh
 printf '%s\n' '{"laneboss_judge": 1, "question": "refusal.is-refusal", "kind": "noul", "prompt": "Is this a refusal?", "subject": {"result": "Blocked by hook: not allowed."}}' \
-    | python3 examples/judges/typesafe_jev.py --env-file /path/to/typesafe.env
+    | bin/typesafe_jev --env-file /path/to/typesafe.env
 ```
 
 | Option | Meaning |
@@ -160,7 +169,7 @@ inside TLS, and the proxy sees the host name.
 
 Certificates: the program uses the standard verified HTTPS connection of `urllib` and never disables certificate
 verification. No test proves it: the tests have no server with a certificate to refuse, and
-`test_remote_https_is_accepted` only shows that an `https://` address is accepted and fails later. If Python on your
+`test_remote_https_is_accepted` only shows that an `https://` address is accepted and fails later. If the operating system on your
 machine has no CA bundle, the call fails with exit 4 and a line that names `SSLCertVerificationError`.
 
 ## What leaves the machine
@@ -186,17 +195,8 @@ verdict.
 
 ## Tests
 
-`tests/e2e/test_judge_jev.py` drives the program as a command against a stand-in HTTP server on 127.0.0.1 that
-answers as the pages above say the service answers; the real service is a third party that a test machine has no key
-for, so no test calls it. The module imports nothing from another test module and runs alone. The suite needs no
-second interpreter: it runs the program under its own Python. The proof for Python 3.9 is a second, documented run:
+`laneboss-e2e:tests/e2e/test_judge_jev.py` builds the Go adapter and drives it against a local HTTP stand-in.
+It checks input and output screening, file permissions, exact probability bounds, redirects, timeouts,
+and standalone execution with no interpreter on PATH. Runtime checks belong on a disposable test host.
 
-```sh
-python3 -m unittest tests.e2e.test_judge_jev                  # the suite's own Python
-python3.9 -m unittest tests/e2e/test_judge_jev.py             # the whole module under Python 3.9
-LANEBOSS_TEST_PYTHON39=/path/to/python3.9 python3 -m unittest tests.e2e.test_judge_jev   # the program under both
-```
-
-When `LANEBOSS_TEST_PYTHON39` names an interpreter, `test_runs_under_3_9_and_own_python` runs the program under it too
-and it must report 3.9 (a wrong one fails the test). When the variable is not set, nothing is searched for on `PATH`
-and nothing is skipped.
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

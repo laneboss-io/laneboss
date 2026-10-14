@@ -23,8 +23,7 @@ there, and lists every file in that version's `MANIFEST` with the package's own 
 same version checks the installed files against the checkout like the rest: a plugin file that differs in the
 checkout, or was changed, removed or added in the installed copy, is refused, so an installed version never changes.
 The manifest holds each file's hash and path. The manifest does not record modes, so the installer applies the rule
-below about modes itself, on every run, to the files under `plugins/` only (not to the package's own files, and not to
-directories):
+below about modes itself on every run. The Go binary must also remain mode 755; directory modes are not checked:
 
 - A plugin file with any executable bit in the checkout is a program and is installed with mode exactly 755. Today
   only `start.sh` is a program. A program's mode in the checkout is normalised: any mode with an executable bit for
@@ -44,9 +43,10 @@ changes. A checkout without `plugins/` still installs; `laneboss plugin path` th
 `laneboss plugin path [--agent AGENT]` prints the directory of the installed plugin for that agent program as one
 JSON value (a string) and changes nothing. The only known agent is `claude-code`, which is also the default. An
 unknown agent exits 2, says that the agent is unknown and names the known ones; it never repeats the value it was
-given, because a variable that holds the wrong thing could hold a secret. Run from a checkout instead of an install,
-it prints the checkout's own `plugins/` directory. The plugin's version in `plugin.json` is the package's version; a
-test fails when they differ, so the manifest is edited when `src/laneboss/identity.py` is.
+given, because a variable that holds the wrong thing could hold a secret. A binary built into a checkout's `bin/`
+finds that checkout's `plugins/`; a binary elsewhere can use an absolute `LANEBOSS_PLUGIN_ROOT`.
+The plugin's version in `plugin.json` is the release version, so update the manifest together with
+`internal/identity/identity.go`.
 
 ## The documentation this was written from
 
@@ -243,11 +243,11 @@ place, and find the plugin:
 ```sh
 sh scripts/install.sh
 laneboss plugin path
-DIRECTORY=$(laneboss plugin path | python3 -c 'import json, sys; print(json.load(sys.stdin))')
+DIRECTORY=$(laneboss plugin path | jq -r .)
 claude plugin validate "$DIRECTORY"
 ```
 
-`laneboss plugin path` prints the directory in JSON quotation marks; the `python3` line takes them off. A clean
+`laneboss plugin path` prints the directory in JSON quotation marks; the example uses `jq` to decode it. A clean
 `claude plugin validate` ends with `Validation passed`.
 
 **Try it for one session** (nothing is installed or written to Claude Code's settings):

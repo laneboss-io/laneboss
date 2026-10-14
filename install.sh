@@ -13,7 +13,7 @@
 #   LANEBOSS_REPO     the repository's address; default: the REPO line below. It is cloned with git (a private
 #                     repository works with your own git credentials), else its tarball is fetched with curl
 #   LANEBOSS_VERSION  a tag or a branch of the repository; default: main
-#   LANEBOSS_PYTHON   the interpreter to use, 3.11 or newer; default: the first of python3, python3.14 to python3.11
+#   LANEBOSS_GO       the Go executable; default: go (the source installer pins the toolchain)
 #
 # Every command of this file after this header is inside one brace group, and the closing brace is the last line of
 # the file. A shell reads a whole group before it runs any of it, so a download that stops inside the commands is a
@@ -53,7 +53,7 @@ laneboss_bootstrap() {
                 echo "$usage"
                 echo "Gets the source of one version of Laneboss and runs that version's own scripts/install.sh."
                 echo "Variables: LANEBOSS_SOURCE (a directory, .tar or .tar.gz on this machine), LANEBOSS_REPO (the"
-                echo "repository's address), LANEBOSS_VERSION (a tag or branch; default main), LANEBOSS_PYTHON."
+                echo "repository's address), LANEBOSS_VERSION (a tag or branch; default main), LANEBOSS_GO."
                 exit 0
                 ;;
             *)
@@ -180,30 +180,27 @@ laneboss_bootstrap() {
         esac
     fi
 
-    # What it needs: Python 3.11 or newer (it never installs one), and the tools of the chosen route.
-    probe='import sqlite3, sys, tomllib; sys.exit(0 if sys.version_info >= (3, 11) else 1)'
-    python=""
-    if [ -n "${LANEBOSS_PYTHON:-}" ]; then
-        if "$LANEBOSS_PYTHON" -I -c "$probe" >/dev/null 2>&1; then
-            python=$LANEBOSS_PYTHON
-        else
-            echo "install: LANEBOSS_PYTHON does not run Python 3.11 or newer with sqlite3 and tomllib" >&2
-            exit 2
-        fi
-    else
-        for candidate in python3 python3.14 python3.13 python3.12 python3.11; do
-            if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -I -c "$probe" >/dev/null 2>&1; then
-                python=$candidate
-                break
-            fi
-        done
-        if [ -z "$python" ]; then
-            echo "install: no Python 3.11 or newer with sqlite3 and tomllib found on PATH (looked for python3," \
-                "python3.14, python3.13, python3.12 and python3.11); install one with your system's package" \
-                "manager, or set LANEBOSS_PYTHON to one" >&2
-            exit 2
-        fi
+    # The source's own installer pins the Go version and builds the launcher.
+    go_command=${LANEBOSS_GO:-go}
+    if ! go_command=$(command -v "$go_command" 2>/dev/null) || [ ! -f "$go_command" ] || [ ! -x "$go_command" ]; then
+        echo "install: Go is required on PATH, or set LANEBOSS_GO to a Go executable" >&2
+        exit 2
     fi
+    # Keep the selected executable and temporary base valid when the source
+    # installer changes directories. A colon in a relative base is just a path.
+    case "$go_command" in
+        /*) ;;
+        *) go_command=$PWD/$go_command ;;
+    esac
+    LANEBOSS_GO=$go_command
+    export LANEBOSS_GO
+    temporary_base=${TMPDIR:-/tmp}
+    case "$temporary_base" in
+        /*) ;;
+        *) temporary_base=$PWD/$temporary_base ;;
+    esac
+    TMPDIR=$temporary_base
+    export TMPDIR
     fetch=""
     if [ -z "$source" ]; then
         if command -v git >/dev/null 2>&1; then
@@ -314,7 +311,7 @@ laneboss_bootstrap() {
         exit 2
     fi
 
-    # Run that version's own installer, with the Python that was checked. What the link at PREFIX/bin/laneboss points
+    # Run that version's own installer with its pinned Go toolchain. What the link at PREFIX/bin/laneboss points
     # at tells "already installed" from an upgrade; the program there is read, never started.
     command=$prefix/bin/laneboss
     before=""
@@ -328,12 +325,22 @@ laneboss_bootstrap() {
         esac
     fi
     echo "install: running scripts/install.sh of that source with your rights; nothing checks the source (docs/install.md)"
-    LANEBOSS_PYTHON=$python sh "$root/scripts/install.sh" --prefix "$prefix" </dev/null >/dev/null || exit $?
+    sh "$root/scripts/install.sh" --prefix "$prefix" </dev/null >/dev/null || exit $?
     if ! shown=$("$command" --version </dev/null); then
         printf 'install: the installed command did not run: %s --version\n' "$command" >&2
         exit 2
     fi
-    installed=$(printf '%s\n' "$shown" | "$python" -I -c 'import json, sys; print(json.load(sys.stdin)["version"])')
+    installed=$(readlink "$command")
+    case "$installed" in
+        */versions/*/bin/laneboss)
+            installed=${installed%/bin/laneboss}
+            installed=${installed##*/}
+            ;;
+        *)
+            echo "install: the installed command has no version-directory link" >&2
+            exit 2
+            ;;
+    esac
 
     if [ "$before" = "$installed" ]; then
         printf 'install: laneboss %s is already installed\n' "$installed"

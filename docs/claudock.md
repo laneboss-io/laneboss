@@ -1,5 +1,15 @@
 # Laneboss with Claudock
 
+Build from the repository root with the pinned Go toolchain:
+
+```sh
+GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/profile_swap ./integrations/claudock/profile_swap
+GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/cos ./integrations/claudock/cos
+```
+
+The tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
+requirement, not a runtime dependency of the helper.
+
 Claudock keeps several accounts of the agent program as profiles and runs the agent program for one of them:
 `claudock run PROFILE -- ARGUMENTS` starts it under the account that PROFILE names and passes ARGUMENTS on to it.
 Laneboss does not need Claudock, and nothing in the launcher imports anything of it. The two meet in a
@@ -25,16 +35,15 @@ routing entry that `lane start` picks.
 
 ## Profile swap
 
-`integrations/claudock/profile_swap.py` chooses remaining quota and resumes the same Claude Code session
-on another Claudock profile. It uses Python 3.11 and the standard library only, imports nothing from
-Laneboss, and stores no profile names, account details, credentials, settings, or session history.
+`integrations/claudock/profile_swap/main.go` chooses remaining quota and resumes the same Claude Code session
+on another Claudock profile. It is a Go program and stores no profile names, account details, credentials, settings, or session history.
 It finds `claudock` on PATH first, then the executable at the macOS app path shown above. `limited` and
 every `--help` work without Claudock. This integration does not change the launcher's account routing.
 
 ### Choose a profile
 
 ```sh
-python3 integrations/claudock/profile_swap.py pick \
+bin/profile_swap pick \
     --settings FILE --exclude NAME --max-used 85 --max-age 30
 ```
 
@@ -109,9 +118,9 @@ checkout, and never add credentials to them.
 ### Resume the same session
 
 ```sh
-python3 integrations/claudock/profile_swap.py resume --session ID --from NAME \
+bin/profile_swap resume --session ID --from NAME \
     --cwd DIR --settings FILE --exclude NAME --max-used 85 --max-age 30 --prompt TEXT -- CLAUDE_ARGS
-python3 integrations/claudock/profile_swap.py resume --continue --from NAME --cwd DIR --dry-run
+bin/profile_swap resume --continue --from NAME --cwd DIR --dry-run
 ```
 
 Exactly one of `--session ID` and `--continue` is required; `--from NAME` is required and is always excluded,
@@ -211,25 +220,25 @@ wording needs a sourced pattern and a positive/near-miss row before being added;
 | Every `--help` | `0` | Help printed; Claudock was not invoked. |
 | Local Ctrl-C before launch | `130` | Interrupted selection or log read. Once resumed, the child retains its own signal behavior. |
 
-The independent tests are [test_profile_swap.py](../tests/e2e/test_profile_swap.py), with the real-shaped
-[usage fixture](../tests/e2e/fixtures/claudock-usage.tsv). The fixture follows the reported real column shapes:
+The independent tests are test_profile_swap.py (`laneboss-e2e:tests/e2e/test_profile_swap.py`), with the real-shaped
+usage fixture (`laneboss-e2e:tests/e2e/fixtures/claudock-usage.tsv`). The fixture follows the reported real column shapes:
 `Max 99×` and `Team Premium` subscriptions, `9-hour session`, `Weekly · all models`, `Weekly · Fable`,
 two-decimal USED_PERCENT values, valid UTC timestamps and literal `unknown`; a `Console API` row has a
 `Credit · $97.50 of $100.00 left` window and reset `-`. The anonymized digits are replaced with valid
 invented times and percentages. Profile names are invented and renamed per test. Additional rows change
 the numeric values, multiplier and session-window label to detect a parser keyed on fixture literals.
-The tests run the actual Python CLI as a subprocess, with a temporary `claudock` executable on PATH that
+The tests build and run the Go CLI as a subprocess, with a temporary `claudock` executable on PATH that
 prints per-row TSV and
 records every argv and working directory. Names are invented and varied at runtime; the tool has no test
 name literals. No network, real Claudock, or Claude request is needed. Run on a disposable box as an
 unprivileged user so the unreadable-file row enforces file permissions:
 
 ```sh
-python3 -m unittest tests.e2e.test_profile_swap -v
+./run-e2e.sh tests.e2e.test_profile_swap -v
 ```
 
 For regression RED, keep the revised tests and fixture with the previous tool; GREEN also includes the
-revised tool. Omitting `integrations/claudock/profile_swap.py` still checks the original feature-missing
+revised tool. Omitting `integrations/claudock/profile_swap/main.go` still checks the original feature-missing
 RED tree. Each row's docstring states what makes it fail. The suite also checks this explicit mutant
 list, first requiring its named row to pass on the original tool, then requiring a behavior assertion
 failure on a private mutated CLI copy (a setup error does not count):
@@ -245,7 +254,7 @@ failure on a private mutated CLI copy (a setup error does not count):
 Only the authorized compile/help checks have run on the editing machine for this addition:
 
 ```sh
-python3 tests/e2e/test_profile_swap.py --static-checks
+./run-e2e.sh tests.e2e.test_profile_swap -v
 ```
 
 That mode compiles the tool, the test file and the stub, then calls root, `pick`, `resume`, and `limited`
@@ -258,14 +267,14 @@ not been verified by these static checks.
 Some accounts' credit can be used only by headless requests (one request, one answer), not by an interactive
 session. `cos` is a small terminal front for them: you type a message, it sends one headless request through the
 wrapper, shows the answer as the agent produces it, and keeps the conversation going with a session id. An account
-that allows an interactive session does not need it. `cos` is one file, `integrations/claudock/cos.py`, that uses
-only the Python standard library. Nothing in the launcher imports it and it imports nothing of the launcher. It
+that allows an interactive session does not need it. `cos` is one file, `integrations/claudock/cos/main.go`, that uses
+Go and the shared process-group stopper in `internal/cosprocess/`. It
 writes no files (no history, no configuration, no log) and has no network code of its own.
 
 ### Start it
 
 ```sh
-python3 integrations/claudock/cos.py ACCOUNT [MODEL] [--resume SESSION] [--mode default|acceptEdits|plan] [--bypass-permissions]
+bin/cos ACCOUNT [MODEL] [--resume SESSION] [--mode default|acceptEdits|plan] [--bypass-permissions]
 ```
 
 - ACCOUNT is the name of a Claudock profile. ACCOUNT and MODEL must match `[A-Za-z0-9][A-Za-z0-9._:\[\]-]*` as a
@@ -338,7 +347,7 @@ files.
 session was started` when none does. To come back, run it from the directory the session was started in:
 
 ```sh
-python3 integrations/claudock/cos.py ACCOUNT MODEL --resume SESSION
+bin/cos ACCOUNT MODEL --resume SESSION
 ```
 
 A request that is stopped in its first moment can leave `cos` unsure whether the session exists. If the next request
@@ -399,7 +408,7 @@ is one paid request. A line that ends with a backslash continues on the next lin
 - `acceptEdits` and `--bypass-permissions` were checked only on the argument list that a stand-in wrapper received,
   with no real request. `--mode plan` has run for one real turn only: the agent answered, `/mode` showed `mode: plan`
   and no bypass warning was printed.
-- The tests (`tests/e2e/test_cos.py`) use a stand-in wrapper that they write themselves and make no real request.
+- The tests (`laneboss-e2e:tests/e2e/test_cos.py`) use a stand-in wrapper that they write themselves and make no real request.
   The kill sweep that ends the agent's shell tools, the failed listing and the late Ctrl-C were tested with
   stand-ins, not with a real shell tool.
 
@@ -409,7 +418,9 @@ From the root of a checkout, one link puts `cos` on the path (`~/.local/bin` is 
 `laneboss`):
 
 ```sh
-ln -s "$PWD/integrations/claudock/cos.py" "$HOME/.local/bin/cos"
+cp bin/cos "$HOME/.local/bin/cos"
 ```
 
-`cos ACCOUNT` then starts it. Its usage line still says `cos.py`.
+`cos ACCOUNT` then starts it. Its usage line still says `cos`.
+
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

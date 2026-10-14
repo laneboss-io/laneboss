@@ -1,18 +1,23 @@
 # integrations/gcp
 
-`with_identity.py` runs ONE command under ONE named identity, with an environment it builds from scratch. It
+Build from the repository root with the pinned Go toolchain:
+
+```sh
+GOTOOLCHAIN=go1.26.0 go build -trimpath -o bin/with_identity ./integrations/gcp/with_identity
+```
+
+The tests build the Go program and exercise it as a subprocess. Their interpreter is a test-harness
+requirement, not a runtime dependency of the helper.
+
+`with_identity` runs ONE command under ONE named identity, with an environment it builds from scratch. It
 is for the case where the machine is already logged in to a cloud provider and a command must not act as that
 identity: the command gets the identity you name and none of the ambient one. It is one stand-alone file that
-uses only the Python standard library: nothing in the launcher imports it and it imports nothing of the
-launcher. Python 3.11 or newer.
+uses the module's TOML parser and Go's standard library. Build with Go 1.26.0; the binary needs no interpreter.
 
-    python3 -I with_identity.py --identities FILE NAME -- COMMAND [ARGUMENT ...]
-
-The -I option makes the interpreter ignore the caller's Python environment variables and user directories,
-so the caller's environment cannot change which code the interpreter loads.
+    with_identity --identities FILE NAME -- COMMAND [ARGUMENT ...]
 
 `FILE` is the identities file you keep, `NAME` is one identity in it, and everything after the two characters
-`--` is the command and its arguments. `python3 -I with_identity.py -h` prints the usage text.
+`--` is the command and its arguments. `with_identity -h` prints the usage text.
 
 ## The identities file
 
@@ -39,7 +44,7 @@ project = "demo-project-name"
 key_file = "/home/example/identities/demo/key.json"
 ```
 
-    python3 -I with_identity.py --identities /home/example/identities.toml demo-identity -- ./report.sh
+    with_identity --identities /home/example/identities.toml demo-identity -- ./report.sh
 
 ## The environment the command gets
 

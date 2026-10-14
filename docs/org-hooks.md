@@ -7,6 +7,57 @@ The hook reads one PreToolUse event from standard input and returns a permission
 decision. Invalid JSON, invalid TOML, missing policy files, unknown instances,
 unknown tools and uninspectable commands produce a denial.
 
+The Bash adapter recognizes a whole literal apply_patch/applypatch invocation
+with a quoted heredoc, or one single-quoted patch argument without an apostrophe.
+It checks the patch's touched paths through the ordinary scope and protected
+path policy. Extra commands, unquoted delimiters, pipes, redirects and expanded
+arguments remain refused. Broken quoting on a write receives an Instead route
+to the native apply_patch tool or a quoted heredoc; a read keeps its read route.
+
+Report every refusal verbatim, including the start of the refused command. If it
+names an Instead route, take exactly that route under the same policy; otherwise
+stop. Do not invent another rewrite or use an override.
+
+The command inspector accepts literal read-only sed print and substitution
+scripts. In-place flags, write and execution commands, script files, r/R reads,
+blocks, branches and uncertain grammar remain opaque. Every accepted input file
+uses the same read and secret rules as cat. The head, tail, wc, grep, nl, cut and
+sort adapters inspect known options and reject unknown forms. Sort output and
+explicit temporary directories are writes; pattern files and random sources
+are reads. Expansion metacharacters stay opaque where literal quoting cannot
+be proven.
+
+Literal shell compounds can use if/then/elif/else/fi, boolean chains, semicolons,
+newlines, negation and fixed-arity test predicates. The inspector collects file
+effects from every condition and branch without evaluating which branch runs.
+Known simple-command adapters still decide the effects: content reads retain
+their secret checks, literal redirects are writes checked against scope, and
+unknown commands stay refused. File predicates inspect metadata and protected
+names without recursively reading directory contents. Variables, substitutions,
+globs, loops, functions, heredocs, subshells and uncertain grammar remain refused
+inside compounds. The complete quoted patch adapter above keeps its own grammar.
+
+Every compound part carries the state effects of its resolved command, after
+literal unquoting and wrapper/assignment resolution. Directory-stack builtins,
+environment and option changes, aliases, eval and source are refused in any
+branch. Set a tool's explicit workdir for a relative command instead of changing
+directory inside a compound. Unknown resolution also fails closed.
+
+Codex bypass runs refuse `default_permissions`, permission tables,
+`approvals_reviewer`, MCP server definitions and any approval policy other than
+`never` in every vetted configuration layer. They also refuse automatic review,
+full-auto and managed worktree flags. Unknown permission, sandbox and approval
+directives are refused. The legacy workspace sandbox must exclude both implicit
+temp roots, and only its vetted cwd may be writable.
+
+Codex argv uses an allowlist of the start, resume, bypass and probe flags passed
+by the launcher and bundled acceptance adapter. Unknown flags and
+--ignore-user-config are refused. No launcher path needs -o/--output-last-message,
+so those flags are refused. notify, use_legacy_landlock, guardianv2 and guardian_ext
+are refused in vetted configuration and feature switches. CODEX_HOME selects the
+vetted instance; provider authentication and endpoint names are transport inputs.
+Other CODEX_* controls are refused at launch by name, without exposing values.
+
 ## How the org commands use it
 
 The hook commands `org hook`, `org refusals` and `org check-hooks` share the one
@@ -22,7 +73,11 @@ The hook commands `org hook`, `org refusals` and `org check-hooks` share the one
    instance's `hooks/runners.json`. Use the returned command arrays as launch
    prefixes; append the runner's ordinary model, prompt and resume arguments.
    Claude gets `--settings INSTANCE/.claude/settings.json`. Codex gets
-   `env CODEX_HOME=INSTANCE/.codex codex`, which selects its `hooks.json`.
+   `env CODEX_HOME=INSTANCE/.codex codex -c features.hooks=true`, which selects
+   its `hooks.json` and explicitly enables the vendor feature. Render also
+   sets `[features] hooks = true` in the instance's `config.toml`, retaining
+   unrelated configuration values. Ordinary table and dotted forms keep their
+   existing text and comments; unusual inline forms may be serialized again.
    Credentials are not copied or printed. A file whose content and mode are
    already right is not rewritten, so a repeated render changes nothing.
 3. `org validate` calls `orghook.check_hooks(org)` and fails when
@@ -41,6 +96,33 @@ settings. Direct runner launches from tool calls are refused; launch authority
 uses the checked command prefixes above. `orgexamples.py` holds one canonical
 data source for both the seed rules and their refusal descriptions.
 Rendered hook settings, the helper, rule files and refusal files are read-only.
+
+Claude settings keep `disableAllHooks = false` and reject managed-only hooks.
+Codex `hooks.json` accepts only `hooks` and optional `description`. Re-rendering
+refuses unsupported top-level Codex keys before writing settings; remove the
+unsupported fields explicitly and render again.
+
+Codex lane starts, resumes and turns explicitly add `-c features.hooks=true`.
+Before launch, laneboss runs the selected executable's `features list` with the
+same configuration/profile/feature flags and instance environment. The result
+must contain exactly one `hooks` row with value `true`. A missing, disabled,
+unreadable or unsupported feature refuses the launch before `lane.started`.
+The capability cache belongs to that one run and is keyed by executable path,
+version and configuration scope; a later run always probes again. These probes
+are local, non-interactive commands and do not call a model.
+
+Lane supervisors keep stdout and stderr separate while recording their live
+output. Before the first `turn.started` or model/tool output, a Codex stdout
+`item.completed` event with an `error` item qualifies only when its `message`
+starts with the exact prefix `failed to parse hooks config `. Plain vendor
+startup stderr qualifies only at the start of a line with that same prefix.
+Agent messages, command output, tool results, quoted text and historical logs
+are never searched for diagnostic phrases. Other wording requires an explicit
+prefix and a compatibility row. A detected failure stops the tracked process tree and
+records `lane.ended` with reason `hook-config` and launcher exit code 125. Status
+and rebuilt events retain that reason. Resumes and turns refuse until the failed
+hooks file has changed and validates with synchronous `PreToolUse` command hooks.
+The lane keeps a private file-path/hash marker and prints no settings values.
 
 ## Instance fields
 
@@ -140,7 +222,24 @@ refused until an adapter accounts for their writes outside the worktree folder.
 Secret names match the original filename, its resolved filename, or an exact
 configured path. Directory reads inspect a bounded set of descendant names,
 including hidden files, without reading contents. Literal echo/printf arguments
-are not file reads. Tool names use the runner's actual tool spelling; Codex's
+are not file reads. `Glob` and `LS`, plus supported shell `ls` and read-only
+`find` predicates, list names and metadata without reading file contents.
+`find -delete` and other mutation actions remain subject to write inspection.
+Redirection targets exactly equal to `/dev/null`, `/dev/stdout` or `/dev/stderr`
+do not add a write effect; other device targets still do.
+
+`Grep` searches file contents at its `path`, defaulting to the hook's working
+directory. A directly protected path is always refused, even with a filter.
+Directory searches inspect up to 20,000 entries, including hidden entries.
+Any protected name anywhere inside refuses the search, regardless of `glob`,
+`type` or other filters. The hook makes no exclusion proof about the search
+engine's selection semantics. Exceeding the bound or encountering an
+uninspectable directory also refuses the search. The refusal tells the agent to
+narrow `path` to a folder or file without secrets. The walk reads metadata only;
+symlink directories and multiply linked files remain refused when their reads
+cannot be inspected safely.
+
+Tool names use the runner's actual tool spelling; Codex's
 `functions.` prefix is removed before matching. Names, identities and command
 words can use `fnmatch` patterns; write paths must be literal paths/placeholders.
 
@@ -148,6 +247,8 @@ words can use `fnmatch` patterns; write paths must be literal paths/placeholders
 
 Every rule's id names `LAYER/refusals/ID.toml`, or an instance's `refusals/ID.toml`
 for inline instance rules:
+
+Every denied callback ends with its own `Instead:` route. Inspection failures name a supported literal operation or a supervisor repair route. Policy refusals preserve the recorded description and supply a route for the rule's kind. The route remains subject to all tool, secret and write-scope checks; it grants no exception. Variable or substitution failures request one literal command per non-secret file or an allowed file-reading tool. Denied parseable calls retain a callback receipt, with `inspection_complete=false` when effects could not be inspected.
 
 ```toml
 id = "publish"
@@ -189,7 +290,7 @@ response is not used for PreToolUse.
 ## Verification and boundaries
 
 This lane's permitted local checks are compilation and CLI help only. The
-CLI tests in `tests/e2e/test_org_hooks.py` are for the supervisor's disposable
+CLI tests in `laneboss-e2e:tests/e2e/test_org_hooks.py` are for the supervisor's disposable
 machine. They must be run against a RED tree with these tests only and a GREEN
 tree with the implementation; no behavioral pass is claimed by this lane.
 
@@ -219,3 +320,5 @@ processes started outside its checked launch path. A host-wide running-session
 audit is a separate launcher integration; this module checks configured launch
 commands and guards individual tool calls. Real vendor startup and the combined
 Phase A init/render/validate path require the supervisor's runtime verification.
+
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

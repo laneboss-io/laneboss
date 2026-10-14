@@ -1,45 +1,38 @@
 # Laneboss decision store
 
-The first launcher module keeps questions, context, and the owner's decisions
-in one portable SQLite file. It uses Python 3.9+ and the standard library at
-runtime. SQLite must include FTS5 and its `trigram` tokenizer (SQLite 3.34+).
-No other launcher behavior is implemented here.
+The decision store keeps questions, context and the owner's decisions in one portable SQLite file.
+It runs inside the Go `laneboss` binary, with SQLite and FTS5 included.
 
 ## Run
 
-From a checkout, prefix commands with `PYTHONPATH=src`, or install with
-`python -m pip install .` to get the `laneboss-decisions` console script.
-Packaging uses a conventional build backend; the installed package has no
-runtime dependencies. The package as a whole requires Python 3.11, so `pip`
-installs it only there; on Python 3.9 and 3.10 run the store from a checkout
-with `PYTHONPATH=src`, which needs nothing else.
+Install with [the Go installer](install.md), then use `laneboss decisions`:
 
 ```sh
-PYTHONPATH=src python -m laneboss.decisions init --db decisions.sqlite
-PYTHONPATH=src python -m laneboss.decisions add --db decisions.sqlite --file record.json
-PYTHONPATH=src python -m laneboss.decisions get --db decisions.sqlite D-22
-PYTHONPATH=src python -m laneboss.decisions search --db decisions.sqlite "部署"
-PYTHONPATH=src python -m laneboss.decisions search --db decisions.sqlite "" --mode exact --project phase-a
-PYTHONPATH=src python -m laneboss.decisions supersede --db decisions.sqlite D-22 --file newer.json
-PYTHONPATH=src python -m laneboss.decisions annotate --db decisions.sqlite D-23 --file outcome.json
-PYTHONPATH=src python -m laneboss.decisions verify --db decisions.sqlite
-PYTHONPATH=src python -m laneboss.decisions stats --db decisions.sqlite
-PYTHONPATH=src python -m laneboss.decisions export --db decisions.sqlite --out portable.jsonl
-PYTHONPATH=src python -m laneboss.decisions init --db restored.sqlite
-PYTHONPATH=src python -m laneboss.decisions import --db restored.sqlite --in portable.jsonl
-PYTHONPATH=src python -m laneboss.decisions load --db decisions.sqlite --in batch.jsonl --dry-run
-PYTHONPATH=src python -m laneboss.decisions load --db decisions.sqlite --in batch.jsonl
-PYTHONPATH=src python -m laneboss.decisions migrate --db old.sqlite
-PYTHONPATH=src python -m laneboss.decisions ingest-lane --db decisions.sqlite --config alpha --lane lb-record \
+laneboss decisions init --db decisions.sqlite
+laneboss decisions add --db decisions.sqlite --file record.json
+laneboss decisions get --db decisions.sqlite D-22
+laneboss decisions search --db decisions.sqlite "部署"
+laneboss decisions search --db decisions.sqlite "" --mode exact --project phase-a
+laneboss decisions supersede --db decisions.sqlite D-22 --file newer.json
+laneboss decisions annotate --db decisions.sqlite D-23 --file outcome.json
+laneboss decisions verify --db decisions.sqlite
+laneboss decisions stats --db decisions.sqlite
+laneboss decisions export --db decisions.sqlite --out portable.jsonl
+laneboss decisions init --db restored.sqlite
+laneboss decisions import --db restored.sqlite --in portable.jsonl
+laneboss decisions load --db decisions.sqlite --in batch.jsonl --dry-run
+laneboss decisions load --db decisions.sqlite --in batch.jsonl
+laneboss decisions migrate --db old.sqlite
+laneboss decisions ingest-lane --db decisions.sqlite --config alpha --lane lb-record \
     --attach ledger.md
-PYTHONPATH=src python -m laneboss.decisions serve --db decisions.sqlite --socket "$SOCKET"
+laneboss decisions serve --db decisions.sqlite --socket "$SOCKET"
 ```
 
 In zsh, a command kept in a shell variable is not split into words: after
-`store='python -m laneboss.decisions'`, `$store stats --db decisions.sqlite`
-looks for a program whose whole name is `python -m laneboss.decisions` and fails
+`store='laneboss decisions'`, `$store stats --db decisions.sqlite`
+looks for a program whose whole name is `laneboss decisions` and fails
 with exit `127`. Type the plain command, or use a shell function, for example
-`store() { PYTHONPATH=src python -m laneboss.decisions "$@"; }`.
+`store() { laneboss decisions "$@"; }`.
 
 Every successful command emits one JSON value. Errors go to stderr. Exit
 codes are `0` success, `2` invalid input/refused write, `3` integrity problem,
@@ -183,8 +176,8 @@ layout and refuses it, naming what works:
 ```sh
 head -n 1 old-export.jsonl | sed -e 's/"egress":[0-9]*/"egress":0/' -e 's/"models":[0-9]*/"models":0/' -e 's/"vectors":[0-9]*/"vectors":0/' > records-only.jsonl
 grep '^{"record":' old-export.jsonl >> records-only.jsonl
-PYTHONPATH=src python -m laneboss.decisions init --db new.sqlite
-PYTHONPATH=src python -m laneboss.decisions import --db new.sqlite --in records-only.jsonl
+laneboss decisions init --db new.sqlite
+laneboss decisions import --db new.sqlite --in records-only.jsonl
 ```
 
 The first line keeps the `format` value the old release wrote, and import reads it
@@ -225,7 +218,7 @@ and a count that does not match.
 
 ## Records
 
-`tests/decisions/support.py` contains invented schema-1 records. Required fields are
+`laneboss-e2e:tests/decisions/support.py` contains invented schema-1 records. Required fields are
 `id`, `kind`, `asked_at`, `answered_at`, `project`, `area`, nonempty `topics`,
 `question.text`, `question.background`, `answer.verbatim`, `answer.channel`,
 `scope.applies_to`, `status`, and `provenance` with `recorded_by`, `recorded_at`,
@@ -284,7 +277,7 @@ lane record is returned by `search` in `keyword` mode alone.
 writes one row per source:
 
 ```sh
-PYTHONPATH=src python -m laneboss.decisions ingest-lane --db decisions.sqlite \
+laneboss decisions ingest-lane --db decisions.sqlite \
     --config CONFIG --lane LANE [--attach FILE ...] [--org-dir ORG --instance NAME]
 ```
 
@@ -437,9 +430,9 @@ No provider is enabled by default. A local deterministic test configuration is:
 ```
 
 ```sh
-PYTHONPATH=src python -m laneboss.decisions embed --db decisions.sqlite --config config.json
-PYTHONPATH=src python -m laneboss.decisions search --db decisions.sqlite "deployment" --mode hybrid --config config.json
-PYTHONPATH=src python -m laneboss.decisions egress --db decisions.sqlite --list
+laneboss decisions embed --db decisions.sqlite --config config.json
+laneboss decisions search --db decisions.sqlite "deployment" --mode hybrid --config config.json
+laneboss decisions egress --db decisions.sqlite --list
 ```
 
 For the required HTTP provider use `provider: "voyage"`, a named
@@ -525,7 +518,7 @@ of embedding models whose vectors it holds checked (`vector_models`), the vector
 A search that works is answered with status 200 and, as the body, the bytes that `laneboss decisions search` prints for
 the same store, query, mode, filters and limit: the same records in the same order with the same fields. A keyword or
 an exact search is answered with exactly the command's bytes, scores to the last digit. A vector or hybrid search is
-answered with the command's bytes for the same question vector and the same Python version: such an answer is a
+answered with the command's bytes for the same question vector and the same launcher build: such an answer is a
 function of the store and of the vector that the provider returns for the question, and a provider may return a
 different vector for the same text on another call (`voyage-4-large` does), so two runs of the command can differ, and
 a fresh command run can differ from the server, in the scores and in the order of records whose scores are close. The
@@ -620,12 +613,8 @@ leaves its socket file behind, which is how `curl` comes to exit 7 and how the n
 
 ### Limits
 
-- One server serves one store. It is for Linux and macOS (it needs Unix sockets). It uses only the standard library
-  and nothing newer than Python 3.9, the minimum of the decision store; its tests have run on Python 3.12 only.
-  `math.sumprod` (Python 3.12 and newer) orders the records where the interpreter has it, and a sum of products where
-  not; the ranking test runs both.
-- The copy of the store is in memory: the size of the file, and for each vector of the model about 32 bytes a number,
-  as Python floats (32 KB for 1,024 numbers).
+- One server serves one store on Linux or macOS, using Unix sockets.
+- The resident copy of the store and its vectors are held in memory.
 - Changes are found by the hashes that the store keeps of each record, model and vector, which is what every command
   that writes them changes. An edit made to the file behind the store's back, which leaves those hashes as they were,
   is not noticed until a change that alters a hash; `verify` and the next `search` by the command report such an edit
@@ -777,52 +766,15 @@ model; `embed` fills them, and `verify` passes before and after.
 
 ## Acceptance and publication checks
 
-```sh
-python -m unittest discover -s tests/decisions -t .
-sh scripts/scan.sh
-```
+The black-box harness is moving to a separate e2e repository. On an authorized disposable machine,
+build the single binary and set `LANEBOSS_BIN` to its absolute executable path. The decision harness
+runs `LANEBOSS_BIN decisions`; its existing per-group Go selection remains available.
 
-These are the decision store's own tests. The interpreter needs to be Python 3.9
-or newer; nothing beyond the standard library is imported, and the tests never
-import the launcher. The system tools are a separate matter: the scanner test
-(`ScannerCheckoutTest`) runs `git`, `sh` and `python3` from `PATH`, and the
-tests of the resident search (`tests/decisions/test_serve.py`) run `curl`, `sh`
-and `ps` (and `lsof` on macOS). `python -m
-unittest discover -s tests` runs these tests together with the launcher's
-(Python 3.11 or newer). Apart from three groups of tests that import the product
-and call it in the test process (`LibraryTest`; `RankingTest` of the
-resident search, which holds its ranking and the sums that print its scores
-against the command's arithmetic on vectors made to tie, which no store and no
-provider would make to order; and `AnswerBoundsTest`, which calls the
-bookkeeping of the remembered answers with answers as large as their bound,
-which no search over a store that a test can make would give), and one test
-(`StandardLibraryTest`) that reads the source of the decision store's modules,
-without running them, to check that they import nothing but the standard
-library, the tests are black-box
-command-line tests: each case creates its databases and files in a private
-temporary directory and removes them afterwards, and runs the command with the
-test process's own environment, `HOME` included. The tests of the resident
-search start `serve` as a process of its own and talk to it over its socket;
-the embedding service, which a test machine cannot use, is replaced by a local
-stand-in that answers with vectors that depend on the text, checks the bearer
-key and counts its requests. A few tests start the command
-through `tests/decisions/faults.py`, which installs one fault or one point to
-synchronise on (a statement that fails with SQLite's disk I/O error, a marker
-file when the command is about to ask for the write lock, the mode of the
-server's socket at the moment it is bound) in the command's own
-process before it runs; the command has no hook for it. Run them on an
-authorized disposable test host, not an editing machine, as an unprivileged
-user: the permission tests need file modes to be enforced. Inside a Git checkout
-the scan examines tracked files only. Outside Git it examines every file except
-those under `.git` or `__pycache__` and the `*.pyc` files. It fails on
-private-key headers, contiguous secret-like tokens of 40 or more characters,
-IPv4 addresses other than the loopback address, and email addresses. It
-reports only path, line and rule, never the suspicious value. Do not store
-generated databases, credentials or exports inside the source tree.
+Tests that directly import retired product modules or inject interpreter faults need migration in
+that repository. They are not runtime checks of the Go binary. Run permission tests as an unprivileged
+user, with temporary stores and no production credentials.
 
-Before publication: test the supported interpreter
-and SQLite matrix, add portable source-line snapshots if independent provenance
-verification is needed, and review any future retention/encryption policy.
-The package/provider/model identifiers and official documentation hosts are
-required integration names; all decision fixtures are invented and no private
-workspace names are used.
+Run `scripts/scan.sh` before publication. Do not store generated databases, credentials or exports in
+the source tree. The publication scanner retains its separate interpreter requirement.
+
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

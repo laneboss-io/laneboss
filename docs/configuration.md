@@ -58,7 +58,7 @@ files while the launcher runs (`docs/architecture.md`, "What isolation covers").
 
 ## Generic rules files
 
-The package ships two rules files of its own, under `src/laneboss/protocol/`, and they belong to every
+The package ships two rules files of its own, under `internal/protocol/`, and they belong to every
 configuration: `executor.md` for executor lanes and `supervisor.md` for a supervisor's briefing and no lane
 brief. They name no company, no host and no user, so a second company installs them as they are written.
 
@@ -74,7 +74,7 @@ compared with the version's own file. The copy of `executor.md` goes in the conf
 passed to `--project`, until a supervisor-only rules key exists: the configuration's `rules` are appended to
 every rendered brief, so a supervisor file listed there would reach lanes too. Each rule is one top-level list
 item, an id followed by one or more sentences, and an id is unique across both files;
-`tests/e2e/test_generic_rules.py` holds the two files to their ids.
+`laneboss-e2e:tests/e2e/test_generic_rules.py` holds the two files to their ids.
 
 ## Validation rules
 
@@ -97,7 +97,7 @@ item, an id followed by one or more sentences, and an id is unique across both f
 - Fields marked *validated, not yet used* are checked now and consumed by later lanes (test machines, owner
   messages, cost accounting). This version reads `name`, `organisation`, `organisation_rules`, `rules`,
   `state.path`, `lanes`, `turns` (`idle_message`, `idle_seconds`, `poll_seconds`, `backoff_seconds`, `limit_backoff_seconds`), `runners` (`command`, `resume`, `prompt`, `stream`, `room`, `accounts`, `limit_patterns`, `dropped_patterns`,
-  `quiet_seconds`, `records`; doctor checks the programs of `command` and `resume`), `routing`, `guards`,
+  `quiet_seconds`, `records`, `api_models`; doctor checks the programs of `command` and `resume`), `routing`, `guards`,
   `judges`, and the project `repository`, `lane_prefix`, `workers`, `excluded_accounts` and `rules`.
 
 ## config.toml
@@ -196,12 +196,26 @@ A runner is a command that starts an executor, mini-supervisor or reviewer.
 | `room` | array of strings | no | The argument vector of the command that answers whether one account can take a turn now, and how many turns it can take (`docs/architecture.md`, "Accounts and adoption"). The same rules as `command` for its first element (a command name or an absolute path, without placeholders; `laneboss doctor` does not check it); its other elements may use `{account}` as their only placeholder, so that one template serves every account of the runner. The launcher runs it without a shell, with standard input from `/dev/null` and the caller's environment, once for each account it considers, and waits at most `[lanes] room_timeout_seconds`. Its standard output must be exactly one JSON object of at most 4 KiB, with the keys `room` (`true` or `false`), `slots` (a whole number from 0 to 64; `0` when `room` is false, and 1 or more when it is true) and `reason` (a string on one line of at most 200 characters, empty only when `room` is true); a non-zero exit, a timeout, or output that is not exactly that object counts as no room, with the fixed sentence `the room command of account A did not answer in the documented form`, and nothing of such output is shown besides it. A `reason` with the shape of a credential becomes `(withheld)`. The command's program belongs to the organisation: the check that refuses an absolute path into another organisation's tools covers `room` as it covers `command` and `resume`. A runner without the key has no room check: its turns use the previous run's account. |
 | `stream` | `"text"` or `"claude-stream-json"` | no | The reader that `laneboss lane attach` shows this runner's lines with (see "The stream of a runner" below). `"text"` (the default): every line is shown as it is, but for its control characters, which are removed, and no mode and no cost are known. `"claude-stream-json"`: the lines of a headless Claude Code run that prints one JSON object per line (`--output-format stream-json --verbose --include-partial-messages`). Any other value, and a value that is not a string, is refused by `config validate`. The key changes only what attach shows: the launcher stores every line as the runner printed it, and `limit_patterns` and `dropped_patterns` are matched against those lines as they are. |
 | `accounts` | array of account names | no | Account or profile names this runner can use (`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`). A lane uses the account given with `--account`, else the first one the project does not exclude; a resume checks the account it inherits against these and the project's exclusions as they are at that moment. `lane start` does not ask a `room` command: a new lane takes its account as above for every runner. A turn or a resume of a runner with a `room` command takes its account through that command instead, in the order `docs/architecture.md` gives under "Accounts and adoption" ("Slots and the choice of the account"). There, the previous run's account is asked only when the runner lists it and the project keeps it; otherwise it is passed over, not refused. |
+| `api_models` | table of full model names to API names | no | Each key obeys the full model-name rule, including a version digit. Each value uses the same safe character set and contains 1 to 128 characters; a value may be a provider alias without a digit. The runner's command and resume templates receive the mapped value for `{model}`. Lane metadata, status, events, briefs and session-record path templates retain the full name. An unmapped full name is sent unchanged. `config show` and `doctor` display the declared map. Map values do not become valid choices for `--model` or configuration `model` fields. |
 | `limit_patterns` | array of regular expressions, non-empty, no repeats | no | Lines of a run's output that mean "account limit reached". A run that ends by itself and whose output's last matching line matches one of these ends with reason `limit` instead of `exit`. |
 | `dropped_patterns` | array of regular expressions, non-empty, no repeats | no | Lines that mean "stream dropped": reason `dropped`. |
 | `quiet_seconds` | integer 1 to 604800 | no | This runner's quiet time before `lane.stuck`, for example a long one for a program that prints nothing until it finishes. |
 | `records` | array of tables, non-empty | no | Where the runner's raw session records are and how to read them, for refusal detection (see "Session records" below). Without it, the runner's runs are not scanned. |
 | `secrets` | array of secret names | no | Secrets the runner needs; each must be listed in the top-level `secrets`. *Validated, not yet used:* a run inherits the environment of the session that started it, and secrets are not resolved yet. |
 | `description` | string | no | Free text. |
+
+A provider that requires an alias can declare it without weakening the full-name
+rule:
+
+```toml
+[runners.deepseek]
+command = ["claude", "-p", "--model", "{model}", "Read the brief file {brief}"]
+api_models = {"deepseek-v4.1-flash" = "deepseek-flash"}
+```
+
+A lane started with `--runner deepseek --model deepseek-v4.1-flash` records that
+full name and passes `--model deepseek-flash` to the provider. Giving
+`--model deepseek-flash` still refuses the request.
 
 The patterns are Python regular expressions, each matched with `search` against one line at a time of the last
 64 KiB of the run's own output (the bytes this run added to the log), decoded as UTF-8, each line cut to its first
@@ -441,3 +455,5 @@ The per-project layer below the configuration. The file name (without `.toml`) i
 | `owner_channel` | name | no | A defined owner channel. *Validated, not yet used.* |
 | `landing_authority` | name | no | The supervisor, of level 5 or 6, that alone may merge, deploy and declare landed; a supervisor of another level is refused ("must name a supervisor of level 5 or 6"). *Validated, not yet used.* |
 | `rules` | array of relative paths | no | Extra standing-rules files, relative to the configuration directory, appended after the configuration's rules when a brief is rendered with `--project`. As for the configuration's `rules`, the first part of a path may not be `orgs`. |
+
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

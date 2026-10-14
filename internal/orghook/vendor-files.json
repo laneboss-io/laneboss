@@ -1,0 +1,4 @@
+[
+  {"runner": "claude", "home": ".claude", "settings": "settings.json", "config": ""},
+  {"runner": "codex", "home": ".codex", "settings": "hooks.json", "config": "config.toml"}
+]

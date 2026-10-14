@@ -9,9 +9,12 @@ if [ "${1:-}" = "--staged" ]; then
     staged=1
     shift
 fi
-root=${1:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}
-exec python3 - "$root" "$staged" "${LANEBOSS_SCAN_DENYLIST:-}" <<'PY'
+scanner_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=${1:-$scanner_root}
+exec python3 - "$root" "$staged" "${LANEBOSS_SCAN_DENYLIST:-}" "$scanner_root" <<'PY'
 import bisect
+import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -20,6 +23,68 @@ import sys
 root = Path(sys.argv[1]).resolve()
 staged = sys.argv[2] == "1"
 denylist_file = sys.argv[3]
+scanner_root = Path(sys.argv[4])
+vendor_layouts = None
+
+
+def layouts():
+    global vendor_layouts
+    if vendor_layouts is None:
+        source = scanner_root / "internal/orghook/vendor-files.json"
+        if not source.is_file():
+            source = scanner_root / "scripts/vendor-files.json"
+        try:
+            rows = json.loads(source.read_text())
+            result = {}
+            for row in rows:
+                home = row["home"]
+                names = [row["settings"]] + ([row["config"]] if row["config"] else [])
+                if not home.startswith(".") or home.casefold() in result:
+                    raise ValueError("invalid vendor home")
+                for name in [home] + names:
+                    if name in {"", ".", ".."} or Path(name).name != name:
+                        raise ValueError("invalid vendor file")
+                result[home.casefold()] = {(name.casefold(),) for name in names}
+            if not result:
+                raise ValueError("empty vendor layout")
+        except (OSError, UnicodeError, ValueError, TypeError, KeyError):
+            error("renderer vendor layout is missing or invalid")
+        vendor_layouts = result
+    return vendor_layouts
+
+
+def vendor_entry(path):
+    parts = Path(path).parts
+    for index in range(len(parts) - 3):
+        if tuple(part.casefold() for part in parts[index:index + 2]) == (".laneboss", "instances"):
+            owned = layouts().get(parts[index + 3].casefold())
+            if owned is not None:
+                return tuple(part.casefold() for part in parts[index + 4:]), owned
+    return None
+
+
+def runtime_file(path):
+    entry = vendor_entry(path)
+    if entry is None:
+        return False
+    suffix, owned = entry
+    return bool(suffix) and suffix not in owned
+
+
+def fallback_paths(root):
+    for directory, names, files in os.walk(root, followlinks=False):
+        def allowed(name):
+            path = Path(directory) / name
+            if runtime_file(path) or (vendor_entry(path) is not None and path.is_symlink()):
+                runtime_paths.append(str(path.relative_to(root)))
+                return False
+            return name not in {".git", "__pycache__"} and not name.endswith((".pyc", ".pyo"))
+        names[:] = [name for name in names if allowed(name)]
+        for name in files:
+            if allowed(name):
+                yield Path(directory) / name
+
+
 patterns = {
     "private-key-header": re.compile(rb"-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----"),
     "long-secret-like-token": re.compile(rb"(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{40,}(?![A-Za-z0-9_+/=-])"),
@@ -59,6 +124,7 @@ def git(*arguments, **options):
 
 
 items = []
+runtime_paths = []
 if staged:
     try:
         listing = git("ls-files", "-s", "-z")
@@ -69,8 +135,11 @@ if staged:
         if entry:
             meta, name = entry.split(b"\t", 1)
             mode, blob = meta.split()[:2]
-            if mode != b"160000":
-                entries.append((name.decode("utf-8", "surrogateescape"), blob))
+            relative = name.decode("utf-8", "surrogateescape")
+            if runtime_file(relative) or (mode == b"120000" and vendor_entry(relative) is not None):
+                runtime_paths.append(relative)
+            elif mode != b"160000":
+                entries.append((relative, blob))
     if entries:
         batch = git("cat-file", "--batch", input=b"".join(blob + b"\n" for _, blob in entries))
         position = 0
@@ -98,9 +167,12 @@ else:
                 path.relative_to(root)
             except ValueError:
                 continue
-            paths.append(path)
+            if runtime_file(path) or (path.is_symlink() and vendor_entry(path) is not None):
+                runtime_paths.append(str(path.relative_to(root)))
+            else:
+                paths.append(path)
     except (OSError, subprocess.CalledProcessError, UnicodeError):
-        for path in root.rglob("*"):
+        for path in fallback_paths(root):
             relative = path.relative_to(root)
             if ".git" in relative.parts or "__pycache__" in relative.parts or path.suffix == ".pyc":
                 continue
@@ -115,7 +187,7 @@ else:
         items.append((str(path.relative_to(root)), content))
 
 SHOWN = 200
-problems = []
+problems = [(relative, 0, "vendor-runtime-not-publishable") for relative in runtime_paths]
 checked = 0
 for relative, content in sorted(items, key=lambda item: item[0]):
     checked += 1
@@ -124,6 +196,10 @@ for relative, content in sorted(items, key=lambda item: item[0]):
         continue
     newlines = [match.start() for match in re.finditer(b"\n", content)]
     for rule, pattern in patterns.items():
+        # go.sum holds the published checksums of public Go modules ("h1:" plus base64), which the token rule
+        # cannot tell from a secret; only that rule skips it, and only for that exact file name.
+        if rule == "long-secret-like-token" and relative.rsplit("/", 1)[-1] == "go.sum":
+            continue
         for match in pattern.finditer(content):
             if rule == "non-loopback-ipv4":
                 address = match.group()

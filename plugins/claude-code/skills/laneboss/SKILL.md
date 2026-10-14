@@ -33,4 +33,4 @@ Rules for this whole session:
 - Pass `--config NAME` on every `laneboss` command, with the configuration this session was started for. The option comes after the command, as in `laneboss lane status --config NAME`; `laneboss --help` lists the commands.
 - Run `laneboss` as it is found: when the shell does not find it on PATH, run `$HOME/.local/bin/laneboss` in its place.
 - Never act for another configuration in this session. If the person wants another one, tell them to start a new session with `/laneboss NAME`.
-- A guard's or hook's refusal stops that action and is reported verbatim: give the person the refusal message and the start of the refused command, and do not reword it, split the command or look for another way around it.
+- Report a guard's or hook's refusal verbatim, including the start of the refused command. If it names an Instead route, take exactly that route under the same policy; otherwise stop. Do not invent another rewrite or use an override.

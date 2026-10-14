@@ -12,217 +12,42 @@ scan.
 
 | Path | Contents |
 |---|---|
-| `src/laneboss/identity.py` | `PROGRAM`, `ENV_PREFIX` and `VERSION`: the only place the program name, the environment prefix and the package version are set. |
-| `src/laneboss/cli.py`, `src/laneboss/__main__.py` | The command line: argument parsing, binding, output and exit codes. |
-| `src/laneboss/config.py` | Configuration schema, guarded loading, cross references, binding and isolation zones. |
-| `src/laneboss/fsguard.py` | Identity (device and inode) comparisons and file access through opened directories. |
-| `src/laneboss/statedir.py` | The state directory opened by identity, its ownership marker and the kept inputs. |
-| `src/laneboss/credentials.py` | The credential detector shared by configurations, rules files, events and briefs. |
-| `src/laneboss/events.py` | The event store: envelope validation, `EventStore.append()`, reads, rebuild, verify. |
-| `src/laneboss/lanes.py` | The lane projection (`apply()` and `fold()`), lane payloads and the life-cycle rules, and the forms of the loop's events (`check_loop()`, which `append()` calls and `state verify` does not). |
-| `src/laneboss/lanecmd.py` | `laneboss lane`: start, adopt, resume, send, turn, stop, status, check (all lanes, or one with `--lane`), mark, clean, scan, refusals and review. `lane turn` shares the resume path (`continue_lane`), which the loop calls too, and `lane send` is `send_mail` (it reads the message) followed by `send_message` (it checks and stores it), which attach calls with a typed line; `lane stop` is `stop_request` (it asks for the stop) followed by `stop_finish` (it waits for the end), which attach calls apart; the two refusals of `stop_request` that say that the run is not going on are a `NotGoingOn`, a kind of `Refused`, which attach tells from every other refusal. |
-| `src/laneboss/supervise.py` | The supervising process of one run, in the lane's tmux session. |
-| `src/laneboss/mail.py` | Mail: the checks of `lane send`, the message file and its directory, the join of a turn's messages and the `state verify` checks of mail. The derivation of a message's state is in `lanes.py` (`apply()`, `settlement()`), and `lane send` and `lane turn` are in `lanecmd.py`. |
-| `src/laneboss/loopcmd.py` | `lane loop`: its lock and record, its passes, its status and stop, its detached form and its events. The forms of the `loop.*` events are in `lanes.py` (`check_loop()`), the check at append in `events.py`. |
-| `src/laneboss/streams.py`, `src/laneboss/attach.py` | The named stream readers (`text`, `claude-stream-json`), and `lane attach` (T4). |
-| `src/laneboss/accounts.py` | The room command of an account, and the choice of the account it feeds (T5, built); the command `lane adopt` is built in `lanecmd.py`. |
-| `src/laneboss/refusals.py` | Refusals: which records belong to a run, the scan, its events and coverage, and the scanning process beside a run. |
-| `src/laneboss/sessions.py`, `src/laneboss/shellscan.py`, `src/laneboss/guards.py` | The session-record formats; what a shell command writes and how similar two commands are; the guard patterns and their bounded matching. |
-| `src/laneboss/multiplexer.py`, `src/laneboss/worktree.py` | The tmux and Git calls lanes make. |
-| `src/laneboss/processes.py`, `src/laneboss/runrecord.py` | Process identities, identity-checked signals, and the run records. |
-| `src/laneboss/pending.py`, `src/laneboss/claims.py` | Events waiting for the store, and the claims on working directories. |
-| `src/laneboss/resources.py`, `src/laneboss/adapters.py`, `src/laneboss/resourcecmd.py` | Designed, not built (A): the resource fold and its checks at append, the launcher's side of the adapter contract, and `laneboss resource` ("Resources and cost"). |
-| `src/laneboss/brief.py` | Brief rendering and the mandatory cost and preflight sections. |
-| `src/laneboss/doctor.py` | `laneboss doctor`. |
-| `src/laneboss/startcmd.py` | `laneboss start`: the session briefing, read-only. |
-| `src/laneboss/plugincmd.py` | `laneboss plugin path`: where the installed plugin of an agent program is. |
-| `plugins/claude-code/` | The Claude Code plugin: one skill, `/laneboss`, and its script `start.sh` (`docs/plugin.md`). |
-| `src/laneboss/protocol/protocol.md` | The shared protocol, with its own version line. |
-| `src/laneboss/protocol/continue.md` | The follow-up message a resume gets when the supervisor gives none. |
-| `src/laneboss/decisions/` | The owner decision store (an earlier module, not changed by this layer), and its resident search, `serve` (`docs/decisions.md`, "Resident search"). |
-| `scripts/install.sh` | Installs a version without pip, network or administrator rights. |
-| `install.sh` | The one-command bootstrap for anybody without a checkout: gets the source of one version and runs that version's `scripts/install.sh`. It holds no installer of its own (`docs/install.md`). |
-| `scripts/scan.sh`, `scripts/install-hooks.sh` | The publication scan and its pre-commit hook. |
-| `examples/minimal/` | One invented configuration, with `bin/example-agent`, a stand-in runner program. |
-| `integrations/aws/`, `integrations/gcp/` | Designed, not built (B, D): the cloud adapter with its generic idle guard, and the credential-scope example, each with a page of its own. The core imports neither. |
-| `tests/e2e/` | Black-box tests that drive the installed command; `standin.py` is the runner program of the lane tests and `sessionstandin.py` the one that writes session records for the refusal tests. |
-| `tests/e2e/test_mail_model.py`, `test_mail.py`, `test_turn.py`, `test_turn_ends.py`, `mailsupport.py` | The end-to-end tests of mail and turns (T2): the data model, `lane send`, `lane start --turns` and `lane turn`, and the end of a turn; `mailsupport.py` is their helper module. |
-| `tests/e2e/test_loop.py` | The end-to-end tests of the loop (T3): when a turn starts, the lock, the status and the stop, the back-off, refused turns, a busy store, a killed loop, `--detach`, the environment of the turns, the forms of the `loop.*` events, `lane check --lane` and the keys of `[turns]`. |
-| `tests/e2e/test_attach.py`, `test_streams.py` | The end-to-end tests of attach and of the stream readers (T4): attach runs on a pseudo-terminal against the stand-in's behaviour `streamer`, which plays a script of invented stream lines. |
-| `tests/e2e/test_room.py`, `test_room_choice.py`, `test_adopt.py` | The end-to-end tests of the room command, of the choice of the account and of the adoption event (T5; "Turns, mail, the loop and attach"). |
-| `tests/e2e/resourcestandin.py`, `tests/e2e/test_resource_*.py` | Designed, not built (A to D): the stand-in adapter and the end-to-end tests of "Resources and cost". |
-| `tests/decisions/` | The decision store's black-box tests and their helper modules. Standard library only, so they also run on Python 3.9, where the launcher cannot be imported; the tests of the resident search (`test_serve.py`) have been run on Python 3.12 only. |
-| `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/` | The front page with a quick start, how to contribute, what changed, and the long-form documents: this page, `configuration.md` and `decisions.md`. |
+| `cmd/laneboss/`, `internal/cli/` | One executable: top-level help, version, safe usage errors and in-process dispatch of every group. |
+| `internal/identity/` | Program name, environment prefix and release version. |
+| `internal/config/` | Configuration loading, schema validation, bindings and isolation. |
+| `internal/event/`, `internal/state/`, `internal/eventstore/` | Event commands, state commands, append-only SQLite storage, hashes and projections. |
+| `internal/brief/`, `internal/protocol/` | Brief rendering and embedded shared protocol assets. |
+| `internal/lane/`, `internal/laneturns/` | Lane lifecycle, workers, refusal scans, mail, turns, loop and attach. |
+| `internal/selfexec/` | Worker arguments for the single binary and migration harness entry points. |
+| `internal/doctor/`, `internal/doctorbase/`, `internal/disk/` | Environment checks and disk monitoring. |
+| `internal/start/`, `internal/judge/` | Supervisor briefings and the external judge contract. |
+| `internal/org/`, `internal/orgtree/`, `internal/orghook/`, `internal/orgdiscord/` | Org commands, rules, hooks and owner channels. |
+| `internal/decisions/`, `internal/decisionsrv/` | Decision storage, search, ingestion, resident service and org history. |
+| `internal/plugin/`, `plugins/claude-code/` | Installed plugin lookup and the shell plugin's assets. |
+| `cmd/laneboss-<group>/` | Per-group entry points retained for the existing `GO_GROUPS` migration harness; not installed. |
+| `scripts/install.sh`, `scripts/install/` | Pinned Go builds and immutable, manifest-checked installation. |
+| `install.sh` | Fetches a source version and calls that source's installer. |
+| `scripts/scan.sh`, `scripts/install-hooks.sh` | Publication scan and its pre-commit hook. |
+| `examples/minimal/` | Invented configuration and a shell stand-in runner. |
+| `laneboss-e2e:tests/` | Black-box harness in the separate laneboss-e2e repository; `LANEBOSS_BIN` selects an absolute path to the single executable. |
 
-Runtime: Python 3.11 or newer and the standard library only (`tomllib` reads configurations,
-`sqlite3` holds the store). The decision store keeps its own requirements (FTS5 with the trigram
-tokenizer) and its own documentation in `docs/decisions.md`.
+The installed runtime is one Go binary. The build uses Go 1.26.0, the TOML parser and the pure-Go SQLite
+driver pinned in `go.mod` and `go.sum`. Agent programs, Git and tmux remain external commands.
 
 ## Names
 
-The program name `laneboss` and the environment prefix `LANEBOSS_` live in `PROGRAM` and `ENV_PREFIX` in
-`src/laneboss/identity.py`; Python code derives every program name, environment variable, state marker
-and installed path from them. Other places spell the name out and must change together with them: the
-package directory `src/laneboss/` and its imports, `pyproject.toml` (distribution name, console scripts
-`laneboss` and `laneboss-decisions`), the decision store's program name, the variable names inside
-`scripts/install.sh` (`LANEBOSS_PYTHON`), the root `install.sh` (`LANEBOSS_SOURCE`, `LANEBOSS_REPO`,
-`LANEBOSS_VERSION`, `LANEBOSS_PYTHON`), `scripts/scan.sh` and `scripts/install-hooks.sh`
-(`LANEBOSS_SCAN_DENYLIST`), the defaults `~/.config/laneboss` and `~/.local/state/laneboss` (derived from
-`PROGRAM`), `PROGRAM` and `ENV_PREFIX` in `tests/e2e/support.py`, and the documentation.
-`tests/e2e/test_naming.py` pins these names.
-
-The `format` value of the decision store's export manifest carries the name as well, but it identifies a data
-format, not the program: exports written under an earlier name stay importable (`docs/decisions.md`, "Export
-format"), and that earlier value is the only place the old name remains.
+`internal/identity/` defines `laneboss`, `LANEBOSS_` and the release version. Installed paths and the
+configuration defaults remain `~/.config/laneboss` and `~/.local/state/laneboss`.
+The decision export format retains compatibility with earlier names.
 
 ## Install
 
-`scripts/install.sh [--prefix DIR]` (default `~/.local`):
-
-1. Picks an interpreter: `LANEBOSS_PYTHON` when set, else the first of `python3.14`, `python3.13`,
-   `python3.12`, `python3.11`, `python3` on `PATH` that is 3.11 or newer with `sqlite3` and
-   `tomllib`. Without one it exits 2 with a message, before touching the prefix.
-2. Reads `VERSION` from the checkout or unpacked archive the script sits in and builds a manifest:
-   the SHA-256 of every file the version directory will hold, the package files of `src/laneboss/`
-   (caches excluded), the bootstrap `lib/laneboss-launch.py` and the launcher `bin/laneboss` included.
-   When the checkout has a `plugins/` directory, its files are part of the manifest too and are copied to
-   `plugins/` in the version directory; a plugin file that is executable in the checkout is installed with
-   mode 755, and a later difference in a plugin file's mode is refused like a changed file.
-3. Copies the package into `share/laneboss/versions/VERSION/lib/` below the prefix, writes a launcher
-   `bin/laneboss` that runs the chosen interpreter with `-I -B` (isolated: no `PYTHONPATH`, no user site,
-   no bytecode written into the version directory), and renames the staged directory into place.
-4. Points `PREFIX/bin/laneboss` at the version's `bin/laneboss` (a relative link into
-   `../share/laneboss/versions/`) with an atomic rename.
-
-An installed version directory is immutable. Installing a version that is already installed first
-verifies the installed directory against the manifest this checkout produces: the manifest file must
-be identical, every listed file present with its hash, and no other file or link present. Only then
-does the link move; a changed, missing or extra file (a changed launcher included) is refused with
-exit 2 and the link stays where it was. Installing another version switches the link and leaves the
-old directory in place, so a rollback is a relink (`old` is the version to go back to):
-
-    old=0.1.0
-    ln -s "../share/laneboss/versions/$old/bin/laneboss" PREFIX/bin/.laneboss.new && mv PREFIX/bin/.laneboss.new PREFIX/bin/laneboss
-
-Rolling back to 0.5.0 across the changes of this version has two parts, each checked against 0.5.0 (919af68). Every
-statement below was read from the code of that commit, in the lines named (those of `src/laneboss/` at that commit);
-none was run, and "Rolling back to 0.5.0 across the changes of this design" gives the procedure that runs them. The
-configuration: 0.5.0's runner table has no `prompt` and no `stream` key, its placeholder lists lack `session` and its
-table of top-level keys has no `turns`, so it refuses a configuration in which a runner has `prompt` or `stream` or uses
-`{session}`, or that has the table `[turns]`, when the configuration loads (an "unknown key" that names the key path,
-for example `turns` or `runners.NAME.stream`: `config.py:125-137`, the runner table at 400-410, the tables at 441-462,
-`load` at 686-698; exit 2, `errors.py:13-21`), and every 0.5.0 command bound to it fails at load, even before any run
-(`cli.py:177-184` and `193-207`; `doctor` reports its `config` check failed, `doctor.py:168-177`); a relink back then
-needs the configuration edited, and two launchers of different versions must not share a configuration from the moment
-it has such a runner or `[turns]`. The key `stream` (T4) is a trigger of the configuration only: `lane attach` reads it
-and no event, row or file carries it, so a runner that has `stream` and neither `prompt` nor `{session}` leaves a store
-that 0.5.0 reads. The store, trigger by trigger:
-
-- **A `lane.ended` with `prompt`** (a runner with `prompt = "stdin"`, with or without `{session}`) makes 0.5.0 refuse
-  `state verify`, `state rebuild`, `doctor`, the briefing and `lane refusals`, and on that lane `lane scan`, `lane mark
-  --gone`, `lane mark --state accepted|merged` (when the configuration has guards) and `lane stop` of a run that is going
-  on.
-- **A `lane.started` with `session_id`** (a runner that uses `{session}`) makes it refuse all of these and also `lane
-  status`, on that lane `lane resume`, `lane clean` and `lane start --reuse`, and `lane check` (for every lane) while a
-  run of that lane is going on (`CHANGELOG.md` lists what still works).
-- **The keys `mail` and `idle_seconds` of `lane.started`.** A lane started with `lane start --turns` carries them from its
-  first run on (`mail` as `[]`), and carries `session_id` as well, and `prompt` in every `lane.ended`, because a runner
-  needs `{session}` and `prompt = "stdin"` to take turns: the two triggers above hold for it. `lanes.check` accepts exactly
-  the keys it lists (`obj`, `lanes.py:131-137`; those of `lane.started` at 247-256), so a `lane.started` that has either
-  key is refused at append (`events.py:148-149`), and `state verify` and `state rebuild` fail on it with exit 3 for the
-  whole store (`events.py:544-546` and `601-605`), and with them `doctor` (its `store.recorded` check calls `verify`,
-  `doctor.py:65`) and the briefing (`startcmd.py:333-336`). A lane command that reads that lane's `lane.started`
-  (`last_event` and `lane_events`, `events.py:492-524`) fails with exit 3, in words that blame an earlier version
-  (`events.py:503-505` and `521-523`): the commands that the trigger of `session_id` names refuse here too, for the same
-  reason. A `lane.resumed` gains no key and keeps the payload that 0.5.0 lists (`lanes.py:257-258`).
-- **The kinds `lane.mailed`, `lane.delivered` and `lane.returned`.** `lanes.check` refuses a `lane.` kind that is not in
-  its list (`lanes.py:26` and `337-338`), and `validate_envelope` calls it for every such kind (`events.py:148-149`). So
-  `event append` of one is refused (exit 2), and `state verify` and `state rebuild` replay every stored event through the
-  same check and fail with exit 3 for the whole store (`events.py:544-546` and `601-605`), `doctor` and the briefing
-  with them. The events are still read: `event tail` and `state events` hash-check and print them (`events.py:390-405`
-  and `488-490`). No 0.5.0 lane command reads a lane event of a kind that it does not list, because they read a lane's
-  events by kind (`events.py:492-524`), so by themselves these kinds refuse nothing more; the row that holds them does.
-- **The row field `mail`, and with it the state `waiting`.** A lane that took `--turns` has a row with `mail` from its
-  first run on, and 0.5.0's `current_form` accepts exactly the earlier fields and `refusals` (`lanes.py:389-399`). Every
-  read of a stored row goes through it (`events.py:242-251` and `526-533`) and fails with exit 3 and the advice to run
-  `state rebuild`, which fails too (`events.py:535-556`). So, for every lane, whatever its state: `state lanes`
-  (`cli.py:314-315`), `lane status` with or without `--lane` (it reads every row first, `lanecmd.py:890`), `lane check`
-  (`945`), `lane refusals` without `--lane` (`1138`) and `lane start` of any lane (it looks at every row for a neighbour in
-  the same working directory, `550-559` and `631`); and on that lane every command that takes a lane: `lane resume`
-  (`697`), `lane stop` (`801`), `lane mark` with any decision, `--state abandoned` and `--landing` included (`1091`),
-  `lane clean` (`1214`), `lane scan` (`1121`), `lane review` (`1177`) and `lane refusals --lane` (`1136`), and `event
-  append` of a lane event of that lane (`events.py:447`). Nothing else of 0.5.0 reads a row, so the commands that take a
-  lane whose own row has no `mail` still work unless that lane has one of the triggers above, and so do `event tail`,
-  `state events`, `event append` of events that are not lane events, and `brief render`. The state `waiting` adds
-  nothing: 0.5.0 does not check the value of a row's `state`, a `lane.state` event never says `waiting` (0.5.0's list of
-  states has none, `lanes.py:22` and `243`, and this version refuses it as well), and a row that has `waiting` has `mail`.
-- **The kinds of the loop, its files and its session (T3).** `loop.started`, `loop.stopped`, `loop.turn` and
-  `loop.skipped` are not lane kinds. 0.5.0 reserves only the `lane.*` kinds and `brief.rendered` (`events.py:148-149` and
-  `429-430`): any other kind that matches the kind grammar (`events.py:29`) is stored with any payload that is a JSON
-  object within the envelope's limits (`events.py:115-147`), so `event append` of such an event is accepted by 0.5.0, and
-  `state verify` and `state rebuild` check only its envelope and its hash, and pass (`events.py:602`). The projection
-  ignores it (`lanes.py:536-537`: only `lane.` kinds are lane events). The loop's files, `loop.lock`, `loop.json` and
-  `loop.log` in the state directory, and the transient `.loop-ID.fifo`, are never read by 0.5.0, as it never reads the
-  mail directory: it lists a lane directory only for the names of events that wait (`pending.py:65`, `events.py:629`), for
-  `runs/` (`runrecord.py:63`) and for `inputs/` (`statedir.py:179-202`), and it walks the state directory only to look for
-  a second ownership marker by name (`doctor.py:39-42`), so they are neither refused nor removed. 0.5.0 lists the session
-  names of the configuration's tmux server and compares only a lane's own name with them (`multiplexer.py:112-126`,
-  `lanecmd.py:905-913`, `632`, `754`, `1003` and `1261`), and no 0.5.0 command kills a session by its name
-  (`multiplexer.py:10-12`): the session `laneboss+loop` is ignored. The three keys of the loop in `[turns]`
-  (`poll_seconds`, `backoff_seconds` and `limit_backoff_seconds`) are inside the table that 0.5.0 refuses whole (`turns:
-  unknown key`), so they add no refusal of their own. A store that holds the events of the loop and nothing else of this
-  version is therefore read, verified and rebuilt by every 0.5.0 command: these triggers do not stop a rollback, and a
-  configuration needs no more than the table `[turns]` removed. What a relink back does not stop is the loop itself: a
-  running loop is a process of the newer version, and the relink stops it no more than it stops a running turn, so it
-  goes on starting turns, each of which appends the events of a turn in the forms above. The order of a rollback
-  therefore starts with `lane loop --stop`. The version of `main` that has T2 (0.6.0-dev2, commit `f1b6341`, and
-  0.6.0-dev3, commit `4a0b1df`; read, not run; between the two commits none of `src/laneboss/config.py`, `events.py`,
-  `doctor.py`, `statedir.py`, `multiplexer.py`, `pending.py`, `runrecord.py`, `lanes.py`, `lanecmd.py` and `cli.py`
-  changed, only `src/laneboss/identity.py`, which holds the version, and the decision store under
-  `src/laneboss/decisions/` did, so what is said here of one holds for the other) does with these triggers what 0.5.0
-  does, except for the table `[turns]`, which it has: its `TURNS` lists
-  `idle_message` and `idle_seconds` only (`config.py`), so a configuration that has a key of the loop is refused at
-  load there too (`turns.KEY: unknown key`) and every command bound to it fails until the keys are removed; its
-  `events.py` checks the `lane.*` kinds and `brief.rendered` only (the other change in it is the two counts that `state
-  verify` prints for mail), so the `loop.*` kinds are stored in any form and `state verify` and `state rebuild` pass on
-  them; `doctor.py` still walks the state directory only to look for a second ownership marker by name (its other change
-  is the warning for runners without `limit_patterns`), `statedir.py` lists lane directories for `inputs/` and `mail/`
-  only, and `multiplexer.py`, `pending.py` and `runrecord.py` are the same in 0.5.0 and in both commits of `main`,
-  so the loop's files and its session are ignored.
-
-So a relink back to 0.5.0 needs the configuration edited as soon as a runner has `prompt` or `stream` or uses
-`{session}`, or the configuration has `[turns]` (with the keys of the loop, or without them), and fails for the store
-once a run has used any of the keys or kinds above except those of the loop, a lane started with `--turns` among them. A
-configuration can be edited back; a store cannot, because no command edits or removes an
-event ("Event and state store"). Before a relink back, stop the loop (`lane loop --stop`, which stops no turn), let every
-run end or stop it (`lane status` shows none going on) and run `lane check`, so that no event of a turn-based lane still
-waits in a pending file: 0.5.0 cannot append it, and
-every 0.5.0 command on that lane that drains the lane's waiting events refuses before it does (`lanecmd.py:611-615`,
-`697-698`, `1091-1092`, `1121-1122`, `1177-1178` and `1214-1215`; `lane check` refuses at once, `945`); then edit the
-configuration. To run 0.5.0 on the configuration, restore a copy of the store made before the first trigger ("Known
-limits", "Restoring an older copy") or start the state over ("Event and state store", "Starting over"), after keeping a
-copy of the present one. Nothing else that this version writes is refused by 0.5.0: the message files of `lanes/LANE/mail/` and the lock
-`lanes/LANE/mail.lock` (and the loop's files, said above) are never read by it (it lists a lane directory only for the names of events that wait,
-`pending.py:65` and `events.py:629`, for `runs/`, `runrecord.py:63`, and for `inputs/`, `statedir.py:179-202`, and it
-walks the state directory only to look for a second ownership marker by name, `doctor.py:39-42`), so they are neither
-refused nor removed (`lane clean` always keeps the lane's directory, `lanecmd.py:1263`); the protocol version 1.2.0 of the
-events is checked only for its form `X.Y.Z` and never compared with 0.5.0's own (`events.py:32` and `136`); a turn's
-`brief.rendered` is in the form that `lane resume --message` makes (its brief input names any non-empty `path`, its
-protocol input any `version` of that form, `events.py:259-306`); and the events of a turn that are not named above
-(`lane.resumed`, `lane.timeout`, `lane.stuck`, `lane.lost`, `lane.gone`, `lane.cleaned` and a `lane.state` that says
-`abandoned`) have the payloads that 0.5.0 lists (`lanes.py:243`, `257-258` and `263-268`). A lane started without
-`--turns`, by a runner that uses neither `{session}` nor `prompt`, writes what 0.5.0 wrote.
-
-The same script installs onto test machines and build hosts. `pyproject.toml` still supports
-`pip install .` (console scripts `laneboss` and `laneboss-decisions`).
-
-The `install.sh` at the repository root is a bootstrap in front of that script, for a person who has no checkout. It is
-made to be piped (`curl -fsSL
-https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh`), gets the source of one version
-(`LANEBOSS_SOURCE`, else `LANEBOSS_REPO` at `LANEBOSS_VERSION`) and runs that version's `scripts/install.sh` unchanged,
-with the Python it checked. A directory source is used where it is; an archive or a clone is made in a temporary
-directory that the script removes on the exits it catches. What it trusts, what it checks, what it prints and how to
-upgrade and uninstall are in `docs/install.md`.
+`scripts/install.sh [--prefix DIR]` defaults to `~/.local`. It builds `cmd/laneboss` with the pinned
+Go 1.26.0 toolchain, `-trimpath` and `-buildvcs=false`, then runs the temporary Go install helper.
+The version directory contains `bin/laneboss`, the plugin files and a SHA-256 `MANIFEST`.
+The installer checks every installed file, refuses missing, extra, changed or linked files and incorrect
+plugin executable modes, then atomically switches the relative `PREFIX/bin/laneboss` link.
+Existing versions stay available for a rollback. See [install.md](install.md) for the commands and layout.
 
 ## Command line contract
 
@@ -246,7 +71,7 @@ value that looks like a credential.
 | Command | Result |
 |---|---|
 | `laneboss --version` | `{"program", "version", "protocol_version"}` |
-| `laneboss decisions ARGS` | Exactly `python -m laneboss.decisions ARGS`: same stdout, stderr and exit code. |
+| `laneboss decisions ARGS` | Decision-store arguments pass unchanged to the Go decision packages. |
 | `laneboss config list` | The names of the configurations, sorted. |
 | `laneboss config show NAME` | The validated configuration: `name`, `config_dir`, `state_dir`, `config`, `projects`. |
 | `laneboss config validate NAME` / `--all` | `{"valid": true, "configs": [...]}`; `--all` also refuses equal or nested state directories. |
@@ -458,7 +283,7 @@ marker does not record looks again before it reports anything. Readers create no
 exception: on a file system where a directory cannot be locked, every command, readers included,
 locks a file `.lock` inside the state directory instead and creates that file when it is missing, so
 there a reader needs write permission on the state directory and may leave `.lock` behind (an empty
-file that holds no data; a lock is released when its process ends). `tests/e2e/test_store.py` reaches
+file that holds no data; a lock is released when its process ends). `laneboss-e2e:tests/e2e/test_store.py` reaches
 this path by running the installed program unchanged under an interpreter whose `flock` refuses
 directories.
 
@@ -575,7 +400,7 @@ staple"`, `{"password": "correct horse battery staple"}`), not prose. Everything
 credential name is refused, including an upper-case literal (`HUNTER2LETMEIN`), a value that merely
 starts with `/`, `$` or `%`, a second assignment after an accepted one on the same line
 (`token = $DEPLOY_TOKEN; password = ...`), and a hex digest or UUID (real keys have those shapes).
-`tests/e2e/test_detector.py` holds the table both ways, applied to events, briefs, rules files and
+`laneboss-e2e:tests/e2e/test_detector.py` holds the table both ways, applied to events, briefs, rules files and
 configuration values. A refused event leaves nothing behind, not even an empty store: the envelope
 (and, for the reserved kind `brief.rendered`, its structure and kept copies) is checked before the
 state directory, its marker or the store is created.
@@ -1089,7 +914,7 @@ identity" and `docs/configuration.md`) included, which `main` has.
 
 | Step | Builds |
 |---|---|
-| T2, built | Mail and turns: `lane start --turns`, `lane send` and `lane turn`; the events `lane.mailed`, `lane.delivered` and `lane.returned`; the optional keys of `lane.started`; the lane state `waiting`; the `mail` row of the projection; the checks of `state verify`; protocol 1.2.0; the configuration table `[turns]` with `idle_message` and `idle_seconds`; idle lanes in `lane status` and in the briefing; `lane resume` refusing a turn-based lane; a `laneboss doctor` warning for a turn-based runner without `limit_patterns`. |
+| T2, built | Mail and turns: `lane start --turns`, `lane send` and `lane turn`; the events `lane.mailed`, `lane.delivered` and `lane.returned`; the optional keys of `lane.started`; the lane state `waiting`; the `mail` row of the projection; the checks of `state verify`; protocol 1.3.0; the configuration table `[turns]` with `idle_message` and `idle_seconds`; idle lanes in `lane status` and in the briefing; `lane resume` refusing a turn-based lane; a `laneboss doctor` warning for a turn-based runner without `limit_patterns`. |
 | T3, built | The loop: `lane loop`, `lane loop --status`, `lane loop --stop` and `--detach`; the `loop.*` events; the loop's keys in `[turns]` (`poll_seconds`, `backoff_seconds` and `limit_backoff_seconds`); `lane check --lane`. |
 | T4, built | Attach and the stream: the runner key `stream`, the named readers `text` and `claude-stream-json`, and `lane attach`. |
 | T5, built in part | Accounts: the room command and its `slots`, the choice of the account and its recording, the hold of a lane whose accounts have no room, the command `lane adopt`, and the event `lane.adopted` with the readers that take it for a run 1 already over. The rule about a room command already running for an account, the room command of `lane start`'s first account, and the remaining quota of an account are not built. |
@@ -1632,7 +1457,7 @@ joined them: "The `lane loop` command"):
 | `idle_seconds` | integer 1 to 604800 | The idle interval that `lane start --turns` records when it gets no `--idle`. Without it, and without `--idle`, the lane has no idle interval. |
 
 **Where the text of the design was silent, and what the launcher does.** These points were not fixed by the design; the
-launcher does as follows (`lanecmd.py`, `mail.py`, `doctor.py` and `startcmd.py`; `tests/e2e/test_mail.py`,
+launcher does as follows (`lanecmd.py`, `mail.py`, `doctor.py` and `startcmd.py`; `laneboss-e2e:tests/e2e/test_mail.py`,
 `test_turn.py` and `test_turn_ends.py` hold the tests of mail and turns):
 
 - `lane turn` looks at the lane's state first: the lane is unknown, has not run, is running, was cleaned, is merged, is
@@ -1660,7 +1485,7 @@ launcher does as follows (`lanecmd.py`, `mail.py`, `doctor.py` and `startcmd.py`
 Built in `src/laneboss/loopcmd.py` (the command, its lock, its passes and its events), `lanes.py` (`check_loop()` and
 `loop_form()`, the forms of the events), `events.py` (the check at append, and `kind_events()`), `lanecmd.py` (`turn()` and
 `begin()` take the environment to hand over, and `check()` takes `--lane`) and `config.py` (the keys of `[turns]`); the tests
-are `tests/e2e/test_loop.py`. The design names two items of `--status` without saying where the first comes from or how
+are `laneboss-e2e:tests/e2e/test_loop.py`. The design names two items of `--status` without saying where the first comes from or how
 the second is written, `last_error` and what the loop would start next in the entry of each lane. The supervisor decided
 both readings, and both are built: `last_error` is the latest failure of a pass, kept in `loop.json`, and the entry of a
 lane has the key `next` ("Status"; "Where the text of the design was silent, and what the launcher does").
@@ -1823,7 +1648,7 @@ The session is named `laneboss+loop`, and no lane's tmux session can have that n
 `session_name()` from the lane's name, which the lane grammar (`[a-z0-9][a-z0-9._-]{0,63}`) limits to lower-case
 letters, digits, `.`, `_` and `-`, with `.` turned into `_`. The character `+` is not among them, so a name that holds
 it cannot be any lane's. A `.` could not serve as that character, because tmux turns it into `_`, which a lane name may
-hold. That the installed tmux keeps `+` in a session name is checked by the test of `--detach` (`tests/e2e/test_loop.py`,
+hold. That the installed tmux keeps `+` in a session name is checked by the test of `--detach` (`laneboss-e2e:tests/e2e/test_loop.py`,
 `DetachTest`), which lists the sessions of the configuration's server; an upper-case letter, which the lane grammar also
 refuses, would be the fallback if a tmux did not keep it.
 
@@ -1862,7 +1687,7 @@ event" holds up to that window, and the turn itself is recorded in full by its o
 | `limit_backoff_seconds` | integer 1 to 604800 | The wait after reason `limit`. Default 1800. |
 
 **Where the text of the design was silent, and what the launcher does.** These points were not fixed by the design; the
-launcher does as follows (`loopcmd.py`, `lanes.py`, `lanecmd.py`; `tests/e2e/test_loop.py` holds the tests):
+launcher does as follows (`loopcmd.py`, `lanes.py`, `lanecmd.py`; `laneboss-e2e:tests/e2e/test_loop.py` holds the tests):
 
 - The entry of a lane in `lanes` of `--status` is an object of a list, with the key `lane`, as every per-lane output of
   the launcher is, and the number of messages that wait is `waiting`, as in the briefing. `--stop` prints `stopped` as
@@ -1902,7 +1727,7 @@ launcher does as follows (`loopcmd.py`, `lanes.py`, `lanecmd.py`; `tests/e2e/tes
 
 `lane attach --lane L` prints text for a person, not one JSON value, and its exit code is its own ("Leaving"). Its code is
 `src/laneboss/attach.py`, which `cli.run_lane` calls, and the readers are in `src/laneboss/streams.py`. Each statement in
-this part was read back from that code and from `tests/e2e/test_attach.py` and `tests/e2e/test_streams.py`; where the
+this part was read back from that code and from `laneboss-e2e:tests/e2e/test_attach.py` and `laneboss-e2e:tests/e2e/test_streams.py`; where the
 design was silent, the last paragraph says what the launcher does.
 
 **What attach is.** `lane attach --lane L` is a terminal view of a lane and a keyboard for it. It reads the lane's own
@@ -2408,7 +2233,7 @@ name the loop included, describes what T2 and T3 built.
 
 The triggers of what T2, T3 and T4 built (the table `[turns]` with its keys, the kinds `lane.mailed`, `lane.delivered`
 and `lane.returned`, the keys `mail` and `idle_seconds` of `lane.started`, the row field `mail` and the state `waiting`,
-the mail files, the protocol version 1.2.0, of the loop its kinds, its files and its session, and of attach the runner
+the mail files, the protocol version 1.3.0, of the loop its kinds, its files and its session, and of attach the runner
 key `stream`) are in the paragraph "Rolling back to 0.5.0 across the changes of this version" under "Install", as built
 facts. This subsection adds the triggers of T5, which are built, each by the step named beside it, and
 then the written procedure that runs 0.5.0 against all of them. Every lane that takes turns has `session_id` in
@@ -2460,7 +2285,7 @@ the payloads that 0.5.0 lists, and a lane started without `--turns` writes what 
 those above about T5, were read, not run. The procedure below runs them. It is written here so that the
 supervisor, or the lane of the step, can run it on a test machine, beside the real trial of the step ("The test plan for
 T2 to T5"); a statement that the run shows wrong is corrected in the text, in the commit that finds it. It is not part of
-`tests/`, and it needs no agent program and no account.
+`laneboss-e2e:tests/`, and it needs no agent program and no account.
 
 1. On a disposable test machine that the configuration names for tests, make two empty directories for the run, one for
    `LANEBOSS_HOME` (the configurations) and one for `LANEBOSS_STATE_HOME` (the states), so that nothing of a person's own
@@ -2468,7 +2293,7 @@ T2 to T5"); a statement that the run shows wrong is corrected in the text, in th
    under test, each from `git archive`. Run each version's own `scripts/install.sh --prefix PREFIX` with a prefix of its
    own, so that both stay runnable (`PREFIX_OLD/bin/laneboss` and `PREFIX_NEW/bin/laneboss`).
 2. Write, with the file tool, one configuration `trial` for the new version: a runner that can take turns (the stand-in
-   runner of `tests/e2e/standin.py` through a command that uses `{session}` in `command` and in `resume`, with `prompt =
+   runner of `laneboss-e2e:tests/e2e/standin.py` through a command that uses `{session}` in `command` and in `resume`, with `prompt =
    "stdin"`), a second runner that uses neither `{session}` nor `prompt`, a project or `--worktree` directories made for
    the run, and a `[turns]` table with `idle_message`. Keep a copy of this configuration.
 3. With the new version, make two stores, each copied when it is made: first one ordinary lane on the second runner, run
@@ -2513,17 +2338,17 @@ T2 to T5"); a statement that the run shows wrong is corrected in the text, in th
 
 Each step is built test first, as `CONTRIBUTING.md` asks: its tests are written from the text of its part, run, and seen
 to fail because the feature is missing, and only then does the code change. The end-to-end tests drive the installed
-`laneboss` command, as the tests in `tests/e2e/` do. They use the stand-in runner `tests/e2e/standin.py`, which each step
+`laneboss` command, as the tests in `laneboss-e2e:tests/e2e/` do. They use the stand-in runner `laneboss-e2e:tests/e2e/standin.py`, which each step
 extends with the behaviours it needs (on `main` it has `deaf`, a runner that never reads its input, `shut`, a runner
 that closes its input without reading it and exits 0, and a record of what it read on standard input), and they mock
 nothing of the launcher. They run on a disposable machine. Each step also has one real trial against the real program:
 a real headless Claude Code session on a small model, named in full as the configuration routes it, a handful of
 requests, and after them a count of the processes of the run. One of the requests makes the agent run a shell command, so that a tool's processes are among those that the run must stop and count; the answer shows that the command ran, because the number of process groups does not: a real agent runs helper processes in groups of their own even when it uses no tool. The run record names the processes by identity, none may be alive after the end, and the record must show more than one process group, because a real agent runs its helpers and tools in groups of its own where the stand-in has one. The real trial is a
-written procedure that the step's lane runs on the test machine and reports; it is not part of `tests/`, and the suite
+written procedure that the step's lane runs on the test machine and reports; it is not part of `laneboss-e2e:tests/`, and the suite
 needs no agent program, account or environment variable. Where a real trial may run, and with which account, is the
 configuration's rule (rule 1 of the shared protocol), not this document's.
 
-**T2, mail and turns (built).** The end-to-end tests are `tests/e2e/test_mail_model.py` (the data model, through
+**T2, mail and turns (built).** The end-to-end tests are `laneboss-e2e:tests/e2e/test_mail_model.py` (the data model, through
 `event append` and `state verify`), `test_mail.py` (`lane send`, the lock, orphans and the limits), `test_turn.py`
 (`lane start --turns`, `lane turn`, delivery, refusals, bounds and `[turns]`) and `test_turn_ends.py` (a lost, gone or
 stopped turn, the idle group and the doctor warning), written from this list and run on a disposable machine. The list:
@@ -2569,7 +2394,7 @@ stopped turn, the idle group and the doctor warning), written from this list and
 - A failing turn (exit 3), a turn at reason `limit` (a stand-in that prints the limit line and exits 0), a stopped turn
   and a turn that passes its budget: each ends with `lane.returned` and the right reason; the next turn carries the same
   messages first, with ` (again)`, before newer mail. The stopped turn uses a stand-in behaviour whose child runs in a
-  session of its own (`setsider` or `stubborn` of `tests/e2e/standin.py`) and asserts that the child is gone after the
+  session of its own (`setsider` or `stubborn` of `laneboss-e2e:tests/e2e/standin.py`) and asserts that the child is gone after the
   stop.
 - A killed supervising process: `lane check` records `lane.lost` and then `lane.returned` with reason `lost`; `lane mark
   --gone`, for another killed one, records `lane.gone` and then `lane.returned` with reason `gone`.
@@ -2594,10 +2419,10 @@ stopped turn, the idle group and the doctor warning), written from this list and
   with `session_id` in `lane.started` and `prompt` in `lane.ended`) and with a hand-appended `loop.started` in another
   form: `state verify` passes and `state rebuild` changes nothing. The rows that `main` computes for those events (the
   rows of 0.5.0 for the events it can read are the same) are pinned in the test as literal JSON, so that the suite needs
-  no second source tree, and the rows of 1.2.0 equal them byte for byte. `laneboss --version` says protocol 1.2.0.
+  no second source tree, and the rows of 1.3.0 equal them byte for byte. `laneboss --version` says protocol 1.3.0.
 
 The real trial of T2 is a written procedure, run by the supervisor after the head is reviewed, on the machine and with an
-account that the configuration names for it (rule 1 of the shared protocol); it is not part of `tests/`. It covers
+account that the configuration names for it (rule 1 of the shared protocol); it is not part of `laneboss-e2e:tests/`. It covers
 `lane start --turns` with a brief that gives the agent a word to remember, two `lane send` and one `lane turn`; the
 agent's answer to the turn must show the word and both messages, so that the resume reached the session and the messages
 reached the agent; and the processes of the run are counted afterwards. The procedure:
@@ -2647,7 +2472,7 @@ reached the agent; and the processes of the run are counted afterwards. The proc
     changes of this design"), on a store that this trial or the test lane's stand-in made, and keeps its evidence the same
     way.
 
-**T3, the loop (built).** The end-to-end tests are `tests/e2e/test_loop.py` (a class for each group of the list below:
+**T3, the loop (built).** The end-to-end tests are `laneboss-e2e:tests/e2e/test_loop.py` (a class for each group of the list below:
 `StartTest`, `LockTest`, `BackOffTest`, `RefusedTest`, `BusyTest`, `RestartTest`, `DetachTest`, `EnvironmentTest`,
 `FormTest`, `PlantedTest`, `CheckLaneTest`, `TurnsKeysTest`, `LastErrorTest` and `NextTest`), written from this list and
 run on a disposable machine.
@@ -2739,7 +2564,7 @@ and every turn it starts is a run of the stand-in. The list:
   lane, and touches nothing of the other two.
 
 The real trial of T3 is a written procedure, run by the supervisor after the head is reviewed, on the machine and with
-an account that the configuration names for it (rule 1 of the shared protocol); it is not part of `tests/`. It covers a
+an account that the configuration names for it (rule 1 of the shared protocol); it is not part of `laneboss-e2e:tests/`. It covers a
 real turn-based lane with a detached loop: a message starts a real turn, the idle interval starts another, one request
 makes the agent run a shell command, a turn is still running when the loop is stopped and goes on, and the processes of
 each run are counted afterwards. The procedure:
@@ -2825,8 +2650,8 @@ each run are counted afterwards. The procedure:
 11. Beside this trial the supervisor runs "Confirming the statements by running 0.5.0" ("Rolling back to 0.5.0 across the
     changes of this design"), with the store of this trial as the copy E.
 
-**T4, attach and the stream (built).** The end-to-end tests are `tests/e2e/test_attach.py` (attach, and `config validate`
-for the key `stream`) and `tests/e2e/test_streams.py` (the readers by themselves), written from this list and run on a
+**T4, attach and the stream (built).** The end-to-end tests are `laneboss-e2e:tests/e2e/test_attach.py` (attach, and `config validate`
+for the key `stream`) and `laneboss-e2e:tests/e2e/test_streams.py` (the readers by themselves), written from this list and run on a
 disposable machine. They run attach on a pseudo-terminal, as a person's terminal holds it (a session leader whose
 controlling terminal it is, so the byte 3 typed there is a Ctrl-C and closing the master is a hang-up), and feed it a
 stand-in runner that prints invented stream lines (the stand-in's behaviour `streamer` plays a script of lines, bytes,
@@ -2846,7 +2671,7 @@ waits and an exit that the test writes):
   discarded, then shows them, in order, before the next prompt, and the line that was typed is sent whole (`lane.mailed`
   has its bytes). With no line typed, a line that the stand-in prints appears at once, above the prompt.
 - Ctrl-C during a turn that attach started stops that run only (reason `stopped`); the stand-in's child runs in a session
-  of its own (`setsider` or `stubborn` of `tests/e2e/standin.py`) and is gone after the stop. During a turn that the
+  of its own (`setsider` or `stubborn` of `laneboss-e2e:tests/e2e/standin.py`) and is gone after the stop. During a turn that the
   loop started it leaves attach and stops nothing (the test uses a turn that `lane turn` started outside attach, which
   attach cannot tell from the loop's, and no test of attach runs the loop); a closed terminal, SIGTERM, `/exit` and the end of the input each leave the turn running.
 - `lane status` and the idle display agree. A lane that the configuration does not know is refused with exit 2.
@@ -2858,7 +2683,7 @@ The real trial of T4: attach on a real session, one typed line, the mode the age
 during a second request that makes the agent run a shell command; the processes of the run are counted after the stop,
 and none may remain, in any process group of the run record. It is a written procedure, run by the supervisor after the head is
 reviewed, on the machine and with an account that the configuration names for it (rule 1 of the shared protocol); it is
-not part of `tests/`, and it has not been run on this branch. It also checks, against the lines of a real session, the
+not part of `laneboss-e2e:tests/`, and it has not been run on this branch. It also checks, against the lines of a real session, the
 shapes that the reader `claude-stream-json` takes, and the design's assumption that `total_cost_usd` is the session's
 running total. The procedure:
 
@@ -2930,7 +2755,7 @@ running total. The procedure:
    the path and the scope of every number it states. Nothing in the repository names the account, the machine or the
    session.
 
-**T5, accounts and adoption.** The end-to-end tests are `tests/e2e/test_room.py` (the runner key `room`, the configured
+**T5, accounts and adoption.** The end-to-end tests are `laneboss-e2e:tests/e2e/test_room.py` (the runner key `room`, the configured
 command run for real, and the check of its answer, with answers `true`, `false`, a bad object, a missing key, too large
 an output, a timeout and a non-zero exit; a `reason` with a credential shape becomes `(withheld)`, and output that is not
 in the documented form is never printed, only the fixed sentence is; a room command that sleeps past the timeout and
@@ -2940,7 +2765,7 @@ its payload, the rule at append, the projection, and the readers of `lane status
 `lane start --reuse`, driven through `event append`). No room is no turn, the mail waits, and the loop records
 `no-room`; `slots` limits the turns started in a pass; `--account` asks only for its account.
 
-`lane adopt` is tested in `tests/e2e/test_adopt_command.py` (18 tests): the command exists, a valid call and its printed
+`lane adopt` is tested in `laneboss-e2e:tests/e2e/test_adopt_command.py` (18 tests): the command exists, a valid call and its printed
 payload, event order, rendered brief, claim and waiting state; omitted `--effort` and `--account`, and the recorded
 `--budget`; `lane send` and the first turn (run 2, `how` `resume`, the given session identifier); twelve
 refusals (a known lane, an identifier that is not a lower-case UUID, a session that another lane's `lane.started` holds,
@@ -2949,7 +2774,7 @@ a `{session}` records template, a missing directory, a directory that another la
 tmux session of the lane's name open on the configuration's socket, no session record, and a record written within the
 quiet seconds); the refusal of a resume template needing an omitted effort; and a refusal that disturbs no good
 adoption, which also refuses a session that another lane's `lane.adopted` holds.
-`tests/e2e/adoptsupport.py` writes the session's record under `{worktree}/.sessions/{session}.jsonl`, with an old or
+`laneboss-e2e:tests/e2e/adoptsupport.py` writes the session's record under `{worktree}/.sessions/{session}.jsonl`, with an old or
 fresh modification time for these checks.
 
 Not tested by the command tests: the lanes lock (its wait and a race between two adoptions), a failure after the claim,
@@ -3400,7 +3225,7 @@ turns has parts of the same names.
 | Step | Builds |
 |---|---|
 | A | The core: the event kinds `resource.intent`, `resource.acquired`, `resource.failed` and `resource.released`, their checks at append and in `state verify` and `state rebuild`, the fold, the modules `resources.py`, `adapters.py` and `resourcecmd.py`, the commands `resource acquire`, `describe`, `release`, `check`, `list` and `show`, the table `[resources.NAME]` with its validation and its `doctor` check, the listing in `lane check`, and the gate at `lane mark` with `--accept-held` and the `held` field of `lane.state`. |
-| B | Adapters: the stand-in adapter for tests, `tests/e2e/resourcestandin.py`, with the contract tests that every adapter passes, and the real cloud adapter under `integrations/aws/` with its generic idle guard and its own page. B delivers the stand-in first, because A is tested against it. |
+| B | Adapters: the stand-in adapter for tests, `laneboss-e2e:tests/e2e/resourcestandin.py`, with the contract tests that every adapter passes, and the real cloud adapter under `integrations/aws/` with its generic idle guard and its own page. B delivers the stand-in first, because A is tested against it. |
 | C | Cost: the event kind `resource.cost`, the arithmetic, its append after every release, the command `lane cost` and the report against `[cost]`. |
 | D | The credential-scope example: an adapter of kind `credential` under `integrations/gcp/`, with its own page. |
 
@@ -3481,7 +3306,7 @@ resources and the lane projection is not touched.
 | `src/laneboss/cli.py` | The parser and the handler of `resource`; `lane mark --accept-held`; `lane cost` (C). |
 | `src/laneboss/doctor.py` | One check, `resource.NAME`, for each configured adapter. |
 | `src/laneboss/lanecmd.py` | `check()` adds the listing; `decide()` runs the resource gate before `gate()`, for accepted and merged, and `mark()` refuses `--accept-held` for any other decision; every output of `lane mark` gains `held`; `clean()` and `start()` (with `--reuse`) refuse while the lane holds a resource. |
-| `tests/e2e/resourcestandin.py` (new, B) | The stand-in adapter. |
+| `laneboss-e2e:tests/e2e/resourcestandin.py` (new, B) | The stand-in adapter. |
 | `integrations/aws/`, `integrations/gcp/` (new, B and D) | The cloud adapter with its idle guard and page, and the credential-scope example with its page. The core imports neither. |
 
 The state directory gains no file: there is no resource lock, no resource log and no pending file for resource events
@@ -4572,7 +4397,7 @@ totals leave out agent runs, so a cap compares resources only.
 **The protocol step.** The events that the launcher writes carry the protocol version of `protocol.md`, which `laneboss
 --version` reports. No rule that says what a major, minor or patch step of that version means is written in the
 repository: `protocol_version` is documented only as "the protocol version the producer follows" ("Event and state
-store"), and nothing in `docs/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `src/laneboss/protocol/protocol.md` or the
+store"), and nothing in `docs/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `internal/protocol/protocol.md` or the
 protocol package says more. The turn-based design proposes a reading of a minor step: it adds kinds and optional keys,
 changes no payload that exists, and keeps every older store valid, a store that holds hand-written events of a kind that
 the step newly reserves included, because those are checked at append only. This design adds kinds and one optional key
@@ -4757,12 +4582,12 @@ Each of these needs two unusual things at once, or lies outside what the launche
 Each step is built test first, as `CONTRIBUTING.md` asks: its tests are written from the text of its part, run, and seen to
 fail because the feature is missing or wrong (an unknown command, key or event kind), and not because of their setup; only
 then does the code change, and no test is skipped, weakened or left as a stub to get a run green. The end-to-end tests drive
-the installed `laneboss` command, as the tests in `tests/e2e/` do (`support.install()` installs the launcher into a
-temporary prefix), use the stand-in adapter below and the stand-in runner `tests/e2e/standin.py`, and mock nothing of the
+the installed `laneboss` command, as the tests in `laneboss-e2e:tests/e2e/` do (`support.install()` installs the launcher into a
+temporary prefix), use the stand-in adapter below and the stand-in runner `laneboss-e2e:tests/e2e/standin.py`, and mock nothing of the
 launcher. They run on a disposable test machine and never on the machine where the code is written. The suite needs no
 cloud account, no credential and no environment variable set from outside it: a test that needs a variable makes up a
 harmless name and value of its own. Each step also has one real trial against the real thing, which is a written procedure
-that the step's lane runs and reports, and not part of `tests/`. Where a real trial may run, and with which account, is the
+that the step's lane runs and reports, and not part of `laneboss-e2e:tests/`. Where a real trial may run, and with which account, is the
 configuration's rule (rule 1 of the shared protocol), not this document's.
 
 **How a test shows that it can fail.** The standing rule of the launcher's configuration, which every brief carries, is that
@@ -4787,7 +4612,7 @@ assertion, a skip). For this feature that means:
   events` print, and what the stand-in recorded. A side effect is verified through the same interface, and a refusal is
   shown by the store being unchanged afterwards (the count of events before and after).
 
-**The stand-in adapter (B).** `tests/e2e/resourcestandin.py` is run as the `command` of a `[resources.NAME]` and, like the
+**The stand-in adapter (B).** `laneboss-e2e:tests/e2e/resourcestandin.py` is run as the `command` of a `[resources.NAME]` and, like the
 stand-in runner, is a program and not a mock of the launcher. Its behaviour is decided only by its configuration file,
 an argument of `command`, and by the request. It keeps its "provider" in a directory that the file names: one small file for
 each resource, named by the id, with the provider's id, a start time and a state. It answers every operation and state of the
@@ -4866,7 +4691,7 @@ the contract, each rule having a behaviour of its own:
   unreviewed suspicion at once the resource refusal comes first; `--accept-held` records `held` with the right items;
   `--accept-held` with nothing held, or with another decision, is refused; `--state abandoned`, `--state verifying`,
   `--landing` and `--gone` are never held up and print `held`; the gate takes the lanes lock (the test holds `lanes.lock`
-  itself, as `tests/e2e/test_lane_ownership.py` does for `lane start`, and the mark is refused after `[lanes]
+  itself, as `laneboss-e2e:tests/e2e/test_lane_ownership.py` does for `lane start`, and the mark is refused after `[lanes]
   lock_wait_seconds`). The race between the gate's reading and its decision cannot be placed by any end-to-end test, so its
   rule is covered by the next item.
 - Hand-written events through `event append`, the launcher's own interface for them, each refused with nothing stored: every
@@ -5127,8 +4952,14 @@ hashes.
 
 ## Protocol and briefs
 
-`src/laneboss/protocol/protocol.md` holds the shared protocol and a `Protocol version: X.Y.Z` line;
+`internal/protocol/protocol.md` holds the shared protocol and a `Protocol version: X.Y.Z` line;
 `laneboss --version` reports it. Its eleven rules and the refusal rule are written in neutral English.
+The current protocol is 1.3.0. Every brief producer consumes the canonical
+`internal/protocol/protocol.md` through its Go package, including its exact bytes
+and version. There are no independent package copies of that document.
+The refusal rule requires reporting verbatim, taking exactly the refusal's own
+Instead route under the same policy, and otherwise stopping. Earlier events keep
+their recorded protocol versions, input bytes and hashes.
 
 `laneboss brief render --config N --lane L --in BRIEF --out RENDERED [--project P] [--touches billing]
 [--touches deploy]`:
@@ -5291,6 +5122,9 @@ record could not be read:
   script), through a path held in a variable (`f=notes/plan.md; printf ready > "$f"`), by a command substitution, or by
   a program that is not listed (`git restore --source=HEAD -- notes/plan.md`, `git checkout -- FILE`) is not
   `shell-write`, and when its text differs enough it is not `reworded` either: these are missed.
+- **Quoted-space heredoc delimiters.** A delimiter such as `cat <<'E O'` blinds both the Python and Go shell scanners:
+  the closing line is not recognised and later commands can be treated as heredoc text. The scanner is not a complete
+  shell parser; this case remains a known limit.
 - **False alarms.** A read that shares a long path with a short refused command (`cat reports/weekly/operations/plan.md`
   after a refused `rm` of that file) is `reworded`; `rsync --dry-run SOURCE notes/plan.md` is a `shell-write` (a dry run
   is not told apart). The supervisor reviews them as clean.
@@ -5424,3 +5258,5 @@ They hold today.
   `integrations/` are designed, not built.
 - Resources and cost (designed, not built), described in "Resources and cost" and built in four steps (A to D): the core
   with the `resource` commands and the gate, the adapters, the cost record, and the credential-scope example.
+
+The referenced black-box files live in the separate `laneboss-e2e` repository. Run its commands there with `LANEBOSS_SRC` set to an absolute laneboss checkout. Go unit tests remain `go test ./...` in this repository.

@@ -1,7 +1,7 @@
 # An org in one folder
 
 An org keeps its repositories, lane worktrees, rules and agent instances together. `laneboss org` creates and
-maintains this structure using only the Python standard library. Its example rules describe generic supervision;
+maintains this structure in the Go launcher. Its example rules describe generic supervision;
 edit the protocol sources for your own topic.
 
 The commands take the org folder explicitly. They work independently of `--config`, `LANEBOSS_HOME` and the
