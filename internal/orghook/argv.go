@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"laneboss.io/laneboss/internal/faults"
 )
 
 const maxCommand = 64 * 1024
@@ -420,6 +422,15 @@ func standardExecutable(word string) bool {
 	return word == filepath.Clean(word) && (filepath.Dir(word) == "/bin" || filepath.Dir(word) == "/usr/bin")
 }
 
+func inspectLiteralWords(argv []string) error {
+	for _, word := range argv {
+		if strings.ContainsAny(word, "$`") {
+			return invalid("command substitutions and variables cannot be inspected")
+		}
+	}
+	return nil
+}
+
 func normalise(argv []string, directory string, depth int) ([]string, string, []command, error) {
 	argv = append([]string(nil), argv...)
 	if len(argv) > 0 && assignment.MatchString(argv[0]) {
@@ -487,9 +498,10 @@ func normalise(argv []string, directory string, depth int) ([]string, string, []
 		return argv, directory, nil, nil
 	}
 	argv[0] = filepath.Base(argv[0])
-	for _, word := range argv {
-		if strings.ContainsAny(word, "$`") {
-			return nil, "", nil, invalid("command substitutions and variables cannot be inspected")
+	// The restoring mutant runs the same inspection at its former position.
+	if faults.Get("orghook-substitution-after-strip").Point != "" {
+		if err := inspectLiteralWords(argv); err != nil {
+			return nil, "", nil, err
 		}
 	}
 	if contains([]string{"sh", "bash", "zsh", "dash", "ksh"}, argv[0]) {
@@ -608,6 +620,13 @@ func inspectArgv(argv []string, directory string, depth int) (commands []command
 	}
 	if size > maxCommand {
 		return nil, invalid("a command exceeds the inspection limit")
+	}
+	// Check every original word before resolution or normalisation can strip
+	// wrapper options, option values or the timeout duration.
+	if faults.Get("orghook-substitution-after-strip").Point == "" {
+		if err := inspectLiteralWords(argv); err != nil {
+			return nil, err
+		}
 	}
 	resolution, err := resolveShellCommand(argv)
 	if err != nil {
