@@ -2,10 +2,16 @@
 
 Use [claudock-cli](https://github.com/laneboss-io/claudock-cli), the Go command line for macOS and Linux.
 It builds one static executable named `claudock`. Install it on PATH before using the runner or either helper.
+Start with the credential-free [Laneboss walkthrough](getting-started.md) before making real model requests.
 
-## Install claudock-cli
+## Portable CLI setup
 
-Build this pinned source revision with Go 1.26.0 on macOS or Linux:
+Install Claude Code using its vendor instructions, then install claudock-cli and add a profile of your own.
+
+### Install claudock-cli
+
+Build claudock-cli from a reviewed checkout: this pinned source revision, with Go 1.26.0, on macOS or Linux.
+These commands are run in the **claudock-cli** repository, not in the Laneboss repository:
 
 ```sh
 git clone https://github.com/laneboss-io/claudock-cli.git
@@ -16,14 +22,49 @@ mkdir -p "$HOME/.local/bin"
 cp bin/claudock "$HOME/.local/bin/claudock"
 export PATH="$HOME/.local/bin:$PATH"
 claudock --help
+claudock version
+claudock help
 ```
+
+Expected: the build exits 0, `version` prints a `Claudock` version line, and
+`help` exits 0 and lists profile, launch, usage and shell operations. Go must
+support the external tool's `go.mod` (currently Go 1.24 or later).
 
 Keep that binary directory on PATH in the shell or service that starts Laneboss. `claudock --help` and
 `claudock help` print the profile command syntax. The CLI also implements `claudock run PROFILE -- ARGUMENTS`
 and `claudock usage [--max-age SECONDS]`. Configure your own profiles with claudock-cli before launching an agent;
-the names below are invented. Optional zsh integration is not needed for these commands or the helpers.
+the names below are invented. These are portable commands; optional zsh integration is not needed for them, for the
+helpers or for Laneboss.
 
-## Build the helpers
+### Add a profile
+
+Use a new subscription profile whose name you chose, outside the public
+checkout. Here `tutorial` is invented. Creating it is local configuration;
+signing in and selecting an account are operations for its owner:
+
+```sh
+claudock profile add tutorial
+claudock profile login tutorial
+```
+
+Expected from add: exit 0 and
+`Added tutorial. Sign in with: claudock profile login tutorial`. If that name
+already exists, inspect the existing profile or choose a new name; do not
+remove it to suppress the collision. Login invokes Claude Code's subscription
+sign-in flow under that profile's directory and returns its exit status.
+Continue only after the owner completes it successfully. A missing vendor
+executable, invalid settings or a failed sign-in is a stopped prerequisite.
+Linux uses Claudock's private file credential store; macOS uses its Keychain
+backend by default. Keep credential values in that store, not in TOML, shell
+arguments or public evidence. This authenticated setup is not exercised by
+Laneboss's credential-free bootstrap checker.
+
+Use the runner fragment in
+[getting-started](getting-started.md#use-claudock-cli-for-a-real-agent), validate
+the private configuration and run doctor, then start a new lane. Doctor finds
+the wrapper executable; the actual lane outcome verifies whether the agent ran.
+
+## Optional Laneboss helpers
 
 Build from the repository root with the pinned Go toolchain:
 
@@ -44,17 +85,18 @@ it is described in `docs/configuration.md`, under `[runners.<name>]`.
 
 ```toml
 [runners.claudock]
-command = ["claudock", "run", "{account}", "--", "-p",
+command = ["claudock", "run", "{account}", "--", "-p", "--session-id", "{session}",
            "Read the file {brief} completely and carry out the task it describes.", "--model", "{model}"]
-resume = ["claudock", "run", "{account}", "--", "-p", "-c",
-          "Read the file {message} completely and carry on from it."]
+resume = ["claudock", "run", "{account}", "--", "-p", "--resume", "{session}",
+          "Read the file {message} completely and carry on from it.", "--model", "{model}"]
 accounts = ["work", "spare"]
 ```
 
-A runner is started without a shell; the bare `claudock` name is resolved from PATH. `{brief}` is
+A runner is started without a shell, so the first element of `command` is a program name on `PATH` or an absolute
+path; the bare `claudock` name here is resolved from PATH. `{brief}` is
 required, because the launcher always hands a brief over as a file; `{message}` is the file of a follow-up message
-for `lane resume`. How a session is continued is the runner's business: here `-c` asks the agent program to
-continue its newest session of the lane's working directory. A lane uses the account given with `--account`, else
+for `lane resume`. Here `{session}` establishes one identity with `--session-id` and continues that exact identity
+with `--resume`; retain the directory and conversation history. A lane uses the account given with `--account`, else
 the first account of the list that the project does not exclude, and `{model}` is filled from `--model` or from the
 routing entry that `lane start` picks.
 
@@ -62,8 +104,9 @@ routing entry that `lane start` picks.
 
 `integrations/claudock/profile_swap/main.go` chooses remaining quota and resumes the same Claude Code session
 on another Claudock profile. It is a Go program and stores no profile names, account details, credentials, settings, or session history.
-It finds the `claudock` executable only on PATH on every supported OS. A missing or nonexecutable program
-exits 2 with `profile_swap: claudock is not executable on PATH; install claudock-cli from https://github.com/laneboss-io/claudock-cli and add its claudock binary to PATH`.
+It finds the `claudock` executable only on PATH on every supported OS, Linux and macOS alike: use claudock-cli there.
+A missing or nonexecutable program exits 2 with
+`profile_swap: claudock is not executable on PATH; install claudock-cli from https://github.com/laneboss-io/claudock-cli and add its claudock binary to PATH`.
 `limited` and every `--help` work without claudock-cli. This integration does not change the launcher's account routing.
 
 ### Choose a profile
@@ -305,7 +348,7 @@ bin/cos ACCOUNT [MODEL] [--resume SESSION] [--mode default|acceptEdits|plan] [--
 - The wrapper is `claudock`, resolved only from PATH on every supported OS. When it is missing or not executable,
   `cos` prints one line on standard error and exits with 2, before any prompt:
   `cos: claudock is not executable on PATH; install claudock-cli from https://github.com/laneboss-io/claudock-cli and add its claudock binary to PATH`.
-  Put the chosen binary directory on PATH; `COS_CLAUDOCK` no longer selects a wrapper.
+  Put the chosen binary directory on PATH.
 - Each message is one request: `WRAPPER run ACCOUNT -- -p --session-id|--resume SESSION --model MODEL --output-format
   stream-json --verbose --include-partial-messages`, with `--permission-mode MODE` added when a mode was chosen. The
   message goes to the request's standard input and never into an argument. The first request of a new session uses

@@ -26,7 +26,7 @@ and never holds one.
 A supervisor session plans work and hands it to mini-supervisors, executors and reviewers. A lane is one such unit of
 work, with one brief, one executor and one worktree. The layers of sessions have levels, a larger number meaning a
 higher level (L3 executor lane, L4 mini-supervisor, L5 top supervisor, L6 super top;
-[Levels](docs/architecture.md#levels)).
+[Levels](docs/getting-started.md#levels)).
 
 ```mermaid
 flowchart LR
@@ -72,51 +72,20 @@ launcher uses it yet).
 
 ## One lane, start to finish
 
-The real output of some of the commands of the [quick start](#quick-start) below, and of `laneboss start` (the
-briefing a supervisor session reads, which the quick start does not run), with `laneboss` 0.5.0 against
-`examples/minimal` and the demo's home directory written `~/demo`. A line of `…` stands for lines left out; a line
-that starts with `$` is a command. Between 0.5.0 and 0.6.0-dev1 the code that prints the briefing and the `lane mark`
-output did not change.
+The [getting-started walkthrough](docs/getting-started.md) follows the current Go launcher, `0.6.0-dev4` at
+`8408e57`, from a file-backed brief through two runs and collection. Each command has expected output and an
+assertion that checks the launcher's actual result.
 
-```text
-$ laneboss lane start --config example --project demo --lane demo-1 --brief "$demo/brief.md" --difficulty standard
-…
-$ laneboss event tail --config example --lane demo-1 --follow --until lane.ended
-…
-$ laneboss start --config example
-…
-## Lanes
+`laneboss start --config example --role top` prints the supervisor's briefing and appends nothing. The supervisor
+reads it, then dispatches with `lane start`, which renders the brief, selects the runner, model and account, creates
+the lane's worktree and branch, and returns after the run starts in tmux. The supervisor follows events, checks the
+end reason, exit code, surviving processes and output, and can use `lane resume` before collection. Following a
+resumed run needs `event tail --since` so an earlier end event cannot stop the follow prematurely.
 
-Running (0):
-Ended, waiting for the supervisor (1):
-- demo-1: run 1, runner agent, model example-model-medium-1, account example-main; last end: reason exit, exit code 0, survivors 0; state verifying since 2026-10-09T22:54:14.725198Z; times: started 2026-10-09T22:54:14.480542Z, ended 2026-10-09T22:54:14.725198Z
-Accepted or merged, not yet cleaned (0):
-…
-## Recent events
-
-Showing the last 5 of 5 events, oldest first.
-…
-- seq 3, 2026-10-09T22:54:14.381968Z, lane demo-1, brief.rendered
-- seq 4, 2026-10-09T22:54:14.480542Z, lane demo-1, lane.started
-- seq 5, 2026-10-09T22:54:14.725198Z, lane demo-1, lane.ended
-…
-$ laneboss lane mark --config example --lane demo-1 --state merged
-{"event": {"id": "ev-68d5b701b6a84261b4a1f3162c961a33", "seq": 6}, "kind": "lane.state", "lane": "demo-1", "scan": {"appended": {"refusals": 0, "suspicions": 0}, "not_covered": []}, "state": "merged"}
-$ laneboss lane clean --config example --lane demo-1
-…
-$ laneboss start --config example
-…
-Lanes in none of these groups (queued, merged or abandoned): 1
-…
-- seq 6, 2026-10-09T22:54:15.482099Z, lane demo-1, lane.state
-- seq 7, 2026-10-09T22:54:15.693079Z, lane demo-1, lane.cleaned
-…
-```
-
-`lane start` renders the brief, picks the runner, model and account, makes the worktree and a branch named after the
-lane, and returns at once; the run goes on in tmux. The supervisor then follows the lane's events, reads the briefing
-(`laneboss start`, which appends nothing), records its decision with `lane mark` and cleans up with `lane clean`: the
-worktree and the merged branch go, the lane's record stays.
+After reviewing the work, the supervisor records its decision with `lane mark`. Marking `merged` records a state;
+it does not merge Git commits or deploy. `lane clean` collects a stopped, merged or abandoned lane's clean managed
+worktree without force; a merged branch is removed when Git agrees it is merged, while the lane's events and kept
+inputs remain. A cleaned lane cannot resume.
 
 ## Install
 
@@ -150,56 +119,28 @@ Plugin files are installed beside the binary and located by `laneboss plugin pat
 
 ## Quick start
 
-From a checkout of this repository, using the invented configuration in `examples/minimal`:
+Use the [getting-started guide](docs/getting-started.md) for the complete Linux/macOS walkthrough with commands,
+expected outputs and failure recovery. An AI agent should also read the matching [AGENTS.md checklist](AGENTS.md),
+which states its authority and the evidence required at each step.
+
+From a checkout on a disposable Linux machine with Git, tmux, Go, jq and the standard `timeout`, `tar` and
+`sha256sum` utilities, one command runs the guide's shell blocks and checks their results in an empty temporary HOME:
 
 ```sh
-# 1. Build and install into ~/.local, without administrator rights. With no checkout, one command does it (what it
-#    does, needs and trusts: docs/install.md). It runs the installer of what it fetches, with your rights, and
-#    nothing checks that. The command is
-#      curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh
-#    and LANEBOSS_SOURCE names a copy on this machine to use instead of a download. From this checkout, the
-#    installer builds the pinned Go toolchain's binary:
-sh scripts/install.sh
-export PATH="$HOME/.local/bin:$PATH"
-laneboss --version
-
-# 2. Put the example where configurations live, and validate it.
-mkdir -p "$HOME/.config/laneboss/configs"
-cp -R examples/minimal "$HOME/.config/laneboss/configs/example"
-laneboss config validate example
-
-# 3. doctor checks the environment. The example's runner program, example-agent, is a stand-in shipped with the
-#    example: it reads the brief it is given and exits. A real configuration names an agent program instead.
-cp examples/minimal/bin/example-agent "$HOME/.local/bin/example-agent"
-laneboss doctor --config example
-
-# 4. Append an event, which is always read from a file, and read the events back.
-demo=$(mktemp -d)
-printf '{"kind": "note.added", "actor": "me", "payload": {"text": "hello"}, "protocol_version": "1.0.0"}\n' > "$demo/event.json"
-laneboss event append --config example --file "$demo/event.json"
-laneboss event tail --config example
-
-# 5. Render a brief: your text as written, then the shared protocol and the configuration's standing rules.
-printf '# Say hello\n\nPrint a greeting.\n' > "$demo/brief.md"
-laneboss brief render --config example --lane demo --in "$demo/brief.md" --out "$demo/brief.rendered.md"
-head -n 14 "$demo/brief.rendered.md"
-
-# 6. Start a lane. A project that names a local repository gets a worktree and a branch per lane; here the
-#    project and its repository are made for the demo. lane start returns at once: the run goes on in tmux.
-git init -q "$demo/repo"
-git -C "$demo/repo" -c user.name=demo -c user.email=demo commit -q --allow-empty -m start
-example="$HOME/.config/laneboss/configs/example"
-printf 'schema_version = 1\nname = "demo"\nrepository = "%s"\n' "$demo/repo" > "$example/projects/demo.toml"
-laneboss lane start --config example --project demo --lane demo-1 --brief "$demo/brief.md" --difficulty standard
-
-# 7. Follow the lane's events until its run ends, then look at it.
-laneboss event tail --config example --lane demo-1 --follow --until lane.ended
-laneboss lane status --config example --lane demo-1
-
-# 8. Record the decision, then clean up: the worktree and the merged branch go, the lane's record stays.
-laneboss lane mark --config example --lane demo-1 --state merged
-laneboss lane clean --config example --lane demo-1
+sh docs/check-bootstrap.sh
 ```
+
+Expected: exit 0 and `PASS: getting-started walkthrough`. It installs the Go binary, copies the invented
+configuration, reads the first L5 supervisor briefing, starts `demo-first`, checks its status/output, resumes it,
+marks and collects it, creates an L3–L6 org, and checks the CLI dashboard. The evidence directory, source inputs,
+binary and temporary state are retained. To check a supplied Linux build, pass its absolute path as the script's
+one argument; the source installation is still checked.
+
+The demo uses the shipped `example-agent`, which reads its input and exits without an AI-service request. For a
+real agent, use the portable [claudock-cli setup](docs/claudock.md#portable-cli-setup) and the guide's runner
+configuration. `claudock` is found on `PATH` on Linux and macOS. Profile authentication and real model execution
+are separate owner-operated steps. The dashboard in this version is `laneboss start` in Markdown or JSON; there
+is no web dashboard command.
 
 Most commands print one JSON value; `doctor`, `event tail` and `judge egress` print one JSON object per line,
 `laneboss start` prints Markdown unless it is given `--format json`, `org validate` prints text unless given

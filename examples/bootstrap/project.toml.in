@@ -1,0 +1,6 @@
+# The walkthrough substitutes the absolute path of its disposable repository.
+schema_version = 1
+name = "demo"
+repository = "@REPOSITORY@"
+workers = ["agent"]
+landing_authority = "top"

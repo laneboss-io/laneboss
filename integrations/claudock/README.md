@@ -2,8 +2,10 @@
 
 Install [claudock-cli](https://github.com/laneboss-io/claudock-cli), the static Go CLI for macOS and Linux,
 using the [pinned source build](../../docs/claudock.md#install-claudock-cli). Put its `claudock` binary on PATH
-and check `claudock --help`. Both helpers resolve only that PATH command; an unavailable executable exits 2
-with a diagnostic naming claudock-cli and its installation URL.
+and check `claudock --help`. Profile setup and its expected outputs are in
+[Portable CLI setup](../../docs/claudock.md#portable-cli-setup). Both helpers resolve only that PATH command on
+Linux and macOS; an unavailable executable exits 2 with a diagnostic naming claudock-cli and its installation URL.
+The following builds produce optional Laneboss helpers, not the Claudock CLI.
 
 Build from the repository root with the pinned Go toolchain:
 

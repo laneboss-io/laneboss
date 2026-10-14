@@ -76,7 +76,7 @@ research/
 | `.laneboss/org.toml` | Org identity, enabled levels, owner channel name, external secret store and instance defaults. Edit this data. |
 | `.laneboss/render-manifest.json` | Hashes of the last generated rule files. Render owns this file; keep it with the generated files when backing up the org. |
 | `shared/protocol/*.md` | Editable shared protocol sources, including `rules.md`. Every level receives them. |
-| `shared/hooks/` | The one shared hook (`org-hook.py`) and the org-wide rule data (`rules.toml`). |
+| `shared/hooks/` | The Go hook's executable/hash manifest (`org-hook.json`) and org-wide rule data (`rules.toml`). The installed `laneboss` binary executes the hook. |
 | `shared/tools/` | Org-wide tools supplied by the org owner. Init leaves it empty. |
 | `shared/services/` | Service configs supplied by the org owner. Values such as channel ids and secret names belong here; secret values do not. Init leaves it empty. |
 | `L<N>/protocol/*.md` | Editable rules for this level, including `role.md`. Other levels do not receive these sources automatically. |
