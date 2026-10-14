@@ -119,15 +119,29 @@ func TestOverrideValues(t *testing.T) {
 	}
 }
 
+// Revet vets the argv allowlist before it looks for --disable plugins (TestOverrideValues pins that
+// order). The allowlist reads every word after "--" as an operand: exec takes one and resume two, so
+// only a resume shape reaches the plugin gate with both words after "--".
 func TestPluginFlag(t *testing.T) {
 	for _, argv := range [][]string{
 		{"codex", "exec", CodexTrustBypass},
 		{"env", "CODEX_HOME=/tmp/canary", "codex", "exec", CodexTrustBypass},
-		{"codex", "exec", CodexTrustBypass, "--", "--disable", "plugins"},
+		{"codex", "exec", CodexTrustBypass, "resume", "--", "--disable", "plugins"},
 	} {
 		if err := Revet(argv, t.TempDir(), nil); err == nil || !strings.Contains(err.Error(), "requires --disable plugins") {
-			t.Fatal("bypass without plugin disabling must be refused")
+			t.Fatalf("bypass without plugin disabling must be refused by the plugin gate: %q", argv)
 		}
+	}
+	// Two operands after "--" on exec are refused by the allowlist before the plugin gate is reached.
+	argv := []string{"codex", "exec", CodexTrustBypass, "--", "--disable", "plugins"}
+	if err := Revet(argv, t.TempDir(), nil); err == nil || !strings.Contains(err.Error(), "extra positional arguments") {
+		t.Fatal("operands after -- must be refused and never count as plugin disabling")
+	}
+	// Control: the real flag passes the plugin gate; the later instance checks then refuse the empty home.
+	argv = []string{"codex", "exec", CodexTrustBypass, "--disable", "plugins"}
+	err := Revet(argv, t.TempDir(), []string{"CODEX_HOME=" + t.TempDir()})
+	if err == nil || strings.Contains(err.Error(), "requires --disable plugins") || !strings.Contains(err.Error(), "config.toml") {
+		t.Fatal("the plugin gate must pass when the flag is present")
 	}
 }
 
