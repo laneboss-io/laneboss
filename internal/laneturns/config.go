@@ -15,12 +15,13 @@ import (
 
 	"laneboss.io/laneboss/internal/identity"
 	"laneboss.io/laneboss/internal/protocol"
+	"laneboss.io/laneboss/internal/rolepolicy"
 	"laneboss.io/laneboss/internal/runnermodel"
 )
 
 var namePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 var lanePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
-var senderPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+var senderPattern = regexp.MustCompile(`^(?:[A-Za-z0-9][A-Za-z0-9._-]{0,63}|(?:lane|supervisor|instance):[A-Za-z0-9][A-Za-z0-9._-]{0,63})$`)
 var modelPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@+\[\]-]{0,127}$`)
 var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 var hashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -44,6 +45,7 @@ type configuration struct {
 	idle                           []byte
 	idlePath                       string
 	otherPaths                     []string
+	recordedTurnOrg                bool
 }
 
 func absolute(path string) string {
@@ -296,8 +298,37 @@ func unknownKeys(m object, allowed, label string) error {
 func validateConfig(c *configuration) error {
 	m := c.data
 	label := "configuration " + c.name + ": config.toml"
-	if err := unknownKeys(m, "schema_version name description organisation rules organisation_rules secrets owner_channel test_environment state lanes turns disk runners supervisors judges resources routing test_environments owner_channels cost guards", label); err != nil {
+	if err := unknownKeys(m, "schema_version name description organisation org_dir archive_command identity_service rules organisation_rules secrets owner_channel test_environment state lanes turns disk dashboard runners supervisors judges resources routing test_environments owner_channels cost guards", label); err != nil {
 		return err
+	}
+	if _, err := rolepolicy.ConfigRoot(c.home, m); err != nil {
+		return invalid("org_dir: %s", err.Error())
+	}
+	if value, exists := m["identity_service"]; exists {
+		section := obj(value)
+		if section == nil {
+			return invalid("identity_service: must be a table")
+		}
+		if err := unknownKeys(section, "runtime_root", "identity_service"); err != nil {
+			return err
+		}
+		if root, exists := section["runtime_root"]; exists {
+			text, ok := root.(string)
+			if !ok || !filepath.IsAbs(text) || shown(text) != text || len(text) > 4096 {
+				return invalid("identity_service.runtime_root: must be an absolute bounded path")
+			}
+		}
+	}
+	if v, ok := m["archive_command"]; ok {
+		argv := texts(v)
+		if len(argv) == 0 || !(regexp.MustCompile(`^[A-Za-z0-9_.+-]+$`).MatchString(argv[0]) || filepath.IsAbs(argv[0])) {
+			return invalid("archive_command: must be a nonempty command array")
+		}
+		for _, arg := range argv {
+			if arg == "" || len(arg) > 4096 || shown(arg) != arg || strings.ContainsAny(arg, "{}") {
+				return invalid("archive_command: arguments must be bounded text without placeholders")
+			}
+		}
 	}
 	if integer(m["schema_version"]) != 1 {
 		return invalid("%s: schema_version: must equal 1", label)
@@ -308,7 +339,7 @@ func validateConfig(c *configuration) error {
 	if len(obj(m["runners"])) == 0 {
 		return invalid("%s: runners: must define at least one entry", label)
 	}
-	for section, allowed := range map[string]string{"state": "path", "lanes": "budget_minutes quiet_seconds stop_grace_seconds lock_wait_seconds room_timeout_seconds", "turns": "idle_seconds idle_message poll_seconds backoff_seconds limit_backoff_seconds", "disk": "path warn_percent stop_percent"} {
+	for section, allowed := range map[string]string{"state": "path", "lanes": "budget_minutes quiet_seconds stop_grace_seconds lock_wait_seconds room_timeout_seconds sandbox sandbox_deny_extra", "turns": "idle_seconds idle_message poll_seconds backoff_seconds limit_backoff_seconds", "disk": "path warn_percent stop_percent", "dashboard": "org board"} {
 		if v, ok := m[section]; ok {
 			table := obj(v)
 			if table == nil {
@@ -327,8 +358,39 @@ func validateConfig(c *configuration) error {
 			}
 		}
 	}
+	for key, value := range obj(m["dashboard"]) {
+		path, ok := value.(string)
+		if !ok || path == "" || filepath.Clean(path) != path || strings.Contains(path, "\\") {
+			return invalid("%s: dashboard.%s: must be a valid path", label, key)
+		}
+		if key == "org" && !filepath.IsAbs(path) || key == "board" && (filepath.IsAbs(path) || path == ".." || strings.HasPrefix(path, "../")) {
+			return invalid("%s: dashboard.%s: must be an org root or contained board path", label, key)
+		}
+	}
 	for _, section := range []string{"lanes", "turns"} {
 		for key, v := range obj(m[section]) {
+			if section == "lanes" && key == "sandbox_deny_extra" {
+				items := array(v)
+				if items == nil {
+					return invalid("%s: lanes.sandbox_deny_extra: must be an array of absolute paths", label)
+				}
+				seen := map[string]bool{}
+				for _, item := range items {
+					path, ok := item.(string)
+					if !ok || !filepath.IsAbs(path) || seen[path] {
+						return invalid("%s: lanes.sandbox_deny_extra: must contain unique absolute paths", label)
+					}
+					seen[path] = true
+				}
+				continue
+			}
+			if section == "lanes" && key == "sandbox" {
+				mode, ok := v.(string)
+				if !ok || mode != "off" && mode != "laneboss-files" {
+					return invalid("%s: lanes.sandbox: must be off or laneboss-files", label)
+				}
+				continue
+			}
 			if key == "idle_message" {
 				if _, ok := v.(string); !ok {
 					return invalid("%s: turns.idle_message: must be a string", label)

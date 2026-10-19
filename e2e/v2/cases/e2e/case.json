@@ -1,0 +1,16 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "e2e",
+  "owner": "lb-v2-e2e",
+  "platforms": ["linux"],
+  "requires": [
+    "service", "identity", "linux", "admin", "grants", "secrets",
+    "claudock", "codex", "watchdog", "lifecycle", "messaging",
+    "policy", "judge", "guidance", "approval", "dashboard", "templates",
+    "migration", "packaging", "docs", "retire-hooks", "integrate"
+  ],
+  "entry": "run.sh",
+  "timeout_seconds": 7200,
+  "live_auth": true,
+  "assertion_ids": ["E2E-LADDER"]
+}

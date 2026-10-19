@@ -1,0 +1,312 @@
+{
+  "status": "Static-only candidate. Every row requires a reached named Linux red assertion followed by the same candidate test passing. No mutant vet runs on the authoring host.",
+  "controls": [
+    {
+      "id": "store-arch-owner",
+      "package": "store",
+      "test": "TestArchOwner",
+      "diagnostic": "copied archive request acquired dispatcher ownership",
+      "file": "store/archive.go",
+      "edits": [
+        [
+          "return receipt.Operation.ID == operation && receipt.Reply == nil && owner != nil && owner.store == s &&\n\t\towner.live && owner.operation == operation && s.reservationOwners[operation] == owner, nil",
+          "_ = owner\n\treturn receipt.Operation.ID == operation && receipt.Reply == nil, nil"
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-freeze",
+      "package": "store",
+      "test": "TestArchFreeze",
+      "diagnostic": "nonzero storage writers passed the archive freeze",
+      "file": "store/archive.go",
+      "edits": [
+        [
+          " || *f.Writers != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-part-retry",
+      "package": "store",
+      "test": "TestArchPartRetry",
+      "diagnostic": "changed archive part retry was acknowledged",
+      "file": "store/arch_result.go",
+      "edits": [
+        [
+          "meta.Ref != r.Parts[index] || !bytes.Equal(raw, data)",
+          "meta.Ref != r.Parts[index]"
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-part-order",
+      "package": "store",
+      "test": "TestArchPartRetry",
+      "diagnostic": "archive part gap was acknowledged",
+      "file": "store/arch_result.go",
+      "edits": [
+        [
+          "if index != uint64(len(r.Parts)) || r.Ack != nil {",
+          "if r.Ack != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-byte-gate",
+      "package": "store",
+      "test": "TestArchByteGate",
+      "diagnostic": "noncanonical persisted archive passed the byte gate",
+      "file": "store/arch_result.go",
+      "edits": [
+        [
+          "\tif err != nil {\n\t\treturn result, err\n\t}\n\tif digest != a.ReadBackSHA256 {\n\t\treturn result, fault(api.CodeIntegrity, \"archive failed independent byte-exact verification\")\n\t}",
+          "\t_ = err\n\t_ = digest"
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-exit",
+      "package": "store",
+      "test": "TestArchExitGate",
+      "diagnostic": "unknown worker survivors produced an archive receipt",
+      "file": "store/arch_result.go",
+      "edits": [
+        [
+          " || observation.Survivors == nil || *observation.Survivors != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-cancel",
+      "package": "store",
+      "test": "TestArchCancelGate",
+      "diagnostic": "cancelled archive worker appended a persisted part",
+      "file": "store/archive.go",
+      "edits": [
+        [
+          "lane.CancellationEpoch != i.CancellationEpoch || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-principal",
+      "package": "store",
+      "test": "TestArchWorkerScope",
+      "diagnostic": "foreign worker scope appended an archive part",
+      "file": "store/worker_bootstrap.go",
+      "edits": [
+        [
+          "p.Record.Actor != scope.Actor || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-delete",
+      "package": "store",
+      "test": "TestCollectDelete",
+      "diagnostic": "owned transient object deletion was omitted",
+      "file": "store/collection.go",
+      "edits": [
+        [
+          "return \"remove\", \"unreferenced\"",
+          "return \"retain\", \"unreferenced\""
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-dirty",
+      "package": "store",
+      "test": "TestCollectDirtyGate",
+      "diagnostic": "dirty workspace allowed object deletion",
+      "file": "store/collection.go",
+      "edits": [
+        [
+          " || *workspace.Dirty",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-graph",
+      "package": "store",
+      "test": "TestCollectGraphGate",
+      "diagnostic": "changed reference graph allowed collection",
+      "file": "store/collect_graph.go",
+      "edits": [
+        [
+          "objects, graph, generation, err := s.collectionGraph(ctx, job, r.Inventory)",
+          "_, _, _, err := s.collectionGraph(ctx, job, r.Inventory)"
+        ],
+        [
+          "if r.Inventory == nil || graph != r.Graph || generation != r.Inventory.GraphGeneration || !sameValue(objects, r.Inventory.Objects) {",
+          "if r.Inventory == nil {"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-fresh",
+      "package": "store",
+      "test": "TestCollectFreshGate",
+      "diagnostic": "changed workspace namespace passed independent cleanup readback",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "REMOVE_BLOCK",
+          "\tif observed[workspace.ID] || ValidateWorkspaceRemovalReplay(job, current, removalClaim, receipt.Workspace.After.ObservedAt, clock.Now()) != nil || !cleanupOrder(receipt.Workspace.After.ObservedAt, workspace.ObservedAt) {"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-ref",
+      "package": "store",
+      "test": "TestCollectTombstone",
+      "diagnostic": "collected object acquired a new retained reference",
+      "file": "store/collect_refs.go",
+      "edits": [
+        [
+          "if count != 0 {\n\t\t\treturn fault(api.CodeConflict, \"new reference selects an already collected immutable object\")",
+          "if count < 0 {\n\t\t\treturn fault(api.CodeConflict, \"new reference selects an already collected immutable object\")"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-trigger",
+      "package": "store",
+      "test": "TestCollectTriggerClosed",
+      "diagnostic": "SQL removal bypassed the protected deletion journal",
+      "file": "store/store.go",
+      "edits": [
+        [
+          " WHEN NOT EXISTS (SELECT 1 FROM projections WHERE kind='collection_delete' AND id=OLD.id\n AND json_extract(data,'$.Metadata')=CAST(OLD.metadata AS TEXT))",
+          " WHEN 0"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-proof",
+      "package": "store",
+      "test": "TestCollectAtomicGate",
+      "diagnostic": "zero cleanup verification marked the lane cleaned",
+      "file": "store/collect_proof.go",
+      "edits": [
+        [
+          "if saved.Inventory == nil || saved.Receipt == nil || !sameValue(proposed.Receipt(), *saved.Receipt) {",
+          "if saved.Inventory == nil || saved.Receipt == nil {"
+        ],
+        [
+          "REMOVE_BLOCK",
+          "\tif err := api.ValidateCleanupCompletion(job, *r.Inventory, proposed, next, event, outcome, now); err != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "store-worker-reply",
+      "package": "client",
+      "test": "TestWorkerReplyID",
+      "diagnostic": "native worker bridge accepted another request reply",
+      "file": "client/worker.go",
+      "edits": [
+        [
+          " || response.RequestID != id",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-native",
+      "package": "service",
+      "test": "TestArchNeedsNative",
+      "diagnostic": "archive dispatch lost the native helper refusal",
+      "file": "service/host.go",
+      "edits": [
+        [
+          "api.NotImplemented(\"lb-v2-admin\", \"installed archive worker helper and single writer ports\")",
+          "api.NotImplemented(\"lb-v2-service\", \"installed archive worker helper and single writer ports\")"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-port",
+      "package": "service",
+      "test": "TestCleanNeedsCollector",
+      "diagnostic": "cleanup dispatch lost the grants collector refusal",
+      "file": "service/host.go",
+      "edits": [
+        [
+          "api.NotImplemented(\"lb-v2-grants\", \"installed owned collection orchestrator and store ports\")",
+          "api.NotImplemented(\"lb-v2-service\", \"installed owned collection orchestrator and store ports\")"
+        ]
+      ]
+    },
+    {
+      "id": "store-arch-atomic-reply",
+      "package": "store",
+      "test": "TestArchAtomicReply",
+      "diagnostic": "archive durable reopen",
+      "file": "store/owned_finish.go",
+      "edits": [
+        [
+          "\"INSERT INTO replies VALUES(?,?,?,?)\"",
+          "\"INSERT INTO replies SELECT ?,?,?,? WHERE 0\""
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-atomic",
+      "package": "store",
+      "test": "TestCollectAtomicGate",
+      "diagnostic": "cleanup did not atomically publish its fenced lane state",
+      "file": "store/collect_proof.go",
+      "edits": [
+        [
+          "REMOVE_BLOCK",
+          "\tif err := put(ctx, tx, \"lane\", next.LifeID, next.Generation, next); err != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-manifest-read",
+      "package": "store",
+      "test": "TestCollectSQLReadback",
+      "diagnostic": "cleanup verification did not reopen its retained manifests",
+      "file": "store/collection.go",
+      "edits": [
+        [
+          "func (s *Service) readCollectionReceipt(ctx context.Context, db queryer, job api.CleanupJob, receipt api.CleanupReceipt) (api.CleanupReceipt, error) {\n\tmeta, raw, err := objectRow(ctx, db, receipt.Manifest.ID)\n\tif err != nil {\n\t\treturn api.CleanupReceipt{}, err\n\t}\n\tbody, _, err := api.CleanupReceiptBytes(receipt)\n\tif err != nil || meta.Ref != receipt.Manifest || meta.SourceOperationID != job.Intent.Cause.CauseOperationID || string(body) != string(raw) {\n\t\treturn api.CleanupReceipt{}, fault(api.CodeIntegrity, \"cleanup receipt failed independent retained-byte readback\")\n\t}\n\treturn receipt, nil\n}",
+          "func (s *Service) readCollectionReceipt(ctx context.Context, db queryer, job api.CleanupJob, receipt api.CleanupReceipt) (api.CleanupReceipt, error) {\n\treturn receipt, nil\n}"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-legacy",
+      "package": "store",
+      "test": "TestCollectLegacyTrigger",
+      "diagnostic": "known legacy object trigger was not upgraded",
+      "file": "store/store.go",
+      "edits": [
+        [
+          "if !strings.Contains(trigger, \"collection_delete\") {",
+          "if false {"
+        ]
+      ]
+    },
+    {
+      "id": "store-collect-legacy-refs",
+      "package": "store",
+      "test": "TestCollectLegacyRefs",
+      "diagnostic": "legacy reference uncertainty was relabeled transient",
+      "file": "store/collect_graph.go",
+      "edits": [
+        [
+          "if knownInputs[id] {\n\t\t\t\trole = \"transient\"\n\t\t\t}",
+          "role = \"transient\""
+        ]
+      ]
+    }
+  ]
+}

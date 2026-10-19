@@ -1,0 +1,17 @@
+{
+  "schema": "laneboss.identity-before-cases.v1",
+  "base": "9f7b5ad0",
+  "scope": "fix-10 contract; unchanged candidate fixture/test bytes on pre-adaptation identity production",
+  "cases": [
+    {"id":"event-actor","package":"identity","test":["TestIdentityEventFixture","actor"],"diagnostic":"fixture check: want integrity, got success"},
+    {"id":"ready-driver","package":"identity","test":["TestReadyDriverFixture"],"diagnostic":"fixture check: want conflict, got success"},
+    {"id":"current-capture-disabled","package":"identity","test":["TestCurrentCaptureFixture","disabled"],"diagnostic":"fixture check: want invalid_request, got success"},
+    {"id":"current-capture-approval","package":"identity","test":["TestCurrentCaptureFixture","approval"],"diagnostic":"fixture check: want invalid_request, got success"},
+    {"id":"empty-grant-projection","package":"identity","test":["TestGrantProjectionFixture","empty"],"diagnostic":"fixture check: equivalent grant projection refused or changed:"},
+    {"id":"nested-grant-projection","package":"identity","test":["TestGrantProjectionFixture","nested"],"diagnostic":"fixture check: equivalent grant projection refused or changed:"},
+    {"id":"legacy-live-kind","package":"identity","test":["TestCurrentCallerFixture","legacy-kind"],"diagnostic":"fixture check: want unauthenticated, got success"},
+    {"id":"worker-live-kind","package":"identity","test":["TestCurrentCallerFixture","worker-kind"],"diagnostic":"fixture check: want unauthenticated, got success"},
+    {"id":"legacy-bind-kind","package":"identity","test":["TestBindingKindsFixture","kind_"],"diagnostic":"fixture check: want invalid_request, got success"},
+    {"id":"worker-permit-dependency","package":"identity","test":["TestWorkerPermitGapFixture"],"diagnostic":"fixture check: want not_implemented, got integrity"}
+  ]
+}

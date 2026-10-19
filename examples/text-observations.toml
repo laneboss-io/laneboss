@@ -1,0 +1,41 @@
+schema_version = 1
+
+# Install in the bound org under .laneboss/shared/services/.
+# Filename: text-observations.toml.
+# The first word is a program basename. Later prefix words match literally.
+# text_from is a zero-based index with the command at zero; known global
+# value options before prefix words do not count toward that index.
+[[tools]]
+command = ["message-tool", "send"]
+text_from = 3
+
+[[tools]]
+command = ["record-tool", "add"]
+text_from = 2
+
+[[tools]]
+command = ["bulletin-tool"]
+text_option = "--text"
+
+[[tools]]
+command = ["notify-tool", "say"]
+text_from = 2
+
+[[tools]]
+command = ["notify-tool", "ask"]
+text_from = 2
+
+[[tools]]
+command = ["claude"]
+text_option = "-p"
+value_options = ["--model", "--session-id", "--resume"]
+
+[[tools]]
+command = ["codex", "exec"]
+text_from = 2
+value_options = ["--model", "--config", "-c", "--output-last-message", "-o"]
+
+[[tools]]
+command = ["tmux", "send-keys"]
+text_option = "-l"
+value_options = ["-t"]

@@ -9,6 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"laneboss.io/laneboss/internal/lane"
+	"laneboss.io/laneboss/internal/observation"
+	"laneboss.io/laneboss/internal/textcontext"
 )
 
 type scanGuard struct {
@@ -30,6 +34,7 @@ type laneScan struct {
 	lane        string
 	runs        []*scanRun
 	guards      []scanGuard
+	textTools   []textcontext.Tool
 	records     map[string]*scanRecord
 	recordOrder []*scanRecord
 	known       map[string]bool
@@ -49,6 +54,11 @@ type laneScan struct {
 
 func newLaneScan(s *laneSession, lane string, through int, logStart int64, emit func(string, object, any) error) (*laneScan, error) {
 	scan := &laneScan{s: s, lane: lane, records: map[string]*scanRecord{}, known: map[string]bool{}, open: map[string]*scanItem{}, deadlines: map[string]time.Time{}, problems: map[int][]object{}, found: map[int]map[string]bool{}, before: map[string]time.Time{}, blocked: map[string]bool{}, inventories: map[string]object{}, earlier: map[string]object{}, emit: emit, live: true}
+	var err error
+	scan.textTools, err = textcontext.Load(s.c.home, s.c.data, screenRoleSource)
+	if err != nil {
+		return nil, refused("%s", err.Error())
+	}
 	for _, value := range array(s.c.data["guards"]) {
 		g := obj(value)
 		rx, err := regexp.Compile(str(g["pattern"]))
@@ -57,7 +67,7 @@ func newLaneScan(s *laneSession, lane string, through int, logStart int64, emit 
 		}
 		scan.guards = append(scan.guards, scanGuard{str(g["name"]), g["kind"], rx})
 	}
-	events, err := s.store.events(lane, "")
+	events, err := s.events(lane, "")
 	if err != nil {
 		return nil, err
 	}
@@ -559,6 +569,11 @@ func (s *laneScan) handle(item *scanItem) error {
 		key = item.record.path + "\x00" + item.id
 	}
 	if item.kind == "call" {
+		if item.class == "shell" {
+			if err := s.substitutionCall(item); err != nil {
+				return err
+			}
+		}
 		if key == "" {
 			return nil
 		}
@@ -606,6 +621,31 @@ func (s *laneScan) handle(item *scanItem) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (s *laneScan) substitutionCall(call *scanItem) error {
+	found, err := lane.ShellSubstitutionInText(call.text, s.textTools)
+	if err != nil || !found {
+		return err
+	}
+	place := call.id
+	if !call.idGiven || place == "" {
+		place = fmt.Sprintf("@%d:%d", call.offset, call.index)
+	}
+	id := "ws-" + scanDigest(s.lane, observation.Kind, call.record.path, place)[:24]
+	if s.known[id] {
+		return nil
+	}
+	tool := scanSafeName(call.tool, toolPattern)
+	if tool == nil {
+		tool = "shell"
+	}
+	p := observation.Payload(call.run, id, tool, call.at, scanExcerpt(call.text, call.fullLength, call.fullHash), scanSafeName(call.id, callPattern), scanPosition(call))
+	if err := s.emit("lane.workaround_suspected", checkedScanPayload(p), call.at); err != nil {
+		return err
+	}
+	s.known[id] = true
 	return nil
 }
 func checkedScanPayload(p object) object {

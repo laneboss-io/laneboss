@@ -1,0 +1,2563 @@
+{
+  "status": "Linux reached-red and candidate assertions pending; static compilation is not runtime acceptance.",
+  "controls": [
+    {
+      "id": "f13-kind-source",
+      "package": "api",
+      "test": "TestOrgKinds/source",
+      "diagnostic": "noncanonical org kind was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "\"policy\", \"source\", \"task\"",
+          "\"policy\", \"source\", \"task\", \"file\""
+        ]
+      ]
+    },
+    {
+      "id": "f13-kind-derived",
+      "package": "api",
+      "test": "TestOrgKinds/derived",
+      "diagnostic": "noncanonical org kind was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "if file.Kind != \"file\" {",
+          "if file.Kind != \"file\" && file.Kind != \"prompt\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f13-kind-unknown",
+      "package": "api",
+      "test": "TestOrgKinds/unknown",
+      "diagnostic": "noncanonical org kind was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "\"policy\", \"source\", \"task\"",
+          "\"policy\", \"source\", \"task\", \"unknown\""
+        ]
+      ]
+    },
+    {
+      "id": "f13-org-empty",
+      "package": "api",
+      "test": "TestOrgSelect/empty",
+      "diagnostic": "org selection boundary was bypassed",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " || request.OrgID != ID(scope.Config)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-org-foreign",
+      "package": "api",
+      "test": "TestOrgSelect/foreign",
+      "diagnostic": "org selection boundary was bypassed",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " || request.OrgID != ID(scope.Config)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-org-generation",
+      "package": "api",
+      "test": "TestOrgSelect/generation",
+      "diagnostic": "org selection boundary was bypassed",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " || !launchGeneration(request.Generation)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-org-head",
+      "package": "api",
+      "test": "TestOrgSelect/head",
+      "diagnostic": "org selection boundary was bypassed",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "if snapshot.Ref.Generation != request.Generation {",
+          "if request.Generation == 0 && snapshot.Ref.Generation != request.Generation {"
+        ]
+      ]
+    },
+    {
+      "id": "f13-org-config",
+      "package": "api",
+      "test": "TestOrgSelect/config",
+      "diagnostic": "org selection boundary was bypassed",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "snapshot.Config != scope.Config || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-org-identity",
+      "package": "api",
+      "test": "TestOrgSelect/org",
+      "diagnostic": "org selection boundary was bypassed",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "snapshot.Ref.OrgID != request.OrgID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-schema",
+      "package": "api",
+      "test": "TestTrustPolicy/schema",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "policy.Schema != \"laneboss.attestation-trust.v2\" || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-config",
+      "package": "api",
+      "test": "TestTrustPolicy/config",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || policy.Config != config",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-installation",
+      "package": "api",
+      "test": "TestTrustPolicy/installation",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || policy.InstallationGeneration != installation",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-der",
+      "package": "api",
+      "test": "TestTrustPolicy/der",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "\t\tcert, err := x509.ParseCertificate(der)",
+          "\t\tif len(der) < 3 { continue }\n\t\tcert, err := x509.ParseCertificate(der)"
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-ca",
+      "package": "api",
+      "test": "TestTrustPolicy/ca",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || !cert.IsCA",
+          ""
+        ],
+        [
+          " || cert.CheckSignatureFrom(cert) != nil",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-usage",
+      "package": "api",
+      "test": "TestTrustPolicy/usage",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || cert.KeyUsage&x509.KeyUsageCertSign == 0",
+          ""
+        ],
+        [
+          " || cert.CheckSignatureFrom(cert) != nil",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-duplicate",
+      "package": "api",
+      "test": "TestTrustPolicy/duplicate",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "if seen[digest] {",
+          "if len(der) == 0 && seen[digest] {"
+        ],
+        [
+          "if keys[key] {",
+          "if len(der) == 0 && keys[key] {"
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-aaguid",
+      "package": "api",
+      "test": "TestTrustPolicy/aaguid",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "!installedAAGUID.MatchString(name)",
+          "name == \"\" && !installedAAGUID.MatchString(name)"
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-repeat",
+      "package": "api",
+      "test": "TestTrustPolicy/repeat",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || names[name]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-root_size",
+      "package": "api",
+      "test": "TestTrustPolicy/root_size",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || len(der) > 65536",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-root_count",
+      "package": "api",
+      "test": "TestTrustPolicy/root_count",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "len(policy.RootsDER) > 32 || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-allow_count",
+      "package": "api",
+      "test": "TestTrustPolicy/allow_count",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || len(policy.AllowedAAGUIDs) > 256",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-empty_allow",
+      "package": "api",
+      "test": "TestTrustPolicy/empty_allow",
+      "diagnostic": "installed attestation policy boundary was bypassed",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "len(policy.RootsDER) == 0 && len(policy.AllowedAAGUIDs) != 0",
+          "len(policy.RootsDER) == 0 && len(policy.AllowedAAGUIDs) > 256"
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-clone-roots",
+      "package": "api",
+      "test": "TestTrustClone",
+      "diagnostic": "trust policy clone exposed roots",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "result.RootsDER[i] = append([]byte(nil), der...)",
+          "result.RootsDER[i] = der"
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-clone-allow",
+      "package": "api",
+      "test": "TestTrustClone",
+      "diagnostic": "trust policy clone exposed allowlist",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "result.AllowedAAGUIDs = append([]string(nil), policy.AllowedAAGUIDs...)",
+          "result.AllowedAAGUIDs = policy.AllowedAAGUIDs"
+        ]
+      ]
+    },
+    {
+      "id": "f13-trust-closed",
+      "package": "api",
+      "test": "TestTrustClone",
+      "diagnostic": "empty roots must remain an explicit closed policy",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "len(policy.RootsDER) > 32 || ",
+          "len(policy.RootsDER) == 0 || len(policy.RootsDER) > 32 || "
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-request-unbound",
+      "package": "api",
+      "test": "TestLoopRequest/unbound",
+      "diagnostic": "loop reservation authority was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "!validSchedulerScope(scope) || request.Loop == nil",
+          "request.Loop == nil"
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-request-operation",
+      "package": "api",
+      "test": "TestLoopRequest/operation",
+      "diagnostic": "loop reservation authority was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "request.OperationID != \"\" || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-request-continuation",
+      "package": "api",
+      "test": "TestLoopRequest/continuation",
+      "diagnostic": "loop reservation authority was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "request.ContinuationID != \"\" || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-request-guard",
+      "package": "api",
+      "test": "TestLoopRequest/guard",
+      "diagnostic": "loop reservation authority was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || len(request.Guards) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-request-frame",
+      "package": "api",
+      "test": "TestLoopRequest/frame",
+      "diagnostic": "loop reservation authority was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && reflect.DeepEqual(scope.Request, Request{})",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-request-actor",
+      "package": "api",
+      "test": "TestLoopRequest/actor",
+      "diagnostic": "loop reservation authority was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "scope.scheduler.identity.Actor == scope.Actor && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-scheduler-actor",
+      "package": "api",
+      "test": "TestSchedulerIdentity/actor",
+      "diagnostic": "invalid scheduler identity was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "p.Actor.Kind == \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-scheduler-expiry",
+      "package": "api",
+      "test": "TestSchedulerIdentity/expiry",
+      "diagnostic": "invalid scheduler identity was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "!now.Before(expires)",
+          "now.IsZero() && !now.Before(expires)"
+        ]
+      ]
+    },
+    {
+      "id": "f13-scheduler-capability",
+      "package": "api",
+      "test": "TestSchedulerIdentity/capability",
+      "diagnostic": "invalid scheduler identity was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "launchGeneration(p.CapabilityGeneration) && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-scheduler-installation",
+      "package": "api",
+      "test": "TestSchedulerIdentity/installation",
+      "diagnostic": "invalid scheduler identity was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "launchGeneration(p.InstallationGeneration) && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-scheduler-fresh",
+      "package": "api",
+      "test": "TestSchedulerFresh/capability",
+      "diagnostic": "stale scheduler capability was reused",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "if current != scope.scheduler.identity {",
+          "if current.Config != scope.scheduler.identity.Config {"
+        ]
+      ]
+    },
+    {
+      "id": "f13-scheduler-refusal",
+      "package": "api",
+      "test": "TestSchedulerFresh/refusal",
+      "diagnostic": "scheduler producer refusal was swallowed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "current, err := scope.scheduler.source.VerifyScheduler(ctx)\n\tif err != nil {",
+          "current, err := scope.scheduler.source.VerifyScheduler(ctx)\n\tif err != nil && scope.Actor.ID == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-setting",
+      "package": "api",
+      "test": "TestLoopCause/setting",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "!c.Setting.Enabled || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-survivors",
+      "package": "api",
+      "test": "TestLoopCause/survivors",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || *c.End.Observation.Survivors != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-due",
+      "package": "api",
+      "test": "TestLoopCause/due",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || reserved.Before(due)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-budget",
+      "package": "api",
+      "test": "TestLoopCause/budget",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || c.BudgetRemaining != c.End.BudgetRemaining",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-history",
+      "package": "api",
+      "test": "TestLoopCause/history",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || c.PreviousHome.Home.HistoryID != c.PreviousSession.HistoryID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-turn",
+      "package": "api",
+      "test": "TestLoopCause/turn",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || c.LogicalTurnID == c.PreviousLogicalTurnID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-ids",
+      "package": "api",
+      "test": "TestLoopCause/ids",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          ", c.PlanEffectID}",
+          "}"
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-grant",
+      "package": "api",
+      "test": "TestLoopCause/grant",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "!launchGeneration(c.GrantGeneration) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-lost",
+      "package": "api",
+      "test": "TestLoopCause/lost",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || c.End.Reason == \"service_lost\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-cause-configurator",
+      "package": "api",
+      "test": "TestLoopCause/configurator",
+      "diagnostic": "loop turn causal fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "c.ConfiguredBy.Kind != \"human\" && c.ConfiguredBy.Kind != \"lane\"",
+          "c.ConfiguredBy.Kind != \"human\" && c.ConfiguredBy.Kind != \"lane\" && c.ConfiguredBy.Kind != \"scheduler\""
+        ],
+        [
+          "launchID(ID(c.ConfiguredBy.Role))) ||",
+          "launchID(ID(c.ConfiguredBy.Role)) || c.ConfiguredBy.Kind == \"scheduler\") ||"
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-record-digest",
+      "package": "api",
+      "test": "TestLoopRecord/digest",
+      "diagnostic": "loop reservation record was detached from its cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && r.RequestSHA256 == digest",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-record-authority",
+      "package": "api",
+      "test": "TestLoopRecord/authority",
+      "diagnostic": "loop reservation record was detached from its cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "\t\tr.Authority == (LaunchAuthority{Kind: \"scheduler\", ID: c.Scheduler.CapabilityID}) &&\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-record-requester",
+      "package": "api",
+      "test": "TestLoopRecord/requester",
+      "diagnostic": "loop reservation record was detached from its cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && r.RequestedBy == c.Scheduler.Actor",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-record-target",
+      "package": "api",
+      "test": "TestLoopRecord/target",
+      "diagnostic": "loop reservation record was detached from its cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "\t\tr.Target == (LifeRef{LifeID: c.Selector.Target.LifeID, Run: c.Selector.Target.Run + 1}) &&\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-legacy",
+      "package": "api",
+      "test": "TestLoopLegacy",
+      "diagnostic": "scheduler turn borrowed a manual reservation",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "r.RequestedBy.Kind == \"scheduler\" && r.Mode != \"continue\"",
+          "r.RequestedBy.Kind == \"scheduler\" && r.Mode != \"continue\" && r.Mode == \"\""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-event-actor",
+      "package": "api",
+      "test": "TestLoopEvent",
+      "diagnostic": "loop audit relabelled the scheduler",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.Kind != \"loop.reserved\" || event.Config != r.Config ||\n\t\tevent.Actor != r.RequestedBy || ",
+          "event.Kind != \"loop.reserved\" || event.Config != r.Config ||\n\t\t"
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-audit-actor",
+      "package": "api",
+      "test": "TestLoopAudit/actor",
+      "diagnostic": "loop launch audit boundary was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.Kind != \"lane.turn\" || event.Config != r.Config ||\n\t\tevent.Actor != r.RequestedBy || ",
+          "event.Kind != \"lane.turn\" || event.Config != r.Config ||\n\t\t"
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-audit-missing",
+      "package": "api",
+      "test": "TestLoopAudit/missing",
+      "diagnostic": "opened loop omitted its launch audit",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "if count != 1 {",
+          "if count > 1 {"
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-audit-input",
+      "package": "api",
+      "test": "TestLoopAudit/input",
+      "diagnostic": "loop launch audit boundary was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || body.Task != *r.Loop.Setting.IdleMessage",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-loop-audit-cause",
+      "package": "api",
+      "test": "TestLoopAudit/cause",
+      "diagnostic": "loop launch audit boundary was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(body.Trigger.CausingSeqs, []Sequence{r.Loop.Selector.SettingSeq, r.Loop.Selector.EndSeq})",
+          "len(body.Trigger.CausingSeqs) == 0 && !reflect.DeepEqual(body.Trigger.CausingSeqs, []Sequence{r.Loop.Selector.SettingSeq, r.Loop.Selector.EndSeq})"
+        ]
+      ]
+    },
+    {
+      "id": "f13-cleanup-missing",
+      "package": "api",
+      "test": "TestPlanCleanup/missing",
+      "diagnostic": "failed plan cleanup boundary was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "!kinds[\"withdraw\"] && !(kinds[\"release\"] && kinds[\"revoke_injection\"])",
+          "!kinds[\"withdraw\"] && !kinds[\"release\"] && !kinds[\"revoke_injection\"]"
+        ]
+      ]
+    },
+    {
+      "id": "f13-cleanup-reservation",
+      "package": "api",
+      "test": "TestPlanCleanup/reservation",
+      "diagnostic": "failed plan cleanup boundary was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || job.ReservationID != r.ID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-cleanup-slot",
+      "package": "api",
+      "test": "TestPlanCleanup/slot",
+      "diagnostic": "failed plan cleanup boundary was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "!launchID(job.Slot.LeaseID) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-cleanup-epoch",
+      "package": "api",
+      "test": "TestPlanCleanup/epoch",
+      "diagnostic": "failed plan cleanup boundary was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || cause.CancellationEpoch != r.CancellationEpoch",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-cleanup-unknown",
+      "package": "api",
+      "test": "TestPlanCleanup/unknown",
+      "diagnostic": "failed plan cleanup boundary was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || len(job.Issues) == 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13-cleanup-pending",
+      "package": "api",
+      "test": "TestCleanupPending",
+      "diagnostic": "uncertain projection lost its reconciliation issue",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "job.Withdrawal == nil && len(job.Issues) == 0",
+          "job.Withdrawal == nil && len(job.Issues) < 0"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-org-no_sources",
+      "package": "api",
+      "test": "TestOrgKinds/no_sources",
+      "diagnostic": "noncanonical org kind was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " || len(snapshot.Sources) == 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-root-subordinate",
+      "package": "api",
+      "test": "TestTrustRoots/subordinate",
+      "diagnostic": "non-root or repeated-key attestation pin was accepted",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "!bytes.Equal(cert.RawIssuer, cert.RawSubject) || cert.CheckSignatureFrom(cert) != nil",
+          "!bytes.Equal(cert.RawIssuer, cert.RawSubject) && cert.CheckSignatureFrom(cert) != nil && !cert.IsCA"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-root-issuer",
+      "package": "api",
+      "test": "TestTrustRoots/issuer",
+      "diagnostic": "non-root or repeated-key attestation pin was accepted",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "!bytes.Equal(cert.RawIssuer, cert.RawSubject) || ",
+          "!bytes.Equal(cert.RawIssuer, cert.RawSubject) && cert.Subject.CommonName == \"\" || "
+        ]
+      ]
+    },
+    {
+      "id": "f13c-root-signature",
+      "package": "api",
+      "test": "TestTrustRoots/signature",
+      "diagnostic": "non-root or repeated-key attestation pin was accepted",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          " || cert.CheckSignatureFrom(cert) != nil",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-root-key",
+      "package": "api",
+      "test": "TestTrustRoots/key",
+      "diagnostic": "non-root or repeated-key attestation pin was accepted",
+      "file": "api/attestation_policy.go",
+      "edits": [
+        [
+          "if keys[key] {",
+          "if len(der) == 0 && keys[key] {"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-endpoint",
+      "package": "api",
+      "test": "TestSchedulerScope/endpoint",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "scope.EndpointGeneration == 0 && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-read",
+      "package": "api",
+      "test": "TestSchedulerScope/read",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "scope.ReadView == nil && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-authority",
+      "package": "api",
+      "test": "TestSchedulerScope/authority",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "scope.ReadAuthority == nil && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-source",
+      "package": "api",
+      "test": "TestSchedulerScope/source",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && scope.Source == \"\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-connection",
+      "package": "api",
+      "test": "TestSchedulerScope/connection",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "scope.Connection == nil && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-frame",
+      "package": "api",
+      "test": "TestSchedulerScope/frame",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "scope.Frame == nil && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-config",
+      "package": "api",
+      "test": "TestSchedulerScope/config",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "bindingConfigName.MatchString(p.Config) && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-actor",
+      "package": "api",
+      "test": "TestSchedulerScope/actor",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "p.Actor.Kind == \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-actor_id",
+      "package": "api",
+      "test": "TestSchedulerScope/actor_id",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "launchID(p.Actor.ID) &&\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-life",
+      "package": "api",
+      "test": "TestSchedulerScope/life",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "p.Actor.LifeID == \"\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-level",
+      "package": "api",
+      "test": "TestSchedulerScope/level",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "p.Actor.Level == 0 && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-role",
+      "package": "api",
+      "test": "TestSchedulerScope/role",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "p.Actor.Role == \"\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-cap_id",
+      "package": "api",
+      "test": "TestSchedulerScope/cap_id",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && launchID(p.CapabilityID)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-cap_gen",
+      "package": "api",
+      "test": "TestSchedulerScope/cap_gen",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "launchGeneration(p.CapabilityGeneration) && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-install",
+      "package": "api",
+      "test": "TestSchedulerScope/install",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "launchGeneration(p.InstallationGeneration) && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-boot",
+      "package": "api",
+      "test": "TestSchedulerScope/boot",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && p.BootID != \"\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-policy",
+      "package": "api",
+      "test": "TestSchedulerScope/policy",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "launchGeneration(p.PolicyGeneration) && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scope-expiry",
+      "package": "api",
+      "test": "TestSchedulerScope/expiry",
+      "diagnostic": "contaminated scheduler scope was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "&& err == nil",
+          "&& (err == nil || p.ExpiresAt != \"\")"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-scheduler-expiry",
+      "package": "api",
+      "test": "TestSchedulerFresh/expiry",
+      "diagnostic": "stale scheduler capability was reused",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "if current != scope.scheduler.identity {",
+          "if current.Config != scope.scheduler.identity.Config {"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-event",
+      "package": "api",
+      "test": "TestLoopMetadata/event",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && s.EndEventID != s.SettingEventID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-launch",
+      "package": "api",
+      "test": "TestLoopMetadata/launch",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || seen[id]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-operation",
+      "package": "api",
+      "test": "TestLoopMetadata/operation",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || seen[id]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-reservation",
+      "package": "api",
+      "test": "TestLoopMetadata/reservation",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || seen[id]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-effect",
+      "package": "api",
+      "test": "TestLoopMetadata/effect",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || seen[id]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-human_life",
+      "package": "api",
+      "test": "TestLoopMetadata/human_life",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && c.ConfiguredBy.LifeID == \"\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-human_level",
+      "package": "api",
+      "test": "TestLoopMetadata/human_level",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && c.ConfiguredBy.Level == 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-human_role",
+      "package": "api",
+      "test": "TestLoopMetadata/human_role",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && c.ConfiguredBy.Role == \"\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-lane_life",
+      "package": "api",
+      "test": "TestLoopMetadata/lane_life",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && launchID(c.ConfiguredBy.LifeID)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-lane_level",
+      "package": "api",
+      "test": "TestLoopMetadata/lane_level",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && c.ConfiguredBy.Level >= 3",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-lane_role",
+      "package": "api",
+      "test": "TestLoopMetadata/lane_role",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && launchID(ID(c.ConfiguredBy.Role))",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-handle",
+      "package": "api",
+      "test": "TestLoopMetadata/handle",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "!launchID(c.End.Observation.Handle.ID) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-version",
+      "package": "api",
+      "test": "TestLoopMetadata/version",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "c.PreviousSession.VendorVersion == \"\" || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-vendor",
+      "package": "api",
+      "test": "TestLoopMetadata/vendor",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "s.Target.Run > 1 && c.PreviousSession.VendorID == \"\" ||\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-workspace",
+      "package": "api",
+      "test": "TestLoopMetadata/workspace",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "!launchID(c.PreviousHome.Home.WorkspaceID) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-root",
+      "package": "api",
+      "test": "TestLoopMetadata/root",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || c.PreviousHome.RootID == c.PreviousHome.Home.WorkspaceID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-metadata-directory",
+      "package": "api",
+      "test": "TestLoopMetadata/directory",
+      "diagnostic": "loop metadata fence was bypassed",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || strings.HasPrefix(c.PreviousHome.Home.VendorDirectory, \"../\")",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-budget",
+      "package": "api",
+      "test": "TestLoopPlan/budget",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "plan.Budget != r.Loop.BudgetRemaining ||\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-grant",
+      "package": "api",
+      "test": "TestLoopPlan/grant",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          " ||\n\t\tr.Loop != nil && g.Generation != r.Loop.GrantGeneration",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-root",
+      "package": "api",
+      "test": "TestLoopPlan/root",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "home.RootID != r.Loop.PreviousHome.RootID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-generation",
+      "package": "api",
+      "test": "TestLoopPlan/generation",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          " || home.Generation < r.Loop.PreviousHome.Generation",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-home",
+      "package": "api",
+      "test": "TestLoopPlan/home",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "home.Home != r.Loop.PreviousHome.Home || ",
+          ""
+        ],
+        [
+          "runner.Session.HomeID != r.Loop.PreviousSession.HomeID ||\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-history",
+      "package": "api",
+      "test": "TestLoopPlan/history",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "home.Home != r.Loop.PreviousHome.Home || ",
+          ""
+        ],
+        [
+          " || runner.Session.HistoryID != r.Loop.PreviousSession.HistoryID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-session",
+      "package": "api",
+      "test": "TestLoopPlan/session",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "runner.Session.ID != r.Loop.PreviousSession.ID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-plan-vendor",
+      "package": "api",
+      "test": "TestLoopPlan/vendor",
+      "diagnostic": "loop plan escaped its retained cause",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "r.Loop.PreviousSession.VendorID != \"\" && runner.Session.VendorID != r.Loop.PreviousSession.VendorID",
+          "r.Loop.PreviousSession.VendorID == \"\" && runner.Session.VendorID != r.Loop.PreviousSession.VendorID"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-write-plan_turn",
+      "package": "api",
+      "test": "TestLoopWrite/plan_turn",
+      "diagnostic": "loop write escaped its logical turn or effect",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "cause.LogicalTurnID != r.Loop.LogicalTurnID ||\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-write-prepare_turn",
+      "package": "api",
+      "test": "TestLoopWrite/prepare_turn",
+      "diagnostic": "loop write escaped its logical turn or effect",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "cause.LogicalTurnID != r.Loop.LogicalTurnID ||\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-write-open_turn",
+      "package": "api",
+      "test": "TestLoopWrite/open_turn",
+      "diagnostic": "loop write escaped its logical turn or effect",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "cause.LogicalTurnID != r.Loop.LogicalTurnID ||\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-write-effect",
+      "package": "api",
+      "test": "TestLoopWrite/effect",
+      "diagnostic": "loop write escaped its logical turn or effect",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "cause.Kind == InternalLaunchPlan && cause.EffectID != r.Loop.PlanEffectID",
+          "cause.Kind == InternalLaunchPlan && cause.EffectID == \"\""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-write-lane",
+      "package": "api",
+      "test": "TestLoopWrite/lane_turn",
+      "diagnostic": "loop write escaped its logical turn or effect",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          " &&\n\t\t\t\t(r.Loop == nil || projection.LogicalTurnID == r.Loop.LogicalTurnID)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-audit-mail",
+      "package": "api",
+      "test": "TestLoopAuditPins/mail",
+      "diagnostic": "loop event carried unselected mail or cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || len(body.MailIDs) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-audit-trigger_mail",
+      "package": "api",
+      "test": "TestLoopAuditPins/trigger_mail",
+      "diagnostic": "loop event carried unselected mail or cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || len(body.Trigger.MailIDs) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-audit-run",
+      "package": "api",
+      "test": "TestLoopAuditPins/run",
+      "diagnostic": "loop event carried unselected mail or cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "body.Trigger.CausingRun != r.Loop.Selector.Target.Run ||\n\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-audit-legacy",
+      "package": "api",
+      "test": "TestLoopAuditPins/legacy",
+      "diagnostic": "loop event carried unselected mail or cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "body.Trigger.Kind != \"loop\" || len(body.Trigger.MailIDs)",
+          "(body.Trigger.Kind != \"loop\" && body.Trigger.Kind != \"idle\") || len(body.Trigger.MailIDs)"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-audit-prompt",
+      "package": "api",
+      "test": "TestLoopAuditPins/prompt",
+      "diagnostic": "loop audit lost its retained prompt or causal pins",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " || body.Prompt != record.Plan.Runner.Prompt",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-audit-nil_plan",
+      "package": "api",
+      "test": "TestLoopAuditPins/nil_plan",
+      "diagnostic": "loop audit lost its retained prompt or causal pins",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "record.Plan == nil || body.Prompt != record.Plan.Runner.Prompt",
+          "record.Plan != nil && body.Prompt != record.Plan.Runner.Prompt"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-public-actor",
+      "package": "api",
+      "test": "TestLoopForged/public_actor",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.Actor.Kind != \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-public-requester",
+      "package": "api",
+      "test": "TestLoopForged/public_requester",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.RequestedBy.Kind != \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-public-trigger",
+      "package": "api",
+      "test": "TestLoopForged/public_trigger",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && body.Trigger.Kind != \"loop\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-open-actor",
+      "package": "api",
+      "test": "TestLoopForged/open_actor",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.Actor.Kind != \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-open-requester",
+      "package": "api",
+      "test": "TestLoopForged/open_requester",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.RequestedBy.Kind != \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-open-trigger",
+      "package": "api",
+      "test": "TestLoopForged/open_trigger",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && body.Trigger.Kind != \"loop\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-empty-actor",
+      "package": "api",
+      "test": "TestLoopForged/empty_actor",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.Actor.Kind != \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-empty-requester",
+      "package": "api",
+      "test": "TestLoopForged/empty_requester",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "event.RequestedBy.Kind != \"scheduler\" && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-forged-empty-trigger",
+      "package": "api",
+      "test": "TestLoopForged/empty_trigger",
+      "diagnostic": "unreserved scheduler turn was accepted",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          " && body.Trigger.Kind != \"loop\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-grants",
+      "package": "api",
+      "test": "TestCleanupFields/grants",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || len(tx.Writes.Grants) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-workers",
+      "package": "api",
+      "test": "TestCleanupFields/workers",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || len(tx.Writes.WorkerLeases) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-grants_event",
+      "package": "api",
+      "test": "TestCleanupFields/grants_event",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "event.Kind != \"launch.planned\" && event.Kind != \"capture.refused\"",
+          "event.Kind != \"launch.planned\" && event.Kind != \"capture.refused\" && event.Kind != \"grants.issued\""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-capture_event",
+      "package": "api",
+      "test": "TestCleanupFields/capture_event",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "event.Kind != \"launch.planned\" && event.Kind != \"capture.refused\"",
+          "event.Kind != \"launch.planned\" && event.Kind != \"capture.refused\" && event.Kind != \"capture.bound\""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-cause",
+      "package": "api",
+      "test": "TestCleanupFields/cause",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || seenCauses[cause.ID]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-planner_cause",
+      "package": "api",
+      "test": "TestCleanupFields/planner_cause",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || seenCauses[cause.ID]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-planner_effect",
+      "package": "api",
+      "test": "TestCleanupFields/planner_effect",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "map[ID]bool{tx.Internal.EffectID: true}",
+          "map[ID]bool{}"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-profile_grant",
+      "package": "api",
+      "test": "TestCleanupFields/profile_grant",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || !launchID(job.Slot.ProfileGrantID)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-profile",
+      "package": "api",
+      "test": "TestCleanupFields/profile",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || !launchID(job.Slot.ProfileID)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-expiry",
+      "package": "api",
+      "test": "TestCleanupFields/expiry",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || job.Slot.ExpiresAt == \"\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-plan_slot",
+      "package": "api",
+      "test": "TestCleanupFields/plan_slot",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || job.Slot != record.Plan.Runner.Slot",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-plan_injection",
+      "package": "api",
+      "test": "TestCleanupFields/plan_injection",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "job.Injection != nil && !reflect.DeepEqual(*job.Injection, record.Plan.Injection)",
+          "job.Injection != nil && job.Injection.Target != record.Plan.Injection.Target"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-unknown_slot",
+      "package": "api",
+      "test": "TestCleanupFields/unknown_slot",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "!job.SlotKnown || job.Slot != record.Plan.Runner.Slot",
+          "job.SlotKnown && job.Slot != record.Plan.Runner.Slot"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-loop_turn",
+      "package": "api",
+      "test": "TestCleanupFields/loop_turn",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "r.Loop != nil && cause.LogicalTurnID != r.Loop.LogicalTurnID ||\n\t\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-prepared_id",
+      "package": "api",
+      "test": "TestCleanupFields/prepared_id",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "!launchID(job.Prepared.ID) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-prepared_launch",
+      "package": "api",
+      "test": "TestCleanupFields/prepared_launch",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "job.Prepared.ID == r.LaunchID ||\n\t\t\t",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-containment",
+      "package": "api",
+      "test": "TestCleanupFields/containment",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "!launchID(job.Prepared.ContainmentID) || ",
+          ""
+        ],
+        [
+          "job.Prepared.ContainmentID != record.Plan.Lease.ContainmentID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-endpoint",
+      "package": "api",
+      "test": "TestCleanupFields/endpoint",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "!launchGeneration(job.Prepared.EndpointGeneration) ||\n\t\t\t",
+          ""
+        ],
+        [
+          "job.Prepared.EndpointGeneration != record.Plan.Lease.EndpointGeneration",
+          "job.Prepared.EndpointGeneration > record.Plan.Lease.EndpointGeneration"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-gate",
+      "package": "api",
+      "test": "TestCleanupFields/gate",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "!launchID(job.Prepared.GateID) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-process",
+      "package": "api",
+      "test": "TestCleanupFields/process",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          " || job.Prepared.ProcessGeneration == \"\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-foreign_container",
+      "package": "api",
+      "test": "TestCleanupFields/foreign_container",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "job.Prepared.ContainmentID != record.Plan.Lease.ContainmentID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-foreign_endpoint",
+      "package": "api",
+      "test": "TestCleanupFields/foreign_endpoint",
+      "diagnostic": "failed cleanup correlation was bypassed",
+      "file": "api/plan_cleanup.go",
+      "edits": [
+        [
+          "job.Prepared.EndpointGeneration != record.Plan.Lease.EndpointGeneration",
+          "job.Prepared.EndpointGeneration < record.Plan.Lease.EndpointGeneration"
+        ]
+      ]
+    },
+    {
+      "id": "f13c-cleanup-atomic",
+      "package": "api",
+      "test": "TestCleanupAtomic",
+      "diagnostic": "planner failure bypassed its atomic cleanup writer",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "cause.Kind == InternalLaunchPlan && record.Phase == \"failed\" && !cleanup",
+          "cause.Kind == InternalLaunchPlan && record.Phase == \"failed\" && cleanup && len(tx.Writes.LaunchPlans) == 0"
+        ]
+      ]
+    },
+    {
+      "id": "f13d-empty-1",
+      "package": "api",
+      "test": "TestOrgEmpty/1",
+      "diagnostic": "generation-matched org inventory was refused",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "snapshot.Derived == nil || len(snapshot.Derived) != 0",
+          "snapshot.Derived == nil || len(snapshot.Derived) == 0"
+        ]
+      ]
+    },
+    {
+      "id": "f13d-empty-2",
+      "package": "api",
+      "test": "TestOrgEmpty/2",
+      "diagnostic": "org generation or derived shape was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " ||\n\t\tsnapshot.Ref.Generation > 1 && len(snapshot.Derived) == 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13d-zero-run",
+      "package": "api",
+      "test": "TestLoopAuditPins/zero_run",
+      "diagnostic": "loop event carried unselected mail or cause",
+      "file": "api/loop_turn.go",
+      "edits": [
+        [
+          "body.Trigger.CausingRun != r.Loop.Selector.Target.Run ||",
+          "body.Trigger.CausingRun != 0 && body.Trigger.CausingRun != r.Loop.Selector.Target.Run ||"
+        ]
+      ]
+    },
+    {
+      "id": "f13d-org-initial",
+      "package": "templates",
+      "test": "TestOrgInventory/initial",
+      "diagnostic": "semantic org inventory was refused",
+      "file": "templates/approved.go",
+      "edits": [
+        [
+          "if api.ValidateOrgKinds(snapshot) != nil {",
+          "if api.ValidateOrgKinds(snapshot) != nil || len(snapshot.Derived) == 0 {"
+        ]
+      ]
+    },
+    {
+      "id": "f13d-org-later",
+      "package": "templates",
+      "test": "TestOrgInventory/later",
+      "diagnostic": "org validation bypassed the shared kind gate",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " ||\n\t\tsnapshot.Ref.Generation > 1 && len(snapshot.Derived) == 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13d-org-source",
+      "package": "templates",
+      "test": "TestOrgInventory/source",
+      "diagnostic": "org validation bypassed the shared kind gate",
+      "file": "templates/approved.go",
+      "edits": [
+        [
+          "\tif api.ValidateOrgKinds(snapshot) != nil {\n\t\treturn integrity(\"approved org snapshot has invalid semantic source or derived kinds\")\n\t}\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13d-org-derived",
+      "package": "templates",
+      "test": "TestOrgInventory/derived",
+      "diagnostic": "org validation bypassed the shared kind gate",
+      "file": "templates/approved.go",
+      "edits": [
+        [
+          "\tif api.ValidateOrgKinds(snapshot) != nil {\n\t\treturn integrity(\"approved org snapshot has invalid semantic source or derived kinds\")\n\t}\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13d-selector-validate",
+      "package": "templates",
+      "test": "TestOrgSelectors/validate",
+      "diagnostic": "org lookup omitted an exact selector",
+      "file": "templates/stub.go",
+      "edits": [
+        [
+          "api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: request.Generation}",
+          "api.OrgSnapshotRequest{}"
+        ]
+      ]
+    },
+    {
+      "id": "f13d-selector-render",
+      "package": "templates",
+      "test": "TestOrgSelectors/render",
+      "diagnostic": "org lookup omitted an exact selector",
+      "file": "templates/approved.go",
+      "edits": [
+        [
+          "api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: provided.Snapshot.Generation}",
+          "api.OrgSnapshotRequest{OrgID: api.ID(scope.Config)}"
+        ]
+      ]
+    },
+    {
+      "id": "f13d-initial-source",
+      "package": "admin",
+      "test": "TestInitialKinds/source",
+      "diagnostic": "initial importer accepted an invalid source inventory",
+      "file": "templates/initial.go",
+      "edits": [
+        [
+          "\tif api.ValidateOrgKinds(snapshot) != nil {\n\t\treturn bad()\n\t}\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13d-admin-source",
+      "package": "admin",
+      "test": "TestInitialKinds/source",
+      "diagnostic": "initial importer accepted an invalid source inventory",
+      "file": "admin/initial.go",
+      "edits": [
+        [
+          "\t\treturn struct{}{}, templates.ValidateInitialSources(config, b.sources, m.L5)",
+          "\t\t_ = templates.ValidateInitialSources\n\t\treturn struct{}{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "f13d-initial-derived",
+      "package": "admin",
+      "test": "TestInitialKinds/derived",
+      "diagnostic": "initial importer accepted an invalid source inventory",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " || len(snapshot.Derived) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-initial-output",
+      "package": "api",
+      "test": "TestOrgEmpty/1",
+      "diagnostic": "org generation or derived shape was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " || len(snapshot.Derived) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-initial-null",
+      "package": "api",
+      "test": "TestOrgEmpty/nil1",
+      "diagnostic": "org generation or derived shape was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "snapshot.Derived == nil || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-later-kind",
+      "package": "api",
+      "test": "TestOrgEmpty/kind2",
+      "diagnostic": "org generation or derived shape was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "if file.Kind != \"file\" {",
+          "if file.Kind != \"file\" && file.Kind != \"prompt\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f13e-generation-zero",
+      "package": "api",
+      "test": "TestOrgEmpty/zero",
+      "diagnostic": "org generation or derived shape was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "!launchGeneration(snapshot.Ref.Generation) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-generation-limit",
+      "package": "api",
+      "test": "TestOrgEmpty/limit",
+      "diagnostic": "org generation or derived shape was accepted",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "!launchGeneration(snapshot.Ref.Generation) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-initial-delegate",
+      "package": "admin",
+      "test": "TestInitialDelegate",
+      "diagnostic": "initial validator bypassed the shared derived gate",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "snapshot.Derived == nil || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-approved-initial",
+      "package": "templates",
+      "test": "TestOrgInventory/initial",
+      "diagnostic": "org validation bypassed the shared kind gate",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " || len(snapshot.Derived) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-approved-null",
+      "package": "templates",
+      "test": "TestOrgInventory/initial_nil",
+      "diagnostic": "org validation bypassed the shared kind gate",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          "snapshot.Derived == nil || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-brief-render",
+      "package": "templates",
+      "test": "TestOrgBriefShape/render",
+      "diagnostic": "briefing accepted the initial derived exception",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " ||\n\t\tsnapshot.Ref.Generation > 1 && len(snapshot.Derived) == 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-brief-start",
+      "package": "templates",
+      "test": "TestOrgBriefShape/start",
+      "diagnostic": "briefing accepted the initial derived exception",
+      "file": "api/org_snapshot.go",
+      "edits": [
+        [
+          " ||\n\t\tsnapshot.Ref.Generation > 1 && len(snapshot.Derived) == 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-org-validate",
+      "package": "templates",
+      "test": "TestOrgConfig/validate",
+      "diagnostic": "foreign org snapshot passed its configuration fence",
+      "file": "templates/approved.go",
+      "edits": [
+        [
+          " || ref.OrgID != api.ID(scope.Config)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-org-render",
+      "package": "templates",
+      "test": "TestOrgConfig/render",
+      "diagnostic": "foreign org snapshot passed its configuration fence",
+      "file": "templates/approved.go",
+      "edits": [
+        [
+          " || ref.OrgID != api.ID(scope.Config)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f13e-org-lookup",
+      "package": "templates",
+      "test": "TestOrgConfig/lookup",
+      "diagnostic": "render lookup borrowed a foreign org selector",
+      "file": "templates/approved.go",
+      "edits": [
+        [
+          "api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: provided.Snapshot.Generation}",
+          "api.OrgSnapshotRequest{OrgID: provided.Snapshot.OrgID, Generation: provided.Snapshot.Generation}"
+        ]
+      ]
+    },
+    {
+      "id": "f13e-bootstrap-read",
+      "package": "templates",
+      "test": "TestOrgSelectors/bootstrap",
+      "diagnostic": "bootstrap performed an org snapshot read",
+      "file": "templates/bootstrap.go",
+      "edits": [
+        [
+          "\tproof, err := s.deps.Human.CheckProof(ctx, scope, *scope.Request.Proof, target)",
+          "\tif _, probeErr := s.deps.Store.OrgSnapshot(ctx, scope, api.OrgSnapshotRequest{OrgID: target.TargetID}); probeErr != nil {\n\t\treturn api.Operation{}, probeErr\n\t}\n\tproof, err := s.deps.Human.CheckProof(ctx, scope, *scope.Request.Proof, target)"
+        ]
+      ]
+    },
+    {
+      "id": "f13e-bootstrap-existing",
+      "package": "templates",
+      "test": "TestBootstrapExistingOrg",
+      "diagnostic": "bootstrap replaced an existing org or returned success",
+      "file": "templates/bootstrap.go",
+      "edits": [
+        [
+          "if target.BaseGeneration != 0 {",
+          "if target.BaseGeneration > maxGeneration {"
+        ]
+      ]
+    },
+    {
+      "id": "f13e-bootstrap-target",
+      "package": "templates",
+      "test": "TestBootstrapTargetError",
+      "diagnostic": "bootstrap lost its authorization-target error",
+      "file": "templates/bootstrap.go",
+      "edits": [
+        [
+          "target, err := s.deps.Store.AuthorizationTarget(ctx, scope, scope.Request)\n\tif err != nil {",
+          "target, err := s.deps.Store.AuthorizationTarget(ctx, scope, scope.Request)\n\tif err != nil && target.TargetID == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f13e-bootstrap-cas",
+      "package": "templates",
+      "test": "TestBootstrapAtomicIntent",
+      "diagnostic": "bootstrap omitted its absent-org comparison",
+      "file": "templates/bootstrap.go",
+      "edits": [
+        [
+          "Compare: []api.Compare{{Kind: api.CompareOrg, ID: target.TargetID, Generation: 0}}",
+          "Compare: []api.Compare{{Kind: api.CompareOrg, ID: target.TargetID, Generation: 1}}"
+        ]
+      ]
+    },
+    {
+      "id": "serve-profile-binding",
+      "package": "admin",
+      "test": "TestInitialProfileEnrollment",
+      "diagnostic": "native publication did not invoke protected profile enrollment",
+      "file": "admin/initial_commit.go",
+      "edits": [
+        [
+          "validated.enrollment = b.enrollment",
+          "validated.enrollment = nil"
+        ]
+      ]
+    },
+    {
+      "id": "serve-profile-installer-error",
+      "package": "admin",
+      "test": "TestInitialProfileEnrollmentRecovery",
+      "diagnostic": "profile installer failure was hidden behind the committed publication",
+      "file": "admin/initial_profiles.go",
+      "edits": [
+        [
+          "if err := b.enrollment.InstallProfile(ctx, profile); err != nil {\n\t\t\treturn err\n\t\t}",
+          "if err := b.enrollment.InstallProfile(ctx, profile); err != nil {\n\t\t\treturn nil\n\t\t}"
+        ]
+      ]
+    },
+    {
+      "id": "serve-profile-evidence-acl",
+      "package": "admin",
+      "test": "TestInitialProfileEvidenceGuard",
+      "diagnostic": "unprotected profile evidence reached the encrypted installer",
+      "file": "admin/initial_profiles.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(meta.ACL, writes[index].ACL)",
+          "!reflect.DeepEqual(meta.ACL.Config, writes[index].ACL.Config)"
+        ]
+      ]
+    },
+    {
+      "id": "serve-profile-store-audience",
+      "package": "store",
+      "test": "TestInitialPrivateProfileObjects",
+      "diagnostic": "sealed profile observation was not retained by the real store",
+      "file": "store/objects.go",
+      "edits": [
+        [
+          " && !s.privateInitialProfileObject(ctx, scope, object)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "serve-profile-store-bytes",
+      "package": "store",
+      "test": "TestInitialPrivateProfileObjects",
+      "diagnostic": "private profile object escaped its sealed native publication",
+      "file": "store/initial.go",
+      "edits": [
+        [
+          "exists && reflect.DeepEqual(sealed, object)",
+          "exists && sealed.ObjectKey == object.ObjectKey"
+        ]
+      ]
+    },
+    {
+      "id": "serve-profile-ref-class",
+      "package": "client/wire",
+      "test": "TestCredentialEvidenceClass",
+      "diagnostic": "retained credential evidence class was rejected",
+      "file": "client/wire/schema.go",
+      "edits": [
+        [
+          " worker_result credential_evidence\"",
+          " worker_result\""
+        ]
+      ]
+    },
+    {
+      "id": "serve-profile-public-upload",
+      "package": "client/wire",
+      "test": "TestCredentialEvidenceClass",
+      "diagnostic": "public upload accepted protected credential evidence",
+      "file": "client/wire/schema.go",
+      "edits": [
+        [
+          "case \"BlobBeginRequest.class\":\n\t\tvalues = \"task prompt report artifact capture transcript policy manifest judge_request judge_raw archive record launch_request launch_spec\"",
+          "case \"BlobBeginRequest.class\":\n\t\tvalues = \"task prompt report artifact capture transcript policy manifest judge_request judge_raw archive record launch_request launch_spec credential_evidence\""
+        ]
+      ]
+    },
+    {
+      "id": "serve-root-event-id",
+      "package": "grants",
+      "test": "TestRootGrantIssuedEvent",
+      "diagnostic": "root grant producer omitted its valid issuance event ID",
+      "file": "grants/root.go",
+      "edits": [
+        [
+          "\teventID, err := freshID()\n\tif err != nil {\n\t\treturn zero, err\n\t}\n",
+          ""
+        ],
+        [
+          "Schema: api.SchemaVersion, ID: eventID,",
+          "Schema: api.SchemaVersion,"
+        ]
+      ]
+    },
+    {
+      "id": "serve-probe-installed-scope",
+      "package": "service",
+      "test": "TestProbeInstalledScope",
+      "diagnostic": "unready service host entered the independent isolation provider",
+      "file": "service/launch_control.go",
+      "edits": [
+        [
+          "\tif _, err := s.controlScope(); err != nil {\n\t\treturn api.IsolationCapabilities{}, err\n\t}\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "serve-probe-constant-availability",
+      "package": "service",
+      "test": "TestProbeEvidencePort",
+      "diagnostic": "acceptance: service probe invented or discarded independent evidence",
+      "file": "service/launch_control.go",
+      "edits": [
+        [
+          "return evidence.IsolationEvidence(ctx)",
+          "observed, err := evidence.IsolationEvidence(ctx)\n\tobserved.Available = true\n\treturn observed, err"
+        ]
+      ]
+    }
+  ]
+}

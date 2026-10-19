@@ -63,9 +63,50 @@ func literalShellPatch(script string) (string, bool) {
 	return "", false
 }
 
+// A trailing command does not erase the quoted patch's file effects. The
+// delimiter must still occupy its own line, as required by the actual shell.
+func literalShellPatchSequence(script string) (string, string, bool) {
+	if len(script) > maxCommand || strings.ContainsRune(script, 0) {
+		return "", "", false
+	}
+	script = strings.TrimLeft(script, " \t\r\n")
+	word := firstShellWord(script)
+	if !patchWord(word) {
+		return "", "", false
+	}
+	header, body, newline := strings.Cut(strings.TrimSpace(script[len(word):]), "\n")
+	if !newline || !strings.HasPrefix(header, "<<") || strings.HasPrefix(header, "<<-") {
+		return "", "", false
+	}
+	marker := strings.TrimSpace(header[2:])
+	if len(marker) < 3 || (marker[0] != '\'' && marker[0] != '"') || marker[len(marker)-1] != marker[0] {
+		return "", "", false
+	}
+	delimiter := marker[1 : len(marker)-1]
+	if !patchDelimiter.MatchString(delimiter) {
+		return "", "", false
+	}
+	offset := 0
+	for _, line := range strings.SplitAfter(body, "\n") {
+		if strings.TrimSuffix(line, "\n") == delimiter {
+			return body[:offset], strings.TrimLeft(body[offset+len(line):], " \t\r\n;"), true
+		}
+		offset += len(line)
+	}
+	return "", "", false
+}
+
 func shellWriteIntent(script string) bool {
+	if words, err := splitWords(script); err == nil {
+		if _, writes := literalWriteCommand(words, "/"); writes {
+			return true
+		}
+	}
 	word := firstShellWord(script)
 	if patchWord(word) {
+		return true
+	}
+	if word == "laneboss" {
 		return true
 	}
 	if _, known := operandWriters[word]; known {

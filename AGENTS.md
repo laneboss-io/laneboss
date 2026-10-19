@@ -1,7 +1,7 @@
 # Bootstrap checklist for an agent
 
 Use the Go launcher documented in [docs/getting-started.md](docs/getting-started.md):
-Laneboss `0.6.0-dev4` at `8408e57`, with embedded protocol `1.3.0`. Read the
+Laneboss `0.7.0`, with embedded protocol `1.3.0`. Read the
 active brief and configuration rules completely before acting. This checklist
 does not expand the authority granted by that brief.
 
@@ -58,8 +58,8 @@ to enforce that order.
   resolve the new scratch directory. An existing binding/configuration means
   use the isolated checker; preserve the existing data.
 - [ ] **Install:** run `sh scripts/install.sh`, then `laneboss --version`.
-  Verify `install.json.installed` is `0.6.0-dev4`, and that the version result
-  says `program: laneboss`, `version: 0.6.0-dev4`, `protocol_version: 1.3.0`.
+  Verify `install.json.installed` is `0.7.0`, and that the version result
+  says `program: laneboss`, `version: 0.7.0`, `protocol_version: 1.3.0`.
   Read the saved lane start/resume/mark/clean help and verify the guide's flags.
   Missing Go, unavailable downloads or a version mismatch stops the bootstrap.
 - [ ] **Configuration:** copy `examples/minimal` to

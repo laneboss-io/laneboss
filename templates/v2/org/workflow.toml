@@ -1,0 +1,86 @@
+# The twelve initial workflow entries. Ordinary tools remain blacklist-only.
+# Existing orgs adopt changed source bytes only through the D6 transaction.
+
+[[blacklist]]
+id = "raw-codex-exec"
+text = "Starting a raw Codex agent session bypasses the managed lane lifecycle."
+instead = "laneboss lane start / laneboss lane resume / laneboss lane turn"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-claude-p"
+text = "Starting a raw Claude print agent session bypasses the lane lifecycle."
+instead = "laneboss lane start / laneboss lane resume / laneboss lane turn"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-claude-print"
+text = "Starting a raw Claude print agent session bypasses the lane lifecycle."
+instead = "laneboss lane start / laneboss lane resume / laneboss lane turn"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-claudock-run"
+text = "Starting a raw Claudock agent session bypasses the lane lifecycle."
+instead = "laneboss lane start / laneboss lane resume / laneboss lane turn"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-tmux-new-session"
+text = "Using tmux new-session to launch a raw agent session bypasses lane start. Private build or test sessions are ordinary work."
+instead = "laneboss lane start"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-tmux-new"
+text = "Using tmux new to launch a raw agent session bypasses lane start. Private build or test sessions are ordinary work."
+instead = "laneboss lane start"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-tmux-kill-session"
+text = "Using tmux kill-session to stop a managed or raw agent session bypasses lane stop. Private build or test sessions are ordinary work."
+instead = "laneboss lane stop"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-tmux-send-keys"
+text = "Using tmux send-keys to control an agent session bypasses lane attach. Private build or test sessions are ordinary work."
+instead = "laneboss lane attach"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-tmux-attach"
+text = "Using tmux attach to control an agent session bypasses lane attach. Private build or test sessions are ordinary work."
+instead = "laneboss lane attach"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-tmux-attach-session"
+text = "Using tmux attach-session to control an agent session bypasses lane attach. Private build or test sessions are ordinary work."
+instead = "laneboss lane attach"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-aws-run-instances"
+text = "Creating a raw EC2 test machine bypasses the managed test-machine workflow."
+instead = "laneboss box"
+band = "refuse"
+critical = false
+
+[[blacklist]]
+id = "raw-gcloud-instances-create"
+text = "Creating a raw Compute Engine test machine bypasses the managed test-machine workflow."
+instead = "laneboss box"
+band = "refuse"
+critical = false

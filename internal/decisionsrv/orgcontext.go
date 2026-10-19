@@ -14,6 +14,10 @@ import (
 
 const maxTextBytes = 8 << 20
 
+// DefaultStoreRelativePath is the decision store's default path below .laneboss.
+// Org inspection uses this exact path to distinguish the store from text sources.
+const DefaultStoreRelativePath = "shared/services/decisions.sqlite"
+
 func readRegular(path string, limit int) (string, error) {
 	fd, e := syscall.Open(path, syscall.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
 	if e != nil {
@@ -159,7 +163,7 @@ func openOrg(directory string) (*orgContext, error) {
 		return nil, invalid("cannot read history service settings")
 	}
 	o := &orgContext{root: root, home: home, history: history}
-	db, socket := "shared/services/decisions.sqlite", "shared/services/history.sock"
+	db, socket := DefaultStoreRelativePath, "shared/services/history.sock"
 	if v, ok := history["db"]; ok {
 		db = str(v)
 	}

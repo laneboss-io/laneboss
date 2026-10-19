@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"laneboss.io/laneboss/internal/cliargs"
+	"laneboss.io/laneboss/internal/instancename"
 )
 
 const rolesPath = ".laneboss/shared/services/discord-roles.toml"
@@ -90,7 +91,7 @@ type instance struct {
 
 func readInstance(files *orgFiles, name string) (instance, error) {
 	var agent instance
-	if _, err := checkedString(name, "instance", namePattern); err != nil {
+	if _, err := checkedString(name, "instance", instancename.Expression); err != nil {
 		return agent, err
 	}
 	agent.relative = ".laneboss/instances/" + name + "/instance.toml"
@@ -192,7 +193,7 @@ func readRoles(files *orgFiles, allowMissing bool) (result map[string]Role, fail
 	instances, channels := map[string]bool{}, map[string]bool{}
 	fields := []string{"instance", "channel_id", "channel_name", "members", "state_file", "events_file", "form_doorbell"}
 	for _, name := range sortedNames(entries) {
-		if _, err := checkedString(name, "Discord role", namePattern); err != nil {
+		if _, err := checkedString(name, "Discord role", instancename.Expression); err != nil {
 			return nil, err
 		}
 		entry, ok := entries[name].(map[string]any)
@@ -200,7 +201,7 @@ func readRoles(files *orgFiles, allowMissing bool) (result map[string]Role, fail
 			return nil, refused("each Discord role must have exactly the documented role fields")
 		}
 		role := Role{Name: name}
-		role.Instance, err = checkedString(entry["instance"], "role instance", namePattern)
+		role.Instance, err = checkedString(entry["instance"], "role instance", instancename.Expression)
 		if err != nil {
 			return nil, err
 		}
@@ -387,8 +388,11 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if code, handled := runTestProbe(args, stdout, stderr); handled {
 		return code
 	}
+	if args[0] == "read" {
+		return runRead(args[1:], stdout, stderr)
+	}
 	if args[0] == "-h" || args[0] == "--help" {
-		fmt.Fprintln(stdout, "usage: laneboss org channel add ORG INSTANCE (--channel-id ID | --create) [--member ID:AUTHORITY] [--role-id ID:AUTHORITY] [--dry-run]")
+		fmt.Fprintln(stdout, "usage: laneboss org channel add ORG INSTANCE (--channel-id ID | --create) [--member ID:AUTHORITY] [--role-id ID:AUTHORITY] [--dry-run]\n       laneboss org channel read ORG --json")
 		return 0
 	}
 	if args[0] != "add" {

@@ -1,0 +1,67 @@
+# Synthetic, credential-free sources copied over init's real-runner defaults.
+schema_version = 1
+name = "demo"
+organisation = "demo"
+description = "DEMO: shop-api and shop-web; no AI-service requests."
+rules = ["rules/standing.md"]
+
+[lanes]
+budget_minutes = 10
+quiet_seconds = 120
+stop_grace_seconds = 10
+
+[runners.agent]
+command = ["demo-agent", "run", "--mode", "finish", "--work", "@WORK@",
+           "--lane", "{lane}", "--model", "{model}", "--brief-file", "{brief}"]
+resume = ["demo-agent", "resume", "--mode", "finish", "--work", "@WORK@",
+          "--lane", "{lane}", "--model", "{model}", "--message-file", "{message}"]
+accounts = []
+records = [{format = "text", paths = ["{log}"]}]
+
+[runners.held]
+command = ["demo-agent", "run", "--mode", "hold", "--work", "@WORK@",
+           "--lane", "{lane}", "--model", "{model}", "--brief-file", "{brief}"]
+accounts = []
+records = [{format = "text", paths = ["{log}"]}]
+
+[runners.top]
+command = ["demo-agent", "run", "--mode", "hold", "--work", "@WORK@",
+           "--lane", "{lane}", "--model", "{model}", "--brief-file", "{brief}"]
+accounts = []
+records = [{format = "text", paths = ["{log}"]}]
+
+[runners.stream]
+command = ["demo-agent", "run", "--mode", "hold", "--work", "@WORK@",
+           "--lane", "{lane}", "--model", "{model}", "--brief-file", "{brief}"]
+accounts = []
+records = [{format = "text", paths = ["{log}"]}]
+
+# A file-backed L6 launch identity; start --role registers its real parent PID.
+# It prints a briefing and starts no model request.
+[supervisors.bootstrap]
+level = 6
+runner = "top"
+projects = ["shop-api", "shop-web"]
+
+[[guards]]
+name = "example-guard"
+kind = "hook"
+pattern = '^example-guard: refused '
+
+[[routing.mechanical]]
+runner = "agent"
+model = "example-model-small-1"
+
+[[routing.standard]]
+runner = "agent"
+model = "example-model-medium-1"
+effort = "high"
+
+[[routing.hard]]
+runner = "agent"
+model = "example-model-large-1"
+
+[[routing.review]]
+runner = "agent"
+model = "example-model-large-1"
+effort = "max"

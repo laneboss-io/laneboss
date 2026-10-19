@@ -8,6 +8,11 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/caller/records"
+	"laneboss.io/laneboss/internal/observation"
+	"laneboss.io/laneboss/internal/rolepolicy"
+	"laneboss.io/laneboss/internal/settings"
 )
 
 func checkNumbers(v any) any {
@@ -172,7 +177,7 @@ func lanePayloads() map[string]map[string]validator {
 	commit := grammar("[0-9a-f]{40}|[0-9a-f]{64}")
 	sequence := integer(1, 999999999)
 	file := exact(map[string]validator{"path": eventAbsolute, "sha256": digest})
-	chosen := exact(map[string]validator{"runner": choice("routing", "supervisor", "previous"), "model": choice("routing", "supervisor", "previous"), "effort": null(choice("routing", "supervisor", "previous")), "account": null(choice("supervisor", "default", "previous", "room"))})
+	chosen := exact(map[string]validator{"runner": choice("routing", "supervisor", "previous", "settings"), "model": choice("routing", "supervisor", "previous", "settings"), "effort": null(choice("routing", "supervisor", "previous", "settings")), "account": null(choice("supervisor", "default", "previous", "room", "settings"))})
 	position := exact(map[string]validator{"path": recordPath, "line": integer(1, 1<<62), "offset": integer(0, 1<<62), "item": integer(0, 1000000)})
 	start := map[string]validator{"run": run, "how": choice("start", "resume", "reuse"), "launch": launch, "runner": name, "model": model, "effort": null(token), "account": null(account), "chosen_by": chosen, "difficulty": null(choice("mechanical", "standard", "hard", "review")), "project": null(name), "worktree": eventAbsolute, "branch": null(branch), "base": null(commit), "repository": null(eventAbsolute), "budget_minutes": amount(0, 10080, true), "quiet_seconds": integer(1, 604800), "brief": file, "log": eventAbsolute, "session": exact(map[string]validator{"socket": eventAbsolute, "name": grammar("[a-z0-9][a-z0-9_-]{0,63}")}), "touches": eventTouches, "claims": null(eventAbsolute)}
 	adopted := map[string]validator{}
@@ -188,9 +193,15 @@ func lanePayloads() map[string]map[string]validator {
 		"lane.resumed": {"run": integer(2, 1000000), "after": null(choice("exit", "timeout", "stopped", "limit", "dropped", "hook-config", "lost")), "message": null(file)},
 		"lane.ended":   {"run": run, "reason": choice("exit", "timeout", "stopped", "limit", "dropped", "hook-config"), "exit_code": null(integer(0, 255)), "signal": null(integer(1, 127)), "duration_seconds": amount(0, 1e9, false), "pattern": null(grammar(`(limit|dropped)_patterns\[[0-9]{1,4}\]`)), "classification": null(choice("matched", "unmatched", "timed-out")), "survivors": integer(0, 1000000)},
 		"lane.timeout": {"run": run, "budget_minutes": amount(0, 10080, true), "elapsed_seconds": amount(0, 1e9, false)}, "lane.stuck": {"run": run, "quiet_seconds": integer(1, 604800), "output_bytes": integer(0, 1<<62)}, "lane.lost": {"run": run, "survivors": integer(0, 1000000)}, "lane.gone": {"run": run, "launch": launch}, "lane.cleaned": {"removed": boundedArray(cleanItem(false), 0, 64, false), "kept": boundedArray(cleanItem(true), 0, 64, false)},
-		"lane.mailed": {"sequence": sequence, "sender": grammar(accountRule), "sha256": digest, "bytes": integer(1, 262144)}, "lane.delivered": {"run": integer(2, 1000000), "sequences": boundedArray(sequence, 1, 64, true)}, "lane.returned": {"run": integer(2, 1000000), "sequences": boundedArray(sequence, 1, 64, true), "reason": choice("exit", "timeout", "stopped", "limit", "dropped", "hook-config", "lost", "gone", "cut")},
+		"lane.mailed": {"sequence": sequence, "sender": func(value any, path string) error {
+			id, ok := value.(string)
+			if !ok || !records.ValidSender(id) {
+				return failure(path, "must be a sender label or principal node id")
+			}
+			return nil
+		}, "sha256": digest, "bytes": integer(1, 262144)}, "lane.delivered": {"run": integer(2, 1000000), "sequences": boundedArray(sequence, 1, 64, true)}, "lane.returned": {"run": integer(2, 1000000), "sequences": boundedArray(sequence, 1, 64, true), "reason": choice("exit", "timeout", "stopped", "limit", "dropped", "hook-config", "lost", "gone", "cut")},
 		"lane.refusal":              {"run": run, "refusal": grammar("rf-[0-9a-f]{24}"), "guard": grammar(accountRule), "kind": null(choice("hook", "permission", "harness")), "format": choice("claude-code", "text"), "via": choice("tool-result", "hook", "log"), "hook": null(exact(map[string]validator{"event": null(grammar("[A-Za-z][A-Za-z0-9_]{0,63}")), "name": null(grammar("[A-Za-z0-9][A-Za-z0-9._:/ -]{0,127}"))})), "tool": null(grammar("[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")), "at": null(eventTimestamp), "command": null(excerpt), "message": excerpt, "targets": boundedArray(recordPath, 0, 1024, true), "call": null(exact(map[string]validator{"id": null(grammar("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")), "record": null(position)})), "record": position, "workarounds_checked": boolean},
-		"lane.workaround_suspected": {"run": run, "suspicion": grammar("ws-[0-9a-f]{24}"), "refusal": grammar("rf-[0-9a-f]{24}"), "how": boundedArray(choice("reworded", "shell-write"), 1, 2, true), "paths": boundedArray(suspectedPath, 1, 1024, true), "tool": grammar("[A-Za-z0-9][A-Za-z0-9._:-]{0,63}"), "at": null(eventTimestamp), "command": excerpt, "call": exact(map[string]validator{"id": null(grammar("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")), "record": position}), "similarity": null(exact(map[string]validator{"containment": amount(0, 1, false), "coverage": amount(0, 1, false)}))},
+		"lane.workaround_suspected": {"run": run, "suspicion": grammar("ws-[0-9a-f]{24}"), "refusal": null(grammar("rf-[0-9a-f]{24}")), "how": boundedArray(choice("reworded", "shell-write", "shell-substitution-in-text"), 1, 2, true), "paths": boundedArray(suspectedPath, 1, 1024, true), "tool": grammar("[A-Za-z0-9][A-Za-z0-9._:-]{0,63}"), "at": null(eventTimestamp), "command": excerpt, "call": exact(map[string]validator{"id": null(grammar("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")), "record": position}), "similarity": null(exact(map[string]validator{"containment": amount(0, 1, false), "coverage": amount(0, 1, false)}))},
 		"lane.refusal_reviewed":     {"refusal": grammar("rf-[0-9a-f]{24}"), "path": suspectedPath, "verdict": choice("clean", "workaround"), "suspicions": boundedArray(grammar("ws-[0-9a-f]{24}"), 1, 4096, true), "note": null(eventNote)},
 		"lane.ingested":             {"lane": grammar("[a-z0-9][a-z0-9._-]{0,63}"), "rows_added": integer(0, 4096), "rows_existing": integer(0, 4096), "rows": boundedArray(exact(map[string]validator{"id": grammar(`[a-z0-9][a-z0-9-]{0,31}/[a-z0-9][a-z0-9._-]{0,63}/(?:report|events|attachment)/[0-9a-f]{16}`), "sha256": digest}), 0, 4096, false)},
 	}
@@ -205,6 +216,41 @@ func validateLane(event map[string]any) error {
 		return fmt.Errorf("lane: is required for lane events")
 	}
 	p := Object(checkNumbers(event["payload"]))
+	if kind == "lane.mailed" {
+		if _, exists := p["legacy_relationship"]; exists {
+			fields["legacy_relationship"] = func(value any, path string) error {
+				if value != true {
+					return failure(path, "must be true when present")
+				}
+				return nil
+			}
+		}
+	}
+	if kind == "lane.started" || kind == "lane.adopted" {
+		if _, exists := p["settings"]; exists {
+			fields["settings"] = settings.EventField(p)
+		}
+		if err := rolepolicy.ValidateEvent(p); err != nil {
+			return err
+		}
+		if _, exists := p["role_context"]; exists {
+			fields["role"] = rolepolicy.EventField(p, "role")
+			fields["role_context"] = rolepolicy.EventField(p, "role_context")
+		}
+		if err := records.Validate(p); err != nil {
+			return fmt.Errorf("payload report line: %s", err)
+		}
+		for _, key := range []string{"level", "level_source", "starter"} {
+			if _, ok := p[key]; ok {
+				fields[key] = func(value any, path string) error {
+					if err := records.Field(key, value); err != nil {
+						return failure(path, err.Error())
+					}
+					return nil
+				}
+			}
+		}
+	}
 	if kind == "lane.state" {
 		if _, ok := p["not_covered"]; ok {
 			fields["not_covered"] = boundedArray(exact(map[string]validator{"run": integer(1, 1000000), "reason": grammar("[a-z][a-z-]{0,39}"), "path": null(text("", 4096))}), 0, 4096, false)
@@ -338,6 +384,9 @@ func laneConsistency(kind string, p map[string]any) error {
 			if x == "reworded" {
 				reworded = true
 			}
+		}
+		if err := observation.Check(p); err != nil {
+			return fmt.Errorf("%s %s", kind, err.Error())
 		}
 		if (p["similarity"] != nil) != reworded {
 			return fail("similarity")

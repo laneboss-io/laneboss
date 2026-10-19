@@ -1,0 +1,51 @@
+[Unit]
+Description=Laneboss fixed administrator helper (%i)
+After=local-fs.target
+Before=laneboss-service@%i.service
+
+[Service]
+Type=simple
+# Template instances default to system-<template>.slice; the helper, peer and client cgroup checks
+# expect /system.slice/<unit>, so pin the slice.
+Slice=system.slice
+# No User= line: system units run as root by default. With User= set (even User=root) and
+# NoNewPrivileges=yes, systemd 255 starts the process without CAP_SETUID in its permitted set
+# (measured on box lb-v2-capbisect1: removing either line restores it), and the helper then
+# cannot drop a gate child's UID. NoNewPrivileges and the bounding set below stay as they are.
+Group=root
+ExecStart=@BINARY@ internal helper --config %i
+UMask=0077
+NoNewPrivileges=yes
+# setns(2) into a gate child's mount namespace (the credential view, admin/credobj_linux.go) needs CAP_SYS_CHROOT
+# beside CAP_SYS_ADMIN; without it every credential delivery stopped there (box 74).
+# Controlled egress uses CAP_NET_ADMIN for veth, routes and nftables; private
+# DNS on the host-side veth uses CAP_NET_BIND_SERVICE for TCP/UDP port 53.
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER CAP_SETGID CAP_SETUID CAP_SYS_PTRACE CAP_KILL CAP_SYS_ADMIN CAP_SYS_CHROOT CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+LockPersonality=yes
+RestrictRealtime=yes
+# Keep the root helper's creation-mode restriction. Native mount pins use a
+# descriptor-relative, no-link component walk when this policy denies openat2.
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+Delegate=cpu memory pids
+ReadWritePaths= /var/lib/laneboss-v2/helper/%i /run/laneboss-v2/%i
+ReadWritePaths= /var/lib/laneboss-v2/lanes/%i
+# Native credential publication must stay within this one writable mount.
+# The service and broker can write only their own private child directories.
+ReadWritePaths= @CRED@
+ReadWritePaths=/sys/fs/cgroup
+KillMode=control-group
+TimeoutStopSec=30
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

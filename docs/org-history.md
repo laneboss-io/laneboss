@@ -112,7 +112,14 @@ report range are durably recorded. A lane whose end remains pending can be
 caught up by a later `ingest-lane` call.
 
 Call the seam again after supervisor acceptance/merge/abandonment marks and
-after refusal scans to capture newly recorded rewards. Manual use is:
+after refusal scans to capture newly recorded rewards.
+
+`lane archive` keeps `output.log` and run metadata for this later ingest. Its
+diagnostic-log collection excludes configured raw-record paths within the lane
+directory. Raw records that existed only in a removed worktree are available in
+the tar; this history seam continues to use the retained `output.log` span.
+
+Manual use is:
 
 ```sh
 laneboss decisions ingest-lane --db example/.laneboss/shared/services/decisions.sqlite \

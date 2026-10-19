@@ -581,12 +581,14 @@ func configurationSchema() validator {
 	}
 	route := checkTable(map[string]validator{"runner": name, "model": checkModel, "effort": name}, "runner", "model")
 	return checkTable(map[string]validator{
-		"schema_version": checkVersion, "name": name, "description": text, "organisation": name,
+		"schema_version": checkVersion, "name": name, "description": text, "organisation": name, "org_dir": checkAbsolute,
+		"archive_command": checkTemplate(nil, true), "identity_service": checkTable(map[string]validator{"runtime_root": checkAbsolute}),
 		"rules": checkArray(checkRulesPath, false, true), "organisation_rules": checkArray(checkRelative, false, true), "secrets": secretNames(),
 		"owner_channel": name, "test_environment": name, "state": checkTable(map[string]validator{"path": checkAbsolute}),
-		"lanes": checkTable(map[string]validator{"budget_minutes": checkBudget, "quiet_seconds": checkInteger(1, 604800), "stop_grace_seconds": checkInteger(1, 600), "lock_wait_seconds": checkInteger(1, 3600), "room_timeout_seconds": checkInteger(1, 60)}),
-		"turns": checkTable(map[string]validator{"idle_message": checkRelative, "idle_seconds": checkInteger(1, 604800), "poll_seconds": checkInteger(1, 3600), "backoff_seconds": checkInteger(1, 604800), "limit_backoff_seconds": checkInteger(1, 604800)}),
-		"disk":  disk, "runners": checkNamed(checkRunner, 1), "supervisors": checkNamed(checkSupervisor, 0),
+		"dashboard": checkTable(map[string]validator{"org": checkAbsolute, "board": checkRelative}),
+		"lanes":     checkTable(map[string]validator{"budget_minutes": checkBudget, "quiet_seconds": checkInteger(1, 604800), "stop_grace_seconds": checkInteger(1, 600), "lock_wait_seconds": checkInteger(1, 3600), "room_timeout_seconds": checkInteger(1, 60), "sandbox": checkChoice("off", "laneboss-files"), "sandbox_deny_extra": checkArray(checkAbsolute, false, true)}),
+		"turns":     checkTable(map[string]validator{"idle_message": checkRelative, "idle_seconds": checkInteger(1, 604800), "poll_seconds": checkInteger(1, 3600), "backoff_seconds": checkInteger(1, 604800), "limit_backoff_seconds": checkInteger(1, 604800)}),
+		"disk":      disk, "runners": checkNamed(checkRunner, 1), "supervisors": checkNamed(checkSupervisor, 0),
 		"judges":    checkNamed(checkTable(map[string]validator{"description": text, "command": checkTemplate(nil, true), "timeout_seconds": checkInteger(1, 60)}, "command"), 0),
 		"resources": checkNamed(checkResource, 0), "routing": checkTable(map[string]validator{"mechanical": checkArray(route, true, false), "standard": checkArray(route, true, false), "hard": checkArray(route, true, false), "review": checkArray(route, true, false)}),
 		"test_environments": checkNamed(checkEnvironment, 0), "owner_channels": checkNamed(checkChannel, 0),

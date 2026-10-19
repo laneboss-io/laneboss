@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "scope": "Rows to append to the shared blacklist adversarial case table; commands are hook inputs only. Before running the boundary controls, review-369 must give its L3 instance a writable_repos entry of worktrees/lb-bl-adversarial-work (the resulting instance worktree is @WORKTREE@) so the event cwd does not widen the boundary.",
+  "cases": [
+    {
+      "id": "must-double-nested-env-chdir",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "directory_wrappers",
+      "fixture": "review-369",
+      "cwd": "@ORG@",
+      "command": "env -C @POLICY@ sh -c 'sh -c \"printf x > org.toml\"'"
+    },
+    {
+      "id": "control-double-nested-env-chdir",
+      "class": "directory_wrappers",
+      "kind": "control",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "env -C @WORKTREE@ sh -c 'sh -c \"printf x > result.txt\"'"
+    },
+    {
+      "id": "must-penta-nested-sh",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "directory_wrappers",
+      "fixture": "review-369",
+      "cwd": "@ORG@",
+      "command": "sh -c 'sh -c '\"'\"'sh -c '\"'\"'\"'\"'\"'\"'\"'\"'sh -c '\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'sh -c '\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'printf x > @POLICY@/org.toml'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"''\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"''\"'\"'\"'\"'\"'\"'\"'\"''\"'\"''"
+    },
+    {
+      "id": "control-penta-nested-sh",
+      "class": "directory_wrappers",
+      "kind": "control",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "sh -c 'sh -c '\"'\"'sh -c '\"'\"'\"'\"'\"'\"'\"'\"'sh -c '\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'sh -c '\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'printf x > result.txt'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"''\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"'\"''\"'\"'\"'\"'\"'\"'\"'\"''\"'\"''"
+    },
+    {
+      "id": "must-ansic-redirect",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "eval_definitions",
+      "fixture": "review-369",
+      "cwd": "@ORG@",
+      "command": "sh -c $'printf x > @POLICY@/org.toml'"
+    },
+    {
+      "id": "must-eval-ansic-redirect",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "eval_definitions",
+      "fixture": "review-369",
+      "cwd": "@ORG@",
+      "command": "eval $'printf x > @POLICY@/org.toml'"
+    },
+    {
+      "id": "control-ansic-redirect",
+      "class": "eval_definitions",
+      "kind": "control",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "sh -c $'echo use > arrow'"
+    },
+    {
+      "id": "must-laneboss-org-render",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "write_forms",
+      "fixture": "review-369",
+      "cwd": "@ORG@",
+      "command": "laneboss org render @ORG@"
+    },
+    {
+      "id": "must-laneboss-decisions-add",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "write_forms",
+      "fixture": "review-369",
+      "cwd": "@ORG@",
+      "command": "laneboss decisions add --db @POLICY@/shared/services/decisions.sqlite --file @PAYLOAD@"
+    },
+    {
+      "id": "control-laneboss-read",
+      "class": "write_forms",
+      "kind": "control",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "laneboss state events --config adv"
+    },
+    {
+      "id": "must-blacklist-boundary-outside",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "write_forms",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "printf x > @OUTSIDE@/boundary.txt"
+    },
+    {
+      "id": "must-blacklist-boundary-grant-edit",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "write_forms",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "printf x > @POLICY@/shared/hooks/boundary.toml"
+    },
+    {
+      "id": "control-blacklist-boundary-own-worktree",
+      "class": "write_forms",
+      "kind": "control",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "printf x > @WORKTREE@/own-boundary.txt"
+    },
+    {
+      "id": "must-failed-cd-tmux-protected",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "directory_wrappers",
+      "fixture": "review-369",
+      "cwd": "@ORG@",
+      "command": "cd \"$DIR\" && tmux new-session -d 'printf x > @POLICY@/org.toml'"
+    },
+    {
+      "id": "must-failed-cd-eval-push",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "directory_wrappers",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "cd \"$DIR\" && eval \"git push origin main\""
+    },
+    {
+      "id": "must-failed-cd-lane-write",
+      "class": "MUST_REFUSE",
+      "kind": "must_refuse",
+      "family": "write_forms",
+      "fixture": "review-369",
+      "cwd": "@WORKTREE@",
+      "command": "cd \"$DIR\" && make > /tmp/lb-blacklist-p2.log"
+    }
+  ]
+}

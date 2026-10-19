@@ -1,10 +1,64 @@
 # Getting started with Laneboss
 
-This walkthrough is for a person and their agent using the Go launcher at
-`8408e57` (Laneboss `0.6.0-dev4`, embedded protocol `1.3.0`). It installs the
+## Quick start
+
+After installing the launcher, put `claudock`, `claude` or `codex` on `PATH`
+and use an unbound shell. Point init at existing Git working repositories:
+
+```console
+laneboss init myorg --project ~/code/a --project ~/code/b
+laneboss start --config myorg --role top
+```
+
+Init creates `~/.config/laneboss/configs/myorg/` with `config.toml`, one
+project TOML per repository and standing rules, plus an L3–L6 org under
+`~/.config/laneboss/orgs/myorg/` with its supervisor instances and rendered
+hooks. It reports every created path, its chosen runner and the next command.
+It chooses the first executable on `PATH` in this order: `claudock`, `claude`,
+`codex`. Existing configurations and orgs are preserved. Init starts no agent,
+contacts no service and writes no account names or secret values. `start`
+prints the supervisor briefing. For Claudock, the owner supplies their profile
+names in `runners.claudock.accounts` before dispatching a real lane.
+
+## What init does, step by step
+
+Use `--runner` to select one explicitly and `--top-level 6` to use L6 instead
+of the default L5. Top levels are 5 and 6, matching project landing authority.
+Project names come from repository directory names and follow the configuration
+name rule. Repeated repositories or names are refused.
+
+Existing configurations and orgs are preserved: repeating init refuses to
+overwrite them. Files are staged, validated and rendered for their final
+location before publication; an ordinary failure rolls back both destinations.
+Init honors `LANEBOSS_HOME`, `LANEBOSS_STATE_HOME` and an existing session
+binding. Run it from a separate unbound shell when creating another scope.
+The two publication renames are separate operations; interruption by a process
+kill or power loss can require inspecting the destinations before retrying.
+
+The initial model routes use `claude-sonnet-5-5` for Claude/Claudock and
+`gpt-6.1-sol` for Codex; review the routes and instance policy for your setup.
+Codex starts with its generated hook home; its resume template is not supplied
+because this version does not establish a Codex conversation identifier.
+The printed `start` command reads the supervisor briefing; it starts no AI
+session. Use `config validate myorg`, `org validate` on the printed org path,
+and `doctor --config myorg` to inspect prerequisites before dispatching work.
+
+The walkthrough below explains the configuration, project, org and briefing
+steps separately. Its runner is a credential-free stand-in; init instead
+selects an installed real runner and leaves authentication to the owner.
+
+This walkthrough is for a person and their agent using the Go launcher
+(Laneboss `0.7.0`, embedded protocol `1.3.0`). It installs the
 launcher, defines a supervisor, runs and resumes a lane, verifies its result,
 records a decision and collects its worktree. It also creates an org and shows
 the dashboard available in this version.
+
+The release one-liner, `curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh`,
+installs both Laneboss and checksum-verified claudock-cli `0.1.0`, without Go. Pass `--without-claudock`
+after `sh -s --` for Codex-only use. An existing matching claudock is kept; a different version requires
+`--upgrade-claudock`. [install.md](install.md) covers these options and fresh-box release verification.
+The shell blocks below check the lower-level Laneboss source installer and its stand-in runner;
+they do not test the release downloader or install claudock-cli.
 
 All walkthrough commands work on Linux and macOS. Use a POSIX shell, Git, tmux,
 Go and jq on `PATH`. Go must be able to obtain the pinned Go 1.26.0 toolchain and
@@ -16,8 +70,11 @@ below from its repository root, in order, in the same shell.
 The first lane uses the shipped **example-agent**. It reads a real rendered
 brief and exits; it does not call an AI service. This lets you check the launcher
 without signing in, sending credentials or spending on model requests. The
-[real-agent setup](#use-claudock-cli-for-a-real-agent) uses **claudock-cli**, the
-Linux and macOS command-line product whose executable is `claudock`.
+[real-agent setup](#use-a-real-agent) covers Claude Code, Codex and
+**claudock-cli**. The installer includes claudock-cli by default, and it is the
+recommended setup for Claude users. It is optional: direct Claude Code and
+Codex runners are alternatives, and Codex users can install with
+`--without-claudock`.
 
 Every command below must exit 0. The `jq -e` assertions print `true`; a false,
 missing or malformed result exits nonzero. Other checks are silent on success.
@@ -39,6 +96,7 @@ test -z "${LANEBOSS_CONFIG:-}"
 test -z "${LANEBOSS_HOME:-}"
 test -z "${LANEBOSS_STATE_HOME:-}"
 test ! -e "$HOME/.config/laneboss/configs/example"
+test ! -e /var/run/laneboss/example
 bootstrap=$(mktemp -d "${TMPDIR:-/tmp}/lb-docs-bootstrap.XXXXXX")
 bootstrap=$(CDPATH= cd -- "$bootstrap" && pwd -P)
 export PATH="$HOME/.local/bin:$PATH"
@@ -53,11 +111,11 @@ The checks inspect whether variables are set without printing their values.
 
 ```sh
 sh scripts/install.sh > "$bootstrap/install.json"
-jq -e '.installed == "0.6.0-dev4" and
+jq -e '.installed == "0.7.0" and
        (.directory | type == "string") and (.link | type == "string")' \
     "$bootstrap/install.json"
 laneboss --version > "$bootstrap/version.json"
-jq -e '.program == "laneboss" and .version == "0.6.0-dev4" and
+jq -e '.program == "laneboss" and .version == "0.7.0" and
        .protocol_version == "1.3.0"' "$bootstrap/version.json"
 ```
 
@@ -95,13 +153,27 @@ mkdir -p "$HOME/.config/laneboss/configs" "$HOME/.local/bin"
 cp -R examples/minimal "$HOME/.config/laneboss/configs/example"
 cp examples/minimal/bin/example-agent "$HOME/.local/bin/example-agent"
 chmod 755 "$HOME/.local/bin/example-agent"
+laneboss org init "$bootstrap/roles-org" --levels 3 --name bootstrap-roles \
+    > "$bootstrap/roles-org-init.json"
+jq -e '.ok == true and .changed > 0' "$bootstrap/roles-org-init.json"
+laneboss org roles init "$bootstrap/roles-org" > "$bootstrap/roles-library-init.json"
+jq -e '.ok == true and .changed > 0' "$bootstrap/roles-library-init.json"
+cp examples/bootstrap/drivers.toml "$bootstrap/roles-org/.laneboss/L3/roles/executor.toml"
+jq -Rrs --arg org "$bootstrap/roles-org" \
+    'gsub("\"@ORG_DIR@\""; ($org | tojson))' \
+    examples/bootstrap/org-binding.toml.in > "$bootstrap/org-binding.toml"
+cat "$bootstrap/org-binding.toml" examples/minimal/config.toml \
+    > "$HOME/.config/laneboss/configs/example/config.toml"
 laneboss config validate example > "$bootstrap/config-valid.json"
 jq -e '.valid == true and .configs == ["example"]' \
     "$bootstrap/config-valid.json"
 ```
 
-Expected: `true`. Validation reads `config.toml`, the project TOML files and the
-listed rule files; it does not launch a runner. The example's secret names and
+Expected: three `true` lines. Explicit role installation supplies editable library sources, and the kept
+driver source explicitly permits `example-agent` for its L3 executor role.
+The binding template selects that org without adding a lane-supplied policy path.
+Validation reads `config.toml`, the project TOML files, listed rules and org roles;
+it does not launch a runner. The example's secret names and
 cloud settings are invented data. This walkthrough neither needs a secret nor
 launches a cloud machine; test-machine and cost fields are not automation in
 this version.
@@ -160,7 +232,9 @@ The copied configuration already defines `[supervisors.top]`: level 5, runner
 briefing in human and machine forms:
 
 ```sh
-laneboss start --config example --role top > "$bootstrap/supervisor.md"
+laneboss start --config example --role top > "$bootstrap/supervisor.md" 2> "$bootstrap/registration-notice.txt"
+grep -Fxq 'notice: no identity service is configured; R25 is not enforced (legacy open registration).' "$bootstrap/registration-notice.txt"
+test "$(wc -l < "$bootstrap/registration-notice.txt")" -eq 1
 grep -Fxq '# Laneboss session briefing' "$bootstrap/supervisor.md"
 grep -Fxq -- '- Role: top' "$bootstrap/supervisor.md"
 grep -Fxq -- '- Level: L5 (top supervisor)' "$bootstrap/supervisor.md"
@@ -186,11 +260,12 @@ do not restrict the supervisor to that project when it launches this demo.
 
 ```sh
 laneboss lane start --config example --project demo --lane demo-first \
-    --brief examples/bootstrap/brief.md --difficulty standard --budget 1 \
+    --brief examples/bootstrap/brief.md --role executor --level 3 --difficulty standard --budget 1 \
     > "$bootstrap/start.json"
 jq -e --arg worktree "$bootstrap/repo-demo-first" \
     '.lane == "demo-first" and .run == 1 and .how == "start" and
      .runner == "agent" and .model == "example-model-medium-1" and
+     .role == "executor" and .role_context.level == 3 and
      .effort == "high" and .account == "example-main" and
      .branch == "demo-first" and .worktree == $worktree and
      (.brief.path | type == "string") and (.event.seq > 0)' \
@@ -206,7 +281,9 @@ jq -es 'any(.[]; .kind == "lane.started" and .payload.run == 1) and
 Expected: two `true` lines. `lane start` returns after the run has started in
 tmux; it does not wait for completion. It renders and keeps the brief, selects
 the standard route, creates branch `demo-first` and worktree
-`$bootstrap/repo-demo-first`, and records the start. `event tail` prints one event
+`$bootstrap/repo-demo-first`, and records the start and the selected role's source
+hashes. Shared and level policy and the executor template precede the original
+task in the rendered brief. `event tail` prints one event
 per line and stops only after seeing `lane.ended`; check the event's exit code,
 reason and survivor count, not just the tail command's exit 0.
 
@@ -348,11 +425,28 @@ is already contained in its base. The example guard scan covers the recorded
 text log; unreviewed suspected workarounds or uncovered records would prevent
 acceptance. Do not add `--accept-uncovered` just to make a failed check pass.
 
-Clean requires a stopped lane marked `merged` or `abandoned`, removes a clean
-launcher-created worktree without force, and deletes a merged branch when Git
-agrees it is merged. An abandoned branch is retained. With an existing directory
-supplied by `--worktree`, clean retains that directory. It keeps events, inputs,
-rendered briefs and logs. A cleaned lane cannot resume: create new work with a
+Clean requires a stopped lane marked `merged` or `abandoned` and first runs the
+same verified archival path as `lane archive`: report/log records, tar, manifest
+read-back and receipt must succeed before collection. Its existing result fields
+remain, with archive/manifest/receipt paths and verification details added.
+If the event store is temporarily read-only, clean still finishes the verified
+file-backed archive and returns `pending: true`: its verification/index/cleanup
+events wait durably in the lane queue. After writes are restored, `lane start
+--reuse` drains them before recording the next start. Archive failures still
+prevent removal.
+It removes a clean launcher-created worktree without force and deletes a merged
+branch when Git agrees it is merged. An abandoned branch is retained. With an
+existing directory supplied by `--worktree`, clean retains that directory. It
+also finishes when a managed worktree is already absent, off its recorded branch
+or without this lane's valid claim: the tar contains the report/logs, the worktree
+is kept with `missing` or `not-this-lane`, and nothing in that directory is removed.
+A symlink at the worktree path still refuses clean. A lane caller may collect
+lower-level lanes only when their recorded starter chain reaches the same
+caller life. Each parent's start/adoption event must precede its child; reusing
+a name does not transfer its old life's children to the new life. Unrelated
+supervisor subtrees and human-started lanes do not become its descendants.
+Clean keeps events, inputs, rendered briefs and raw runner records such as `output.log`;
+diagnostic logs are collected only after archival. A cleaned lane cannot resume: create new work with a
 new lane name, or explicitly reuse a finished lane by adding `--reuse` to a
 complete `laneboss lane start` command.
 The checker retains this demonstration's files as evidence rather than deleting
@@ -393,6 +487,13 @@ metadata here; no Keychain operation is needed on Linux. For a real Linux secret
 store, use the supported `file` kind with an absolute path outside the org; the
 store must be supplied separately. Never put secret values in org files.
 
+The only seeded hook policy is the twelve Laneboss-first blacklist entries in
+`org.toml`. Init writes no shared or level `hooks/rules.toml`, refusal catalog,
+starter examples or tool allowlist field. Add your own entries during bootstrap
+using [org-hooks.md](org-hooks.md#bootstrap-add-your-own-entries). Laneboss-file
+protections, including the decision store and `shared/services/`, and L3 lane
+boundaries are built in and remain active without those optional files.
+
 ### Levels
 
 | Level | Responsibility described by the template |
@@ -419,6 +520,13 @@ hook settings. The Go executable supplies the shared hook. Org-instance runner
 checks at lane start/resume, automatic report delivery, and the owner-channel
 gateway remain planned. [org.md](org.md) describes the tree, and
 [org-hooks.md](org-hooks.md) describes hook policy and refusal handling.
+
+The earlier demo configuration selects its small `roles-org` with `org_dir`.
+The separate org in this section demonstrates all levels and instances. For real
+lanes, choose an org-owned role explicitly and ensure its driver file permits
+the real runner; replacing the stand-in runner also requires reviewing that
+role's driver list. [org.md](org.md#role-library-and-lane-roles) explains migration,
+human principals and the per-role driver gate.
 
 ## 9. Read the dashboard
 
@@ -451,18 +559,85 @@ them: the cleaned `merged` record. Read `dashboard.md` for the human view and
 the writing probes that `doctor` performs. Its exit 0 alone is insufficient:
 check warnings and each `checks.read[].ok` as above.
 
-## Use claudock-cli for a real agent
+With no identity service configured, the role commands above deliberately use the
+0.7.0 open-registration bootstrap and emit the R25-not-enforced notice. The checker
+asserts that notice once and requires no installed system binding for `example`.
+For a configured service, the human first issues a ticket at its attested terminal;
+the persistent supervisor presents it with `--ticket-file PATH`. Keep that file
+outside prompts and repositories. See [configuration.md](configuration.md) for
+service setup and legacy activation.
 
-After the smoke test, install and configure
-[claudock-cli](https://github.com/laneboss-io/claudock-cli) and Claude Code using
-their own instructions. The portable executable is `claudock` on `PATH`; no
-desktop application is required. The owner chooses and signs in to a profile
-outside the public checkout. Authentication, billing and real model execution
-are a separate live setup, not part of the credential-free bootstrap check.
+## Use a real agent
 
-Replace the stand-in runner's `command`, `resume` and `accounts` with your
-reviewed CLI runner data. For example, the following fragment uses the invented
-subscription profile name `tutorial`; replace it with your own profile name:
+After the smoke test, choose a runner for your agent program. Laneboss can run
+Claude Code or Codex directly. The installer includes
+[claudock-cli](https://github.com/laneboss-io/claudock-cli) by default; it is the
+recommended setup for Claude users, especially for several Claude accounts and
+per-lane account selection. The wrapper is optional. Codex users can install
+with `--without-claudock` and use a direct Codex runner.
+If you used only the source walkthrough, install claudock-cli using
+[claudock.md](claudock.md#portable-cli-setup).
+
+Install and configure your chosen agent program using its own instructions.
+The owner signs in outside the public checkout. Authentication, billing and
+real model execution are a separate live setup, not part of the
+credential-free bootstrap check.
+
+Choose **one** of the following TOML fragments to replace the stand-in runner's
+`command`, `resume` and `accounts` in your private configuration. Each uses
+`[runners.agent]`, so the example's supervisor and project entries still name
+the same runner.
+
+### Claude Code directly (alternative)
+
+Use `claude` on `PATH` with the owner's existing Claude Code authentication:
+
+```toml
+[runners.agent]
+command = ["claude", "-p", "--session-id", "{session}",
+           "Read the file {brief} completely and carry out the task it describes.",
+           "--model", "{model}"]
+resume = ["claude", "-p", "--resume", "{session}",
+          "Read the file {message} completely and carry on from it.",
+          "--model", "{model}"]
+accounts = []
+```
+
+`-p` selects non-interactive execution. `{session}` establishes one identity
+with `--session-id` on start and reuses it with `--resume`. No wrapper profile
+is selected by this fragment.
+
+### Codex directly (alternative)
+
+Use `codex` on `PATH` with the owner's existing Codex authentication:
+
+```toml
+[runners.agent]
+command = ["codex", "--model", "{model}", "exec",
+           "Read the file {brief} completely and carry out the task it describes."]
+resume = ["codex", "--model", "{model}", "exec", "resume", "--last",
+          "Read the file {message} completely and carry on from it."]
+accounts = []
+```
+
+This follows the repository's `codex exec resume --last` runner example.
+Codex chooses its own session identity; this fragment omits `{session}` from
+both templates. `--last` resumes the most recent Codex conversation in the
+lane's working directory. Keep that directory dedicated to this lane and do
+not start another Codex conversation there before resuming. This fragment
+serves ordinary lanes; it cannot be used with `--turns`, which requires
+`{session}` in both templates and a prompt on standard input.
+
+<a id="use-claudock-cli-for-a-real-agent"></a>
+
+### claudock-cli (recommended for Claude users)
+
+claudock-cli is optional and included by default by the Laneboss installer.
+Use it for several Claude accounts and per-lane account selection. The portable
+executable is `claudock` on `PATH` on Linux and macOS; no desktop application
+is required. The owner chooses and signs in to a profile outside the public
+checkout. The following fragment uses the invented subscription profile name
+`tutorial`; replace it with your own profile name:
 
 ```toml
 [runners.agent]
@@ -475,13 +650,17 @@ resume = ["claudock", "run", "{account}", "--", "-p", "--resume", "{session}",
 accounts = ["tutorial"]
 ```
 
-The fragment belongs in a private configuration, not in the public source tree.
-Keep its rule files, supervisor entries and routing, but replace the invented
-`example-model-*` routes with **full model names supported by your agent
-program**. The profile selector fills `{account}`, and `--` separates Claudock
-arguments from Claude Code arguments. `{session}` establishes one identity on
-start and reuses that exact identity on resume. `{brief}` and `{message}` name
-kept files; they do not embed their document contents in an argument.
+The profile selector fills `{account}`, and `--` separates Claudock arguments
+from Claude Code arguments. `{session}` establishes one identity on start and
+reuses that exact identity on resume.
+
+### Validate the chosen runner
+
+These fragments belong in a private configuration, not in the public source
+tree. Keep its rule files, supervisor entries and routing, but replace the
+invented `example-model-*` routes with **full model names supported by your
+agent program**. In every fragment, `{brief}` and `{message}` name kept files;
+they do not embed their document contents in an argument.
 
 If you retain `records = [{format = "text", paths = ["{log}"]}]` from the demo,
 the scan covers only stdout/stderr. Configure the real runner's raw session
@@ -494,15 +673,50 @@ not attach the org instance or its hooks.
 Validate the edited configuration and rerun doctor using the same operations
 as step 3, then read the supervisor briefing and start a **new lane name** with
 the same operations as steps 4–5. Expected: configuration validation is true,
-`runner.agent` finds `claudock`, and the start result records the selected real
-profile, model and session identity. Doctor checks executable availability; it
-does not prove sign-in, quota or a successful model request. The real end event
-and work must be checked independently. A vendor refusal stops the action;
-retain its exact message and follow its stated recovery path.
+`runner.agent` finds `claude`, `codex` or `claudock`, according to the chosen
+fragment, and the start result records the real model. The Claude Code and
+claudock fragments also record a session identity; the claudock fragment records
+the selected profile. Doctor checks executable availability; it does not prove
+sign-in, quota or a successful model request. The real end event and work must
+be checked independently. A vendor refusal stops the action; retain its exact
+message and follow its stated recovery path.
 
 For profile setup, CLI build commands, sign-in and expected results, use
 [claudock.md](claudock.md#portable-cli-setup). No live profile operation is run by
 the checker in this guide, and it makes no authenticated-service claim.
+
+### Direct Claude and Codex runners
+
+You can also use Claude Code directly, with its own authenticated account:
+
+```toml
+[runners.claude]
+command = ["claude", "-p", "--session-id", "{session}", "--model", "{model}",
+           "Read the file {brief} completely and carry out the task it describes."]
+resume = ["claude", "-p", "--resume", "{session}", "--model", "{model}",
+          "Read the file {message} completely and carry on from it."]
+accounts = ["local"]
+```
+
+For Codex-only use, install with `--without-claudock` and configure the direct CLI:
+
+```toml
+[runners.codex]
+command = ["codex", "exec", "--model", "{model}",
+           "Read the file {brief} completely and carry out the task it describes."]
+resume = ["codex", "exec", "resume", "--last", "--model", "{model}",
+          "Read the file {message} completely and carry on from it."]
+accounts = ["local"]
+```
+
+Here `local` is an invented Laneboss account label; it does not select or authenticate a vendor account.
+Install and authenticate the selected vendor CLI separately, choose full supported model names in
+routing, and add the selected runner to the project's `workers`. These snippets belong in a private
+configuration. Codex chooses its own session identifier: `--last` resumes the latest session for the
+same directory, so keep one Codex conversation in that lane's dedicated worktree. This Codex snippet
+serves ordinary lanes and does not provide Laneboss's `{session}` identity or turn-based mode.
+Configure actual raw records and guards for each runner; the demo text log alone does not cover tool calls.
+Validate, run doctor, read the supervisor briefing and start a new lane, as described above.
 
 ## When a step fails
 
@@ -543,8 +757,8 @@ the guide, source inputs, tested binary, hashes, transcript and temporary state
 outside the checkout. It stops nonzero at the first mismatch or the overall
 hang deadline; normal success prints `PASS: getting-started walkthrough`.
 The Linux run of this script is the E2E evidence for this tutorial. Reading the
-code or checking shell syntax alone is not that evidence. The separate live
-Claudock setup requires owner authentication and is not an AI-service E2E.
+code or checking shell syntax alone is not that evidence. A separate live
+agent setup requires owner authentication and is not an AI-service E2E.
 
 An agent should use the matching [repository checklist](../AGENTS.md) and
 report the saved output and its remaining limits to its supervisor.

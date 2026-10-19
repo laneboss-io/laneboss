@@ -10,6 +10,11 @@ type shellResolution struct {
 	changesState bool
 }
 
+func laneIdentityAssignment(word string) bool {
+	name, _, ok := strings.Cut(word, "=")
+	return ok && strings.HasPrefix(name, "LANEBOSS_")
+}
+
 func stateBuiltin(name string) bool {
 	return contains([]string{"cd", "chdir", "pushd", "popd", "dirs", "export", "set", "unset", "shopt", "setopt", "unsetopt",
 		"alias", "unalias", "function", "eval", "source", ".", "typeset", "declare", "local", "readonly",
@@ -53,10 +58,9 @@ func resolveShellCommand(argv []string) (shellResolution, error) {
 			} else if !contains([]string{"-p", "-v", "-V"}, option) || name != "command" {
 				return result, invalid("a command wrapper option cannot be resolved")
 			}
-			if name == "env" {
-				result.changesState = true
-			}
 		}
+		// env options affect the wrapped child, so they do not mark persistent
+		// shell state. normalise checks execution-context and output changes.
 		if name == "timeout" {
 			if index >= len(argv) {
 				return result, invalid("a timeout wrapper has no duration")

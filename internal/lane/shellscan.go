@@ -7,11 +7,17 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"laneboss.io/laneboss/internal/faults"
+	"laneboss.io/laneboss/internal/textcontext"
 )
 
 type shellToken struct {
-	op   bool
-	text string
+	op       bool
+	text     string
+	backtick bool
+	dollar   bool
+	heredoc  bool
 }
 
 func cutText(s string, n int) string {
@@ -24,25 +30,29 @@ func cutText(s string, n int) string {
 func shellTokens(text string) []shellToken {
 	text = cutText(text, 65536)
 	found := []shellToken{}
-	word := ""
+	var word strings.Builder
 	inWord := false
+	backtick, dollar := false, false
 	type heredoc struct {
 		delimiter string
 		strip     bool
+		quoted    bool
+		token     int
 	}
 	docs := []heredoc{}
 	flush := func() {
 		if inWord {
-			found = append(found, shellToken{false, word})
-			word = ""
+			found = append(found, shellToken{text: word.String(), backtick: backtick, dollar: dollar})
+			word.Reset()
 			inWord = false
+			backtick, dollar = false, false
 		}
 	}
 	for i := 0; i < len(text) && len(found) < 10000; {
 		c := text[i]
 		if c == '\\' {
 			if i+1 < len(text) && text[i+1] != '\n' {
-				word += text[i+1 : i+2]
+				word.WriteByte(text[i+1])
 				inWord = true
 			}
 			i += 2
@@ -53,29 +63,24 @@ func shellTokens(text string) []shellToken {
 			if c == '$' {
 				start++
 			}
-			end := strings.IndexByte(text[start:], '\'')
-			if end < 0 {
-				end = len(text)
-			} else {
-				end += start
+			end := start
+			for end < len(text) && text[end] != '\'' {
+				if c == '$' && text[end] == '\\' && end+1 < len(text) {
+					end += 2
+				} else {
+					end++
+				}
 			}
-			word += text[start:end]
+			word.WriteString(text[start:end])
 			inWord = true
 			i = end + 1
 			continue
 		}
 		if c == '"' {
-			j := i + 1
-			for j < len(text) && text[j] != '"' {
-				if text[j] == '\\' && j+1 < len(text) && strings.ContainsRune("\"\\$`\n", rune(text[j+1])) {
-					if text[j+1] != '\n' {
-						word += text[j+1 : j+2]
-					}
-					j += 2
-				} else {
-					word += text[j : j+1]
-					j++
-				}
+			j, quotedBacktick, quotedDollar := scanDoubleText(text, i+1, true, func(part string) { word.WriteString(part) })
+			if j < len(text) {
+				backtick = backtick || quotedBacktick
+				dollar = dollar || quotedDollar
 			}
 			inWord = true
 			i = j + 1
@@ -102,19 +107,17 @@ func shellTokens(text string) []shellToken {
 				}
 				j++
 			}
-			word += text[i:j]
+			word.WriteString(text[i:j])
 			inWord = true
 			i = j
 			continue
 		}
 		if c == '`' {
-			end := strings.IndexByte(text[i+1:], '`')
-			if end < 0 {
+			end := shellBacktickEnd(text, i)
+			if end == len(text) {
 				end = len(text) - 1
-			} else {
-				end += i + 1
 			}
-			word += text[i : end+1]
+			word.WriteString(text[i : end+1])
 			inWord = true
 			i = end + 1
 			continue
@@ -134,10 +137,13 @@ func shellTokens(text string) []shellToken {
 		}
 		if c == '\n' {
 			flush()
-			found = append(found, shellToken{true, "\n"})
+			found = append(found, shellToken{op: true, text: "\n"})
 			i++
 			for _, doc := range docs {
+				bodyStart := min(i, len(text))
+				bodyEnd := bodyStart
 				for i < len(text) {
+					lineStart := i
 					end := strings.IndexByte(text[i:], '\n')
 					if end < 0 {
 						end = len(text)
@@ -150,8 +156,13 @@ func shellTokens(text string) []shellToken {
 						line = strings.TrimLeft(line, "\t")
 					}
 					if line == doc.delimiter {
+						bodyEnd = lineStart
 						break
 					}
+					bodyEnd = min(i, len(text))
+				}
+				if !doc.quoted {
+					_, found[doc.token].backtick, found[doc.token].dollar = scanDoubleText(text[bodyStart:bodyEnd], 0, false, nil)
 				}
 			}
 			docs = nil
@@ -159,9 +170,9 @@ func shellTokens(text string) []shellToken {
 		}
 		if strings.ContainsRune("<>&|;()", rune(c)) {
 			prefix := ""
-			if (c == '<' || c == '>') && inWord && match(`[0-9]+`, word) {
-				prefix = word
-				word = ""
+			if (c == '<' || c == '>') && inWord && match(`[0-9]+`, word.String()) {
+				prefix = word.String()
+				word.Reset()
 				inWord = false
 			}
 			flush()
@@ -172,7 +183,7 @@ func shellTokens(text string) []shellToken {
 					break
 				}
 			}
-			found = append(found, shellToken{true, prefix + operator})
+			found = append(found, shellToken{op: true, text: prefix + operator})
 			i += len(operator)
 			if operator == "<<" || operator == "<<-" {
 				for i < len(text) && (text[i] == ' ' || text[i] == '\t') {
@@ -184,18 +195,146 @@ func shellTokens(text string) []shellToken {
 				}
 				if i > start {
 					delimiter := strings.NewReplacer("'", "", "\"", "", "\\", "").Replace(text[start:i])
-					docs = append(docs, heredoc{delimiter, operator == "<<-"})
-					found = append(found, shellToken{false, delimiter})
+					docs = append(docs, heredoc{delimiter: delimiter, strip: operator == "<<-", quoted: strings.ContainsAny(text[start:i], "'\"\\"), token: len(found)})
+					found = append(found, shellToken{text: delimiter, heredoc: true})
 				}
 			}
 			continue
 		}
-		word += text[i : i+1]
+		word.WriteByte(c)
 		inWord = true
 		i++
 	}
 	flush()
 	return found
+}
+
+// scanDoubleText is shared by quoted words and expanding heredoc bodies. Quotes
+// in a heredoc body are data; quoted delimiter bodies never enter this scanner.
+func scanDoubleText(text string, start int, quoted bool, write func(string)) (int, bool, bool) {
+	backtick, dollar := false, false
+	parenEnds := map[int]int{}
+	appendText := func(part string) {
+		if write != nil {
+			write(part)
+		}
+	}
+	j := start
+	for j < len(text) && !(quoted && text[j] == '"') {
+		if text[j] == '\\' && j+1 < len(text) && strings.ContainsRune("\"\\$`\n", rune(text[j+1])) {
+			if text[j+1] != '\n' {
+				appendText(text[j+1 : j+2])
+			}
+			j += 2
+			continue
+		}
+		if text[j] == '$' {
+			next := skipShellContinuation(text, j+1)
+			if next < len(text) && text[next] == '$' {
+				appendText("$$")
+				j = next + 1
+				continue
+			}
+			if next < len(text) && text[next] == '(' {
+				second := skipShellContinuation(text, next+1)
+				arithmetic := false
+				if second < len(text) && text[second] == '(' {
+					close := shellParenEnd(text, second, parenEnds)
+					if close >= 0 {
+						after := skipShellContinuation(text, close+1)
+						arithmetic = after < len(text) && text[after] == ')'
+					}
+				}
+				dollar = dollar || !arithmetic
+			}
+		}
+		if text[j] == '`' {
+			end := shellBacktickEnd(text, j)
+			if end < len(text) {
+				backtick = true
+				appendText(text[j : end+1])
+				j = end + 1
+				continue
+			}
+		}
+		appendText(text[j : j+1])
+		j++
+	}
+	return j, backtick, dollar
+}
+
+func skipShellContinuation(text string, at int) int {
+	for at+1 < len(text) && text[at] == '\\' && text[at+1] == '\n' {
+		at += 2
+	}
+	return at
+}
+
+// Cache every nested match while finding the arithmetic wrapper's first close.
+// Repeated nested $(( openers therefore do not repeatedly rescan a long suffix.
+func shellParenEnd(text string, start int, cached map[int]int) int {
+	if end, ok := cached[start]; ok {
+		return end
+	}
+	stack := []int{}
+	for i := start; i < len(text); i++ {
+		switch text[i] {
+		case '\\':
+			i++
+		case '\'', '"':
+			quote := text[i]
+			i++
+			for i < len(text) && text[i] != quote {
+				if text[i] == '\\' && quote == '"' {
+					i++
+				}
+				i++
+			}
+		case '(':
+			stack = append(stack, i)
+		case ')':
+			if len(stack) > 0 {
+				opening := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				cached[opening] = i
+				if len(stack) == 0 {
+					return i
+				}
+			}
+		}
+	}
+	for _, opening := range stack {
+		cached[opening] = -1
+	}
+	return -1
+}
+
+// shellBacktickEnd keeps a substitution's own quotes inside the shell word.
+// Escaped backticks cannot close it. An absent closing backtick returns len(text).
+func shellBacktickEnd(text string, start int) int {
+	for i := start + 1; i < len(text); i++ {
+		if text[i] == '\\' && i+1 < len(text) && strings.ContainsRune("$`\\", rune(text[i+1])) {
+			i++
+		} else if text[i] == '`' {
+			return i
+		}
+	}
+	return len(text)
+}
+
+// ShellSubstitutionInText observes shell expansion inside a double-quoted word.
+// It shares the path scanner's bounded tokenizer and never executes the command.
+func ShellSubstitutionInText(command string, policies ...[]textcontext.Tool) (bool, error) {
+	var tools []textcontext.Tool
+	if len(policies) > 0 {
+		tools = policies[0]
+	}
+	found := shellTextSubstitution(shellTokens(command), tools)
+	const point = "scan-skip-shell-substitution-in-text"
+	if found && faults.Get(point).Point != "" {
+		return false, faults.Reach(point)
+	}
+	return found, nil
 }
 func expandHome(s string) string {
 	if s == "~" || strings.HasPrefix(s, "~/") {
@@ -420,7 +559,7 @@ func analyseShell(command, directory string) ([]string, []string) {
 	}
 	outer := []string{}
 	current := []shellToken{}
-	for _, t := range append(shellTokens(command), shellToken{true, "\n"}) {
+	for _, t := range append(shellTokens(command), shellToken{op: true, text: "\n"}) {
 		if t.op && contains([]string{"\n", ";", ";;", "&", "&&", "||", "|", "|&", "(", ")"}, t.text) {
 			if len(current) > 0 {
 				directory = simple(current, directory)

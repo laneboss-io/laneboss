@@ -1,0 +1,10 @@
+{
+  "schema": "laneboss.ladder-allocation.v2",
+  "config": "tree-b",
+  "scenario": "scenario.json",
+  "store": "/var/lib/lb-v2-ladder/b",
+  "socket": "/run/lb-v2-ladder/b/rpc.sock",
+  "service_uid": 62200,
+  "lane_uids": [62201, 62202, 62203, 62204, 62205, 62206, 62207, 62208, 62209, 62210],
+  "workspace": "/srv/lb-v2-ladder/tree-b"
+}

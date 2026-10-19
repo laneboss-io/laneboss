@@ -12,9 +12,15 @@ import (
 	"syscall"
 	"time"
 
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/delegation"
+	"laneboss.io/laneboss/internal/eventstore"
 	"laneboss.io/laneboss/internal/hookconfig"
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/rolepolicy"
 	"laneboss.io/laneboss/internal/runnermodel"
 	"laneboss.io/laneboss/internal/selfexec"
+	"laneboss.io/laneboss/internal/settings"
 )
 
 func (s *session) runner(name string) (object, error) {
@@ -231,7 +237,18 @@ func sameDirectory(a, b string) bool {
 	return ea == nil && eb == nil && os.SameFile(ia, ib)
 }
 func (s *session) start(a arguments, stderr io.Writer) (any, error) {
+	a, snapshot, err := s.c.startSettings(a)
+	if err != nil {
+		return nil, err
+	}
 	lane, projectName := a.get("lane"), a.get("project")
+	principal, reportLine, err := s.c.starter(a)
+	if err != nil {
+		return nil, err
+	}
+	if err := delegation.Bind(s.c.callerConfig(), principal.ID, snapshot); err != nil {
+		return nil, refuse("%s", err)
+	}
 	var project object
 	if projectName != "" {
 		project = obj(s.c.projects[projectName])
@@ -260,6 +277,10 @@ func (s *session) start(a arguments, stderr io.Writer) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	selection, err := rolepolicy.Start(s.c.home, s.c.data, a.get("level"), a.get("role"), a.get("principal"), stringsOf(runner["command"]), screenRoleSource)
+	if err != nil {
+		return nil, refuse("%s", err.Error())
+	}
 	if a.has("turns") {
 		problems := []string{}
 		if !uses(runner["command"], "session") {
@@ -285,6 +306,9 @@ func (s *session) start(a arguments, stderr io.Writer) (any, error) {
 		return nil, err
 	}
 	if budget == nil {
+		budget = snapshot.Values["budget_minutes"]
+	}
+	if budget == nil {
 		budget = obj(s.c.data["lanes"])["budget_minutes"]
 	}
 	if budget == nil {
@@ -298,7 +322,7 @@ func (s *session) start(a arguments, stderr io.Writer) (any, error) {
 		return nil, err
 	}
 	source := realPath(a.get("brief"))
-	composed, err := s.c.compose(lane, projectName, source, data, a.touches)
+	composed, err := s.c.compose(lane, projectName, source, data, a.touches, reportLine, selection)
 	if err != nil {
 		return nil, err
 	}
@@ -318,8 +342,31 @@ func (s *session) start(a arguments, stderr io.Writer) (any, error) {
 	if err = s.diskGate(stderr); err != nil {
 		return nil, err
 	}
+	// Preserve the registry mismatch diagnostic as a negative binding check;
+	// even a matching external observation can never authorize this reuse.
+	if a.has("reuse") {
+		event, err := s.lastObservation(lane, "lane.started")
+		if err != nil {
+			return nil, err
+		}
+		if event == nil {
+			event, err = s.lastObservation(lane, "lane.adopted")
+			if err != nil {
+				return nil, err
+			}
+		}
+		if eventstore.ExternallyAppended(event) {
+			if _, err = sameRegistry(obj(event["payload"])["claims"]); err != nil {
+				return nil, err
+			}
+		}
+	}
+	s.authority = true
 	row, err := s.row(lane)
 	if err != nil {
+		return nil, err
+	}
+	if err = s.checkLaunchProjection(lane, row); err != nil {
 		return nil, err
 	}
 	if row != nil {
@@ -364,13 +411,13 @@ func (s *session) start(a arguments, stderr io.Writer) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = checkWorktreeOverlap(lane, place.path, rows); err != nil {
+		return nil, err
+	}
 	name, socket := sessionName(lane), socketPath(s.c)
 	for _, other := range rows {
 		if str(other["lane"]) == lane {
 			continue
-		}
-		if str(other["worktree"]) != "" && !flag(other["cleaned"]) && sameDirectory(str(other["worktree"]), place.path) {
-			return nil, refuse("lane %s already works in %s; one lane per working directory", str(other["lane"]), place.path)
 		}
 		if sessionName(str(other["lane"])) == name {
 			return nil, refuse("tmux turns . into _: the lane's session would have the same name as another lane's")
@@ -405,13 +452,21 @@ func (s *session) start(a arguments, stderr io.Writer) (any, error) {
 		registry = place.claim.holder
 	}
 	started := object{"run": run, "how": how, "launch": launch, "runner": runnerName, "model": model, "effort": effort, "account": account, "chosen_by": chosen, "difficulty": nullable(a.get("difficulty")), "project": nullable(projectName), "worktree": place.path, "branch": nullable(place.branch), "base": nullable(place.base), "repository": nullable(place.repository), "budget_minutes": budget, "quiet_seconds": valueOr(runner, "quiet_seconds", valueOr(obj(s.c.data["lanes"]), "quiet_seconds", 900)), "brief": brief, "log": values["log"], "session": object{"socket": socket, "name": name}, "touches": unique(a.touches), "claims": registry}
+	snapshot.Defaults(object{"runner": runnerName, "model": model, "effort": effort, "account": account, "budget_minutes": budget}, "config.toml routing/runner/lanes selection")
+	snapshot.MarkChoices(chosen)
+	started["settings"] = snapshot.Map()
+	selection.Record(started)
 	if sessionID != nil {
 		started["session_id"] = sessionID
+	}
+	for key, value := range reportLine.Fields() {
+		started[key] = value
 	}
 	if a.has("turns") {
 		started["mail"] = []any{}
 		started["idle_seconds"] = idle
 	}
+	lanesandbox.RecordRunnerSandbox(started, s.c.data)
 	if err = s.validatePlanned(row, lane, "lane.started", started); err != nil {
 		return nil, err
 	}
@@ -465,15 +520,32 @@ func (s *session) start(a arguments, stderr io.Writer) (any, error) {
 			return nil, err
 		}
 	}
-	gate := hookconfig.CodexGate{}
-	argv, err = gate.Prepare(argv, place.path, os.Environ())
+	replaced := lanesandbox.ReplacesRunner(s.c.data)
+	if replaced {
+		argv, err = lanesandbox.ClaudeOverlay(argv, s.c.data)
+		if err != nil {
+			return nil, refuse("%s", err)
+		}
+		if err := lanesandbox.CheckClaudeSettings(argv); err != nil {
+			return nil, refuse("%s", err)
+		}
+	}
+	filtered, err := launchEnvironment(started, s.c.name, lane, run)
+	if err != nil {
+		return nil, refuse("%s", err)
+	}
+	gate := hookconfig.CodexGate{LaneSandbox: replaced}
+	argv, err = gate.Prepare(argv, place.path, filtered)
 	if err != nil {
 		return nil, refuse("%s", err.Error())
 	}
 	if _, err = s.render(lane, composed); err != nil {
 		return nil, err
 	}
-	spec := s.makeSpec(lane, argv, started, nil, runner, composed.output)
+	if err = caller.RecordSession(s.c.callerConfig(), principal); err != nil {
+		return nil, refuse("%s", err)
+	}
+	spec := s.makeSpec(lane, argv, started, nil, runner, composed.output, caller.LifecycleActor(principal.ID))
 	record, err := s.begin(lane, spec)
 	if err != nil {
 		return nil, err
@@ -506,12 +578,16 @@ func (s *session) validatePlanned(row object, lane, kind string, p object) error
 	}
 	return checkTransition(row, envelope(lane, kind, p, "laneboss"))
 }
-func (s *session) makeSpec(lane string, argv []string, started, resumed, runner object, rendered []byte) object {
+func (s *session) makeSpec(lane string, argv []string, started, resumed, runner object, rendered []byte, actors ...string) object {
 	var prompt any
 	if str(runner["prompt"]) == "stdin" {
 		prompt = base64.StdEncoding.EncodeToString(rendered)
 	}
-	return object{"config": s.c.name, "lane": lane, "run": started["run"], "launch": started["launch"], "argv": argv, "cwd": started["worktree"], "started": started, "resumed": resumed, "prompt": prompt, "budget_seconds": number(started["budget_minutes"]) * 60, "quiet_seconds": started["quiet_seconds"], "grace_seconds": valueOr(obj(s.c.data["lanes"]), "stop_grace_seconds", 10), "limit_patterns": stringsOf(runner["limit_patterns"]), "dropped_patterns": stringsOf(runner["dropped_patterns"]), "launcher_version": launcherVersion}
+	actor := "laneboss"
+	if len(actors) > 0 {
+		actor = actors[0]
+	}
+	return object{"config": s.c.name, "lane": lane, "run": started["run"], "launch": started["launch"], "actor": actor, "argv": argv, "cwd": started["worktree"], "started": started, "resumed": resumed, "prompt": prompt, "budget_seconds": number(started["budget_minutes"]) * 60, "quiet_seconds": started["quiet_seconds"], "grace_seconds": valueOr(obj(s.c.data["lanes"]), "stop_grace_seconds", 10), "limit_patterns": stringsOf(runner["limit_patterns"]), "dropped_patterns": stringsOf(runner["dropped_patterns"]), "launcher_version": launcherVersion}
 }
 func (s *session) begin(lane string, spec object) (object, error) {
 	r, err := s.laneRoot(lane, true)
@@ -647,13 +723,30 @@ func (s *session) waitStarted(lane string, spec, record object) (object, error) 
 }
 func (s *session) resume(a arguments) (any, error) {
 	lane := a.get("lane")
+	principal, err := s.c.caller()
+	if err != nil {
+		return nil, err
+	}
+	if err = caller.RequireIdentity(principal); err != nil {
+		return nil, refuse("%s", err)
+	}
+	if a.get("message") != "" {
+		if err = s.c.messagePermission(principal, lane); err != nil {
+			return nil, err
+		}
+	}
 	budget, err := parseBudget(a.get("budget"))
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.known(lane); err != nil {
+	observed, err := s.known(lane)
+	if err != nil {
 		return nil, err
 	}
+	if flag(obj(observed["mail"])["turn_based"]) {
+		return nil, refuse("lane %s is turn-based, so lane resume is refused: send a message with lane send and start the turn with lane turn", lane)
+	}
+	s.authority = true
 	unlock, err := s.lanesLock()
 	if err != nil {
 		return nil, err
@@ -672,6 +765,9 @@ func (s *session) resume(a arguments) (any, error) {
 	}
 	row, err := s.known(lane)
 	if err != nil {
+		return nil, err
+	}
+	if err = s.checkLaunchProjection(lane, row); err != nil {
 		return nil, err
 	}
 	if integer(row["run"]) == 0 {
@@ -707,13 +803,22 @@ func (s *session) resume(a arguments) (any, error) {
 	if err = s.refuseLive(lane); err != nil {
 		return nil, err
 	}
-	runner, err := s.runner(str(previous["runner"]))
+	snapshot, err := s.againSettings(previous, a)
+	if err != nil {
+		return nil, err
+	}
+	runnerName := str(snapshot.Values["runner"])
+	runner, err := s.runner(runnerName)
 	if err != nil {
 		return nil, err
 	}
 	template := runner["resume"]
 	if template == nil {
-		return nil, refuse("runner %s has no resume template", str(previous["runner"]))
+		return nil, refuse("runner %s has no resume template", runnerName)
+	}
+	selection, err := rolepolicy.Previous(s.c.home, s.c.data, previous, stringsOf(template), screenRoleSource)
+	if err != nil {
+		return nil, refuse("%s", err.Error())
 	}
 	if uses(template, "session") && previous["session_id"] == nil {
 		return nil, refuse("lane %s has no recorded session identity: its original start template does not use {session}; runners.%s.resume cannot resume it by identity", lane, str(previous["runner"]))
@@ -723,7 +828,10 @@ func (s *session) resume(a arguments) (any, error) {
 	}
 	projectName := str(previous["project"])
 	project := obj(s.c.projects[projectName])
-	account := previous["account"]
+	if project["workers"] != nil && !contains(stringsOf(project["workers"]), runnerName) {
+		return nil, refuse("resolved runner is not one of the project's workers")
+	}
+	account := snapshot.Values["account"]
 	accountBy := any(nil)
 	if account != nil {
 		accountBy = "previous"
@@ -736,7 +844,11 @@ func (s *session) resume(a arguments) (any, error) {
 		accountBy = "supervisor"
 	}
 	if runner["room"] != nil {
-		account, accountBy, err = s.chooseRoom(runner, project, account, a.get("account"))
+		requested := a.get("account")
+		if snapshot.Selected("account") {
+			requested = str(account)
+		}
+		account, accountBy, err = s.chooseRoom(runner, project, account, requested)
 		if err != nil {
 			return nil, err
 		}
@@ -746,7 +858,7 @@ func (s *session) resume(a arguments) (any, error) {
 		}
 	}
 	if budget == nil {
-		budget = previous["budget_minutes"]
+		budget = snapshot.Values["budget_minutes"]
 	}
 	directory := str(previous["worktree"])
 	info, err := os.Stat(directory)
@@ -789,7 +901,7 @@ func (s *session) resume(a arguments) (any, error) {
 			data = continueBytes
 			source = "embedded:continue.md"
 		}
-		composed, err = s.c.compose(lane, projectName, source, data, []string{})
+		composed, err = s.c.compose(lane, projectName, source, data, []string{}, caller.LineFrom(previous), selection)
 		if err != nil {
 			return nil, err
 		}
@@ -803,30 +915,55 @@ func (s *session) resume(a arguments) (any, error) {
 	if alive {
 		return nil, refuse("a tmux session %s is still open", name)
 	}
-	values := object{"account": account, "brief": obj(previous["brief"])["path"], "effort": previous["effort"], "lane": lane, "log": previous["log"], "model": previous["model"], "project": previous["project"], "session": previous["session_id"], "worktree": directory, "message": message["path"]}
-	values["model"] = runnermodel.API(runner, str(previous["model"]))
+	model, effort := str(snapshot.Values["model"]), snapshot.Values["effort"]
+	values := object{"account": account, "brief": obj(previous["brief"])["path"], "effort": effort, "lane": lane, "log": previous["log"], "model": runnermodel.API(runner, model), "project": previous["project"], "session": previous["session_id"], "worktree": directory, "message": message["path"]}
 	argv, err := fill(template, values)
 	if err != nil {
 		return nil, err
 	}
-	gate := hookconfig.CodexGate{}
-	argv, err = gate.Prepare(argv, directory, os.Environ())
-	if err != nil {
-		return nil, refuse("%s", err.Error())
+	replaced := lanesandbox.ReplacesRunner(s.c.data)
+	if replaced {
+		argv, err = lanesandbox.ClaudeOverlay(argv, s.c.data)
+		if err != nil {
+			return nil, refuse("%s", err)
+		}
+		if err := lanesandbox.CheckClaudeSettings(argv); err != nil {
+			return nil, refuse("%s", err)
+		}
 	}
 	started := clone(previous)
+	lanesandbox.RecordRunnerSandbox(started, s.c.data)
+	selection.Record(started)
+	for key, value := range caller.LineFrom(previous).Fields() {
+		started[key] = value
+	}
 	started["run"] = integer(row["run"]) + 1
 	started["how"] = "resume"
 	started["launch"] = newID()
 	started["account"] = account
+	started["runner"], started["model"], started["effort"] = runnerName, model, effort
 	started["budget_minutes"] = budget
+	if account != nil && !snapshot.Selected("account") {
+		snapshot.Add("account", settings.Layer{Scope: "default", Value: account, Event: "resume account/room selection"})
+	}
+	started["settings"] = snapshot.Map()
+	filtered, err := launchEnvironment(started, s.c.name, lane, integer(started["run"]))
+	if err != nil {
+		return nil, refuse("%s", err)
+	}
+	gate := hookconfig.CodexGate{LaneSandbox: replaced}
+	argv, err = gate.Prepare(argv, directory, filtered)
+	if err != nil {
+		return nil, refuse("%s", err)
+	}
 	started["quiet_seconds"] = valueOr(runner, "quiet_seconds", valueOr(obj(s.c.data["lanes"]), "quiet_seconds", 900))
 	started["session"] = object{"socket": socket, "name": name}
 	effortBy := any(nil)
-	if previous["effort"] != nil {
+	if effort != nil {
 		effortBy = "previous"
 	}
 	started["chosen_by"] = object{"runner": "previous", "model": "previous", "effort": effortBy, "account": accountBy}
+	snapshot.MarkChoices(obj(started["chosen_by"]))
 	resumed := object{"run": started["run"], "after": row["reason"], "message": message}
 	if err = s.validatePlanned(row, lane, "lane.resumed", resumed); err != nil {
 		return nil, err
@@ -845,7 +982,7 @@ func (s *session) resume(a arguments) (any, error) {
 	if _, err = takeClaim(claim, mine); err != nil {
 		return nil, err
 	}
-	spec := s.makeSpec(lane, argv, started, resumed, runner, rendered)
+	spec := s.makeSpec(lane, argv, started, resumed, runner, rendered, caller.LifecycleActor(principal.ID))
 	record, err := s.begin(lane, spec)
 	if err != nil {
 		return nil, err
@@ -868,9 +1005,17 @@ func (s *session) resume(a arguments) (any, error) {
 }
 
 func (s *session) stop(a arguments) (any, error) {
+	s.authority = true
 	lane := a.get("lane")
+	principal, err := s.c.caller()
+	if err != nil {
+		return nil, err
+	}
 	row, err := s.known(lane)
 	if err != nil {
+		return nil, err
+	}
+	if err = s.checkLaunchProjection(lane, row); err != nil {
 		return nil, err
 	}
 	event, err := s.last(lane, "lane.started")
@@ -905,6 +1050,9 @@ func (s *session) stop(a arguments) (any, error) {
 		return nil, err
 	}
 	if alive {
+		if err = caller.RecordStop(s.c.callerConfig(), lane, str(p["launch"]), principal); err != nil {
+			return nil, refuse("%s", err)
+		}
 		sent, e := signalChecked(obj(record["supervisor"]), syscall.SIGTERM)
 		if e != nil {
 			return nil, e

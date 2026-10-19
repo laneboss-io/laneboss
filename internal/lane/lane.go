@@ -2,15 +2,15 @@
 package lane
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"strings"
 )
 
 // Run executes `laneboss lane ARGS...` and returns the process exit code.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if contains(args, "--help") || contains(args, "-h") {
-		fmt.Fprintln(stdout, "usage: laneboss lane {start,resume,stop,status,check,mark,clean,scan,refusals,review} --config NAME [options]\n\nstart: --lane --brief --runner|--difficulty --model --effort --account --budget --project --worktree|--base --reuse --turns --idle --touches\nresume: --lane --message --account --budget\nstop: --lane --run\nstatus, check, refusals: --lane (optional)\nmark: --lane --state|--landing|--gone --accept-uncovered\nclean, scan: --lane\nreview: --lane --refusal --path --verdict --note")
+		fmt.Fprintln(stdout, "usage: laneboss lane {start,resume,stop,status,check,mark,clean,archive,scan,refusals,review} --config NAME [options]\n\nstart: --lane --brief --role ROLE --level N --instance NAME --set KEY=VALUE (repeatable) --principal human|supervisor --runner|--difficulty --model --effort --account --budget --project --worktree|--base --reuse --turns --idle --touches\nresume: --lane --message --account --budget\nstop: --lane --run\nstatus, check, refusals: --lane (optional)\nmark: --lane --state|--landing|--gone --accept-uncovered\nclean: --lane (verified archive first)\nscan: --lane\narchive: --lane [--dry-run] [--to DIR]\nreview: --lane --refusal --path --verdict --note")
 		return 0
 	}
 	if len(args) == 1 && args[0] == "__follow" {
@@ -47,6 +47,8 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 					result, err = s.mark(a)
 				case "clean":
 					result, err = s.clean(a)
+				case "archive":
+					result, err = s.archive(a)
 				case "scan":
 					result, err = s.scan(a)
 				case "refusals":
@@ -64,10 +66,9 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		if unavailable, ok := err.(*storeUnavailableError); ok {
 			err = unavailable.cause
 		}
-		if p, ok := err.(*problem); ok {
-			for _, line := range strings.Split(p.message, "\n") {
-				fmt.Fprintln(stderr, p.prefix+": "+line)
-			}
+		var p *problem
+		if errors.As(err, &p) {
+			p.write(stderr)
 			return p.code
 		}
 		fmt.Fprintln(stderr, "integrity problem: lane operation failed")

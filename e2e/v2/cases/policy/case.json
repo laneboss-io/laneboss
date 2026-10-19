@@ -1,0 +1,13 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "policy",
+  "owner": "lb-v2-policy",
+  "platforms": ["linux"],
+  "requires": [
+    "service", "identity", "judge", "approval", "lifecycle", "templates"
+  ],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": ["BL-RESP", "SKIP"]
+}

@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "e2e-smoke",
+  "owner": "lb-v2-e2e",
+  "platforms": ["linux"],
+  "requires": ["service", "identity"],
+  "entry": "run.sh",
+  "timeout_seconds": 60,
+  "live_auth": false,
+  "assertion_ids": ["E2E-SERVICE"]
+}

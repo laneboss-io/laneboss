@@ -1,0 +1,12 @@
+{
+  "schema": 2,
+  "go_toolchain": "go1.26.5",
+  "socket_mode": 432,
+  "socket_group": "rpc",
+  "serve": ["serve", "--config", "{config}", "--installation", "{installation}", "--binding", "{binding}"],
+  "health": ["health", "--config", "{config}", "--binding", "{binding}"],
+  "events": ["event", "tail", "--config", "{config}", "--binding", "{binding}"],
+  "command_timeout_seconds": 60,
+  "startup_timeout_seconds": 30,
+  "shutdown_timeout_seconds": 10
+}

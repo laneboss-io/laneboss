@@ -557,11 +557,13 @@ func (c checker) validateConfiguration(v any) error {
 		routing[difficulty] = c.array(route, true, false)
 	}
 	fields := map[string]validation{
-		"schema_version": c.schemaVersion, "name": name, "description": c.text("", 1000), "organisation": name, "rules": c.array(c.rules, false, true), "organisation_rules": c.array(c.relative, false, true), "secrets": c.array(secret, false, true), "owner_channel": name, "test_environment": name,
-		"state": c.table(map[string]validation{"path": c.absolute}, ""),
-		"lanes": c.table(map[string]validation{"budget_minutes": c.budget, "quiet_seconds": c.integer(1, 604800), "stop_grace_seconds": c.integer(1, 600), "lock_wait_seconds": c.integer(1, 3600), "room_timeout_seconds": c.integer(1, 60)}, ""),
-		"turns": c.table(map[string]validation{"idle_message": c.relative, "idle_seconds": c.integer(1, 604800), "poll_seconds": c.integer(1, 3600), "backoff_seconds": c.integer(1, 604800), "limit_backoff_seconds": c.integer(1, 604800)}, ""),
-		"disk":  c.disk, "runners": c.named(c.runner, 1), "supervisors": c.named(c.supervisor, 0), "judges": c.named(c.table(map[string]validation{"description": c.text("", 1000), "command": c.command("", true), "timeout_seconds": c.integer(1, 60)}, "command"), 0), "resources": c.named(c.resource, 0), "routing": c.table(routing, ""), "test_environments": c.named(c.environment, 0), "owner_channels": c.named(c.channel, 0),
+		"schema_version": c.schemaVersion, "name": name, "description": c.text("", 1000), "organisation": name, "org_dir": c.absolute, "rules": c.array(c.rules, false, true), "organisation_rules": c.array(c.relative, false, true), "secrets": c.array(secret, false, true), "owner_channel": name, "test_environment": name,
+		"archive_command": c.command("", true), "identity_service": c.table(map[string]validation{"runtime_root": c.absolute}, ""),
+		"state":     c.table(map[string]validation{"path": c.absolute}, ""),
+		"dashboard": c.table(map[string]validation{"org": c.absolute, "board": c.relative}, ""),
+		"lanes":     c.table(map[string]validation{"budget_minutes": c.budget, "quiet_seconds": c.integer(1, 604800), "stop_grace_seconds": c.integer(1, 600), "lock_wait_seconds": c.integer(1, 3600), "room_timeout_seconds": c.integer(1, 60), "sandbox": c.choice("off laneboss-files"), "sandbox_deny_extra": c.array(c.absolute, false, true)}, ""),
+		"turns":     c.table(map[string]validation{"idle_message": c.relative, "idle_seconds": c.integer(1, 604800), "poll_seconds": c.integer(1, 3600), "backoff_seconds": c.integer(1, 604800), "limit_backoff_seconds": c.integer(1, 604800)}, ""),
+		"disk":      c.disk, "runners": c.named(c.runner, 1), "supervisors": c.named(c.supervisor, 0), "judges": c.named(c.table(map[string]validation{"description": c.text("", 1000), "command": c.command("", true), "timeout_seconds": c.integer(1, 60)}, "command"), 0), "resources": c.named(c.resource, 0), "routing": c.table(routing, ""), "test_environments": c.named(c.environment, 0), "owner_channels": c.named(c.channel, 0),
 		"cost": c.table(map[string]validation{"currency": c.text("[A-Z]{3}", 1000), "daily_cap": c.number, "per_run_cap": c.number, "report_threshold": c.number}, "currency"), "guards": c.guards,
 	}
 	return c.table(fields, "schema_version name runners")(v, "")

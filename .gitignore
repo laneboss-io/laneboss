@@ -7,3 +7,4 @@ dist/
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+.lane-gocache/

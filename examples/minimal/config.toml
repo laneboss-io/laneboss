@@ -4,6 +4,8 @@
 #   laneboss doctor --config example
 # docs/configuration.md describes every field. A configuration names secrets; it never holds one.
 # bin/example-agent is a stand-in runner program that reads its brief and exits, so lanes run without an agent.
+# Before starting a lane, set org_dir to an initialized org and permit example-agent in its role driver file.
+# docs/getting-started.md supplies these file-backed bootstrap inputs and passes --role executor.
 schema_version = 1
 name = "example"
 description = "An invented company with one supervisor, one runner and one project."

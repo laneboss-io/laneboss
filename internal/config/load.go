@@ -11,6 +11,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+
+	"laneboss.io/laneboss/internal/rolepolicy"
 )
 
 func sortNames(names []string) { sort.Strings(names) }
@@ -189,6 +191,26 @@ func load(name, home, states string) (*Configuration, error) {
 		StateDir: state, Store: filepath.Join(state, StoreFile), Data: data, Projects: projects, RuleBytes: rules,
 		Organisation: organisation, OrganisationBytes: organisationBytes, IdleMessage: idle,
 		tableOrder: order,
+	}
+	folder, err := rolepolicy.ConfigRoot(home, data)
+	if err != nil {
+		return nil, c.fail("org_dir", err.Error())
+	}
+	_, explicitOrg := data["org_dir"]
+	_, orgErr := os.Lstat(filepath.Join(folder, ".laneboss", "org.toml"))
+	if folder != "" && (explicitOrg || !os.IsNotExist(orgErr)) {
+		catalog, err := rolepolicy.Load(folder, func(data []byte) error {
+			if detectText(string(data)) != nil {
+				return c.fail("org_dir", "org role sources look like credentials; output was withheld")
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, c.fail("org_dir", err.Error())
+		}
+		if problems := catalog.RunnerProblems(tableOf(data["runners"])); len(problems) > 0 {
+			return nil, c.fail("runners", strings.Join(problems, "\n"))
+		}
 	}
 	if organisation != "" {
 		configuration.OrganisationTools = filepath.Join(home, "orgs", organisation, "tools")
@@ -452,6 +474,9 @@ type commandElement struct {
 
 func commandElements(data map[string]any) []commandElement {
 	result := []commandElement{}
+	if command, exists := data["archive_command"]; exists {
+		result = append(result, commandElement{"archive_command", stringsOf(command)})
+	}
 	for _, runner := range keys(tableOf(data["runners"])) {
 		for _, key := range []string{"command", "resume", "room"} {
 			if elements, exists := tableOf(tableOf(data["runners"])[runner])[key]; exists {

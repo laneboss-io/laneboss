@@ -2,9 +2,11 @@ package orgtree
 
 import (
 	"errors"
+	"path"
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Findings deliberately contain no matched bytes. Callers can name only the
@@ -74,6 +76,9 @@ var (
 	codeValue      = regexp.MustCompile(`^(?:[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\(.*|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+|[A-Za-z_][A-Za-z0-9_.]*\[.*|[a-z][a-z0-9]*(?:_[a-z0-9]+)+|[a-z]+(?:[A-Z][a-z]+)+)$`)
 	proseWord      = regexp.MustCompile(`^[A-Za-z][a-z]*$`)
 	mask           = regexp.MustCompile(`^[xX*.-]+$`)
+	sourceCast     = regexp.MustCompile(`^(?:\([ \t]*[\p{L}_\[][\p{L}\p{N}_ .:*?&<>\[\],]*\)|<[\p{L}_][\p{L}\p{N}_ .:*?&<>\[\],]*>)`)
+	sourceNew      = regexp.MustCompile(`^new[ \t]+[\p{L}_][\p{L}\p{N}_.$<>?\[\], ]*\(`)
+	stringCast     = regexp.MustCompile(`^(?:string|str|String|bytes)[ \t]*\(`)
 )
 
 var placeholders = func() map[string]bool {
@@ -86,7 +91,7 @@ var placeholders = func() map[string]bool {
 
 func literalToken(value string, moreWords bool) bool {
 	value = strings.TrimRight(strings.Trim(value, "*_"), ",;.")
-	if value == "" || reference.MatchString(value) || credentialName.MatchString(value) || codeValue.MatchString(value) {
+	if !hasLetterOrDigit(value) || reference.MatchString(value) || credentialName.MatchString(value) || codeValue.MatchString(value) {
 		return false
 	}
 	if placeholders[strings.ToLower(value)] || mask.MatchString(value) {
@@ -97,7 +102,7 @@ func literalToken(value string, moreWords bool) bool {
 
 func literalQuoted(value string) bool {
 	value = strings.TrimSpace(value)
-	if value == "" || reference.MatchString(value) {
+	if !hasLetterOrDigit(value) || reference.MatchString(value) {
 		return false
 	}
 	if len(strings.Fields(value)) > 1 {
@@ -106,10 +111,119 @@ func literalQuoted(value string) bool {
 	return literalToken(value, false)
 }
 
+func hasLetterOrDigit(value string) bool {
+	return strings.ContainsFunc(value, func(r rune) bool {
+		return unicode.IsLetter(r) || unicode.IsDigit(r)
+	})
+}
+
 func literalValue(text string) bool {
+	return literalAssignment(text, false, false)
+}
+
+// Only unwrap leading literal syntax, never arbitrary calls or lookups. For
+// example, cfg.lookup("name") and answer["token"] remain expressions.
+func sourceLiteral(text string, rawBacktick bool) (string, bool) {
+	for text != "" {
+		if start, ok := sourceQuote(text); ok {
+			quote := text[start]
+			hashes := strings.Repeat("#", len(text[:start])-len(strings.TrimRight(text[:start], "#")))
+			delimiter := string(quote) + hashes
+			// Triple quotes are one delimiter, rather than an empty literal.
+			opening := 1
+			if quote != '`' && strings.HasPrefix(text[start:], strings.Repeat(string(quote), 3)) {
+				opening = 3
+				delimiter = strings.Repeat(string(quote), 3) + hashes
+			}
+			content := text[start+opening:]
+			verbatim := strings.ContainsRune(text[:start], '@')
+			for position := 0; position < len(content); position++ {
+				if !strings.HasPrefix(content[position:], delimiter) {
+					continue
+				}
+				// Raw hash strings do not use backslash escapes. Ordinary
+				// quotes close only after an even run of backslashes.
+				if hashes == "" && verbatim && quote == '"' && strings.HasPrefix(content[position:], "\"\"") {
+					position++
+					continue
+				}
+				if hashes == "" && !verbatim && !(quote == '`' && rawBacktick) {
+					escapes := 0
+					for index := position - 1; index >= 0 && content[index] == '\\'; index-- {
+						escapes++
+					}
+					if escapes%2 != 0 {
+						continue
+					}
+				}
+				return content[:position], true
+			}
+			return content, true // An unfinished quote must still be scanned.
+		}
+		if cast := sourceCast.FindString(text); cast != "" {
+			text = strings.TrimSpace(text[len(cast):])
+			continue
+		}
+		if constructor := sourceNew.FindString(text); constructor != "" {
+			text = strings.TrimSpace(text[len(constructor):])
+			continue
+		}
+		if cast := stringCast.FindString(text); cast != "" {
+			text = strings.TrimSpace(text[len(cast):])
+			continue
+		}
+		if strings.HasPrefix(text, "await ") || strings.HasPrefix(text, "await\t") {
+			text = strings.TrimSpace(text[len("await"):])
+			continue
+		}
+		if strings.ContainsRune("([+-", rune(text[0])) {
+			text = strings.TrimSpace(text[1:])
+			continue
+		}
+		return "", false
+	}
+	return "", false
+}
+
+func sourceQuote(text string) (int, bool) {
+	characters, hashesOnly := 0, true
+	for index, character := range text {
+		if strings.ContainsRune("\"'`", character) {
+			prefix := text[:index]
+			rawPrefix := strings.TrimRight(prefix, "#")
+			return index, characters <= 4 || hashesOnly || (len(rawPrefix) < len(prefix) && (rawPrefix == "r" || rawPrefix == "br"))
+		}
+		// C and C++ UTF-8 strings use the language-defined u8 prefix.
+		if character == '8' && index == 1 && text[0] == 'u' {
+			characters++
+			hashesOnly = false
+			continue
+		}
+		if !unicode.IsLetter(character) && !strings.ContainsRune("@$#", character) {
+			return 0, false
+		}
+		characters++
+		hashesOnly = hashesOnly && character == '#'
+	}
+	return 0, false
+}
+
+func literalAssignment(text string, sourceCode, rawBacktick bool) bool {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return false
+	}
+	if sourceCode {
+		content, quoted := sourceLiteral(text, rawBacktick)
+		return quoted && literalQuoted(content)
+	}
+	// Python string prefixes still introduce quoted literals. Do this before
+	// treating an unquoted source-code RHS as an identifier or expression.
+	if quote := strings.IndexAny(text, "\"'"); quote == 1 || quote == 2 {
+		switch strings.ToLower(text[:quote]) {
+		case "f", "b", "r", "u", "rb", "br", "rf", "fr":
+			text = text[quote:]
+		}
 	}
 	if strings.ContainsRune("\"'`", rune(text[0])) {
 		end := strings.IndexByte(text[1:], text[0])
@@ -152,6 +266,24 @@ func scanTime(deadline time.Time) error {
 }
 
 func findCredentialUntil(text string, deadline time.Time) (*finding, error) {
+	return findCredentialAssignmentsUntil(text, deadline, false, false, false)
+}
+
+// Only file scans use language context. Values, messages and file names keep
+// the conservative assignment rule used by findCredentialUntil. File scans
+// select the earliest flagged line so continuing after it cannot skip a rule
+// that appears earlier than a higher-priority credential shape.
+func findFileCredentialUntil(relative, text string, deadline time.Time) (*finding, error) {
+	sourceCode := false
+	switch path.Ext(relative) {
+	case ".py", ".go", ".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".java", ".kt", ".rb", ".rs", ".c", ".h", ".cc", ".cpp", ".hpp", ".cs", ".swift", ".scala":
+		sourceCode = true
+	}
+	return findCredentialAssignmentsUntil(text, deadline, sourceCode, true, path.Ext(relative) == ".go")
+}
+
+func findCredentialAssignmentsUntil(text string, deadline time.Time, sourceCode, earliestLine, rawBacktick bool) (*finding, error) {
+	var found *finding
 	for _, shape := range credentialShapes {
 		if err := scanTime(deadline); err != nil {
 			return nil, err
@@ -169,7 +301,14 @@ func findCredentialUntil(text string, deadline time.Time) (*finding, error) {
 			if shape.digit && !strings.ContainsAny(text[span[0]:span[1]], "0123456789") {
 				continue
 			}
-			return &finding{shape.rule, strings.Count(text[:span[0]], "\n") + 1}, nil
+			candidate := &finding{shape.rule, strings.Count(text[:span[0]], "\n") + 1}
+			if !earliestLine {
+				return candidate, nil
+			}
+			if found == nil || candidate.line < found.line {
+				found = candidate
+			}
+			break
 		}
 	}
 	for _, span := range assignment.FindAllStringIndex(text, -1) {
@@ -187,11 +326,18 @@ func findCredentialUntil(text string, deadline time.Time) (*finding, error) {
 		if end < 0 {
 			end = len(text) - span[1]
 		}
-		if literalValue(text[span[1] : span[1]+end]) {
-			return &finding{"secret-assignment", strings.Count(text[:span[0]], "\n") + 1}, nil
+		if literalAssignment(text[span[1]:span[1]+end], sourceCode, rawBacktick) {
+			candidate := &finding{"secret-assignment", strings.Count(text[:span[0]], "\n") + 1}
+			if !earliestLine {
+				return candidate, nil
+			}
+			if found == nil || candidate.line < found.line {
+				found = candidate
+			}
+			break
 		}
 	}
-	return nil, scanTime(deadline)
+	return found, scanTime(deadline)
 }
 
 func credentialInValue(value any) bool {

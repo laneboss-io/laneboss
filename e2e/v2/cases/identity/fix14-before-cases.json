@@ -1,0 +1,32 @@
+{
+  "schema": "laneboss.identity-before-cases.v1",
+  "base": "a522d51b",
+  "scope": "Matched fix-11 API with identical candidate identity test bytes; no production overlay",
+  "cases": [
+    {
+      "id": "running-lane-d6", "package": "identity",
+      "test": ["TestLanePolicyAdvanceFixture"],
+      "diagnostic": "fixture check: running lane did not resolve the advanced policy:"
+    },
+    {
+      "id": "issued-grants-current", "package": "identity",
+      "test": ["TestIssuedGrantPolicyFixture", "advanced"],
+      "diagnostic": "fixture check: historical issued grants were refused under current policy:"
+    },
+    {
+      "id": "human-policy-conflict", "package": "identity",
+      "test": ["TestScopePolicyChangeFixture", "human", "generation"],
+      "diagnostic": "fixture check: want conflict, got unauthenticated"
+    },
+    {
+      "id": "worker-policy-conflict", "package": "identity",
+      "test": ["TestScopePolicyChangeFixture", "worker", "generation"],
+      "diagnostic": "fixture check: want conflict, got unauthenticated"
+    },
+    {
+      "id": "sealed-plan-policy-conflict", "package": "identity",
+      "test": ["TestSealedPlanPolicyChangeFixture", "historical"],
+      "diagnostic": "fixture check: want conflict, got forbidden"
+    }
+  ]
+}

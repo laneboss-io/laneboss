@@ -1,0 +1,21 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "watchdog",
+  "owner": "lb-v2-watchdog",
+  "platforms": ["linux"],
+  "requires": [
+    "service", "identity", "linux", "grants", "claudock", "secrets",
+    "lifecycle", "messaging", "dashboard"
+  ],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": [
+    "WATCHDOG-LIMIT",
+    "WATCHDOG-NO-ROOM",
+    "WATCHDOG-TAMPER",
+    "WATCHDOG-STOP-RACE",
+    "WATCHDOG-RESUME-RACE",
+    "WATCHDOG-RESTART"
+  ]
+}

@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"laneboss.io/laneboss/internal/observation"
 )
 
 var refusalPattern = regexp.MustCompile(`^rf-[0-9a-f]{24}$`)
@@ -23,7 +25,7 @@ func validScanPath(v any, command bool) bool {
 }
 func validExcerpt(v any) bool {
 	p := obj(v)
-	if !exactKeys(p, "text withheld length sha256") || !boundedInteger(p["length"], 0, 1e9) || !hashPattern.MatchString(str(p["sha256"])) {
+	if !exactKeys(p, "text withheld length sha256") || !boundedInteger(p["length"], 0, 1<<62) || !hashPattern.MatchString(str(p["sha256"])) {
 		return false
 	}
 	b, ok := p["withheld"].(bool)
@@ -56,7 +58,7 @@ func sortedStrings(v any, minimum, maximum int, valid func(any) bool) bool {
 }
 func checkRefusalPayload(kind string, p object) error {
 	fail := func(field string) error { return refused("%s: payload.%s is not in the documented form", kind, field) }
-	if !refusalPattern.MatchString(str(p["refusal"])) {
+	if !(kind == "lane.workaround_suspected" && p["refusal"] == nil) && !refusalPattern.MatchString(str(p["refusal"])) {
 		return fail("refusal")
 	}
 	if kind == "lane.refusal_reviewed" {
@@ -102,8 +104,11 @@ func checkRefusalPayload(kind string, p object) error {
 			}
 		}
 	} else {
-		if !exactKeys(p, "run suspicion refusal how paths tool at command call similarity") || !suspicionPattern.MatchString(str(p["suspicion"])) || !sortedStrings(p["how"], 1, 2, func(v any) bool { return v == "reworded" || v == "shell-write" }) || !sortedStrings(p["paths"], 1, 1024, func(v any) bool { return validScanPath(v, true) }) || !toolPattern.MatchString(str(p["tool"])) || !validExcerpt(p["command"]) {
+		if !exactKeys(p, "run suspicion refusal how paths tool at command call similarity") || !suspicionPattern.MatchString(str(p["suspicion"])) || !sortedStrings(p["how"], 1, 2, func(v any) bool { return v == "reworded" || v == "shell-write" || v == "shell-substitution-in-text" }) || !sortedStrings(p["paths"], 1, 1024, func(v any) bool { return validScanPath(v, true) }) || !toolPattern.MatchString(str(p["tool"])) || !validExcerpt(p["command"]) {
 			return fail("suspicion")
+		}
+		if err := observation.Check(p); err != nil {
+			return refused("%s: %s", kind, err.Error())
 		}
 		if p["similarity"] != nil {
 			s := obj(p["similarity"])
@@ -141,6 +146,12 @@ func checkRefusalTransition(row, e object) error {
 	if kind == "lane.refusal" {
 		if obj(state["recorded"])[str(p["refusal"])] != nil {
 			return refused("lane.refusal: it is already recorded")
+		}
+		return nil
+	}
+	if kind == "lane.workaround_suspected" && p["refusal"] == nil {
+		if obj(state["suspected"])[str(p["suspicion"])] != nil {
+			return refused("lane.workaround_suspected: it is already recorded")
 		}
 		return nil
 	}
@@ -183,6 +194,10 @@ func applyRefusal(row, e object) {
 	open := map[string][]string{}
 	for id, item := range obj(state["suspected"]) {
 		s := obj(item)
+		// Independent command observations do not hold the acceptance gate.
+		if s["refusal"] == nil {
+			continue
+		}
 		for _, path := range texts(s["paths"]) {
 			if !reviewed[id+"\x00"+path] {
 				key := str(s["refusal"]) + "\x00" + path

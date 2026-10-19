@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "grants",
+  "owner": "lb-v2-grants",
+  "platforms": ["linux"],
+  "requires": ["service", "identity", "linux", "admin", "lifecycle"],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": ["GRANT-BOUND", "CHILD-CODE"]
+}

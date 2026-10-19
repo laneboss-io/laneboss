@@ -1,0 +1,6067 @@
+{
+  "schema": "laneboss.identity-mutations.v1",
+  "scope": "package-fixture",
+  "contract_revision": "v2.0-draft.4",
+  "files": {
+    "assertion": [
+      "internal",
+      "v2",
+      "identity",
+      "webauthn.go"
+    ],
+    "service": [
+      "internal",
+      "v2",
+      "identity",
+      "service.go"
+    ],
+    "json": [
+      "internal",
+      "v2",
+      "identity",
+      "validation.go"
+    ],
+    "native": [
+      "internal",
+      "v2",
+      "peer",
+      "linux",
+      "native_linux.go"
+    ],
+    "process": [
+      "internal",
+      "v2",
+      "peer",
+      "linux",
+      "process.go"
+    ],
+    "descriptor": [
+      "internal",
+      "v2",
+      "peer",
+      "linux",
+      "descriptor_linux_test.go"
+    ],
+    "binding": [
+      "internal",
+      "v2",
+      "identity",
+      "binding.go"
+    ],
+    "human": [
+      "internal",
+      "v2",
+      "identity",
+      "human.go"
+    ],
+    "claims": [
+      "internal",
+      "v2",
+      "identity",
+      "claims.go"
+    ],
+    "registry": [
+      "internal",
+      "v2",
+      "peer",
+      "linux",
+      "registry_linux.go"
+    ],
+    "cli": [
+      "internal",
+      "v2",
+      "cli",
+      "commands_identity.go"
+    ],
+    "input": [
+      "internal",
+      "v2",
+      "identity",
+      "input.go"
+    ],
+    "launch": [
+      "internal",
+      "v2",
+      "identity",
+      "launch_binding.go"
+    ],
+    "grant-equality": [
+      "internal",
+      "v2",
+      "identity",
+      "grants_equal.go"
+    ],
+    "registration": [
+      "internal",
+      "v2",
+      "identity",
+      "enrollment.go"
+    ],
+    "registration-cbor": [
+      "internal",
+      "v2",
+      "identity",
+      "registration_cbor.go"
+    ],
+    "refresh": [
+      "internal",
+      "v2",
+      "identity",
+      "read_refresh.go"
+    ],
+    "revocation": [
+      "internal",
+      "v2",
+      "identity",
+      "revocation.go"
+    ],
+    "worker": [
+      "internal",
+      "v2",
+      "identity",
+      "worker.go"
+    ],
+    "projection": [
+      "internal",
+      "v2",
+      "identity",
+      "credential_stubs.go"
+    ],
+    "attestation": [
+      "internal",
+      "v2",
+      "identity",
+      "attestation.go"
+    ],
+    "session": [
+      "internal",
+      "v2",
+      "identity",
+      "session.go"
+    ],
+    "common-cli": [
+      "internal",
+      "v2",
+      "cli",
+      "cli.go"
+    ],
+    "worker-bind": [
+      "internal",
+      "v2",
+      "identity",
+      "worker_bind.go"
+    ],
+    "worker-files": [
+      "internal",
+      "v2",
+      "identity",
+      "worker_files_linux.go"
+    ]
+  },
+  "mutations": [
+    {
+      "id": "omit-confirm-generation-advance",
+      "rule": "HUMAN-IDENTITY/challenge-generation",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestConfirmGenerationFixture",
+        "fresh"
+      ],
+      "diagnostic": "fixture check: confirmation did not advance the challenge revision",
+      "edits": [
+        {
+          "file": "human",
+          "before": "\tstored.Generation++\n",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "g1-event-origin",
+      "rule": "G1/event-origin",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanEventSource"
+      ],
+      "diagnostic": "fixture check: service-origin human event failed:",
+      "edits": [
+        {
+          "file": "human",
+          "before": "StarterChain: []api.ID{}, Origin: \"service\", Payload: payload}",
+          "after": "StarterChain: []api.ID{}, Origin: scope.Source, Payload: payload}"
+        }
+      ]
+    },
+    {
+      "id": "g4-cli-start",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude",
+        "start"
+      ],
+      "diagnostic": "fixture check: root spawn did not use its live session prelude:",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if call.SessionProofFile != \"\" {\n\t\tprelude, err := call.identitySpawnSession()",
+          "after": "if false && call.SessionProofFile != \"\" {\n\t\tprelude, err := call.identitySpawnSession()"
+        }
+      ]
+    },
+    {
+      "id": "g4-cli-adopt",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude",
+        "adopt"
+      ],
+      "diagnostic": "fixture check: root spawn did not use its live session prelude:",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if call.SessionProofFile != \"\" {\n\t\tprelude, err := call.identitySpawnSession()",
+          "after": "if false && call.SessionProofFile != \"\" {\n\t\tprelude, err := call.identitySpawnSession()"
+        }
+      ]
+    },
+    {
+      "id": "g4-cli-receipt",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude",
+        "receipt-only"
+      ],
+      "diagnostic": "fixture check: refused prelude reached root spawn",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if call.SessionProofFile != \"\" {\n\t\t\tif err := call.identityCheckPrelude(ctx, connection); err != nil {",
+          "after": "if false && call.SessionProofFile != \"\" {\n\t\t\tif err := call.identityCheckPrelude(ctx, connection); err != nil {"
+        }
+      ]
+    },
+    {
+      "id": "g4-cli-foreign",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude",
+        "foreign"
+      ],
+      "diagnostic": "fixture check: refused prelude reached root spawn",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "current.Config != call.Config ||",
+          "after": "false && current.Config != call.Config ||"
+        }
+      ]
+    },
+    {
+      "id": "g4-cli-wrong-proof",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude",
+        "wrong-proof"
+      ],
+      "diagnostic": "fixture check: refused prelude reached root spawn",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if call.SessionProofFile != \"\" {\n\t\tprelude, err := call.identitySpawnSession()",
+          "after": "if false && call.SessionProofFile != \"\" {\n\t\tprelude, err := call.identitySpawnSession()"
+        }
+      ]
+    },
+    {
+      "id": "g4-cli-ambiguous",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude",
+        "ambiguous"
+      ],
+      "diagnostic": "fixture check: session helper accepted an ambiguous or foreign operation",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "if call.ProofFile != \"\" || call.Method != \"lane.start\"",
+          "after": "if false && call.ProofFile != \"\" || call.Method != \"lane.start\""
+        }
+      ]
+    },
+    {
+      "id": "g4-cli-method",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude",
+        "method"
+      ],
+      "diagnostic": "fixture check: session helper accepted an ambiguous or foreign operation",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "call.Method != \"lane.start\" && call.Method != \"lane.adopt\"",
+          "after": "false && call.Method != \"lane.start\" && call.Method != \"lane.adopt\""
+        }
+      ]
+    },
+    {
+      "id": "g4-option-help",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSessionOption",
+        "help"
+      ],
+      "diagnostic": "fixture check: root help omits the session proof route",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "[--session-proof FILE]",
+          "after": "[--session-proof-disabled FILE]"
+        }
+      ]
+    },
+    {
+      "id": "g4-option-duplicate",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSessionOption",
+        "duplicate"
+      ],
+      "diagnostic": "fixture check: invalid session option was not refused before dispatch:",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if seen[name] {",
+          "after": "if false && seen[name] {"
+        }
+      ]
+    },
+    {
+      "id": "g4-option-empty",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSessionOption",
+        "empty"
+      ],
+      "diagnostic": "fixture check: invalid session option was not refused before dispatch:",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if value == \"\" {",
+          "after": "if false && value == \"\" {"
+        }
+      ]
+    },
+    {
+      "id": "g4-option-ambiguous",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSessionOption",
+        "ambiguous"
+      ],
+      "diagnostic": "fixture check: invalid session option was not refused before dispatch:",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if sessionProofFile != \"\" && (proofFile != \"\" || selected.method != \"lane.start\" && selected.method != \"lane.adopt\") {",
+          "after": "if false && sessionProofFile != \"\" && (proofFile != \"\" || selected.method != \"lane.start\" && selected.method != \"lane.adopt\") {"
+        }
+      ]
+    },
+    {
+      "id": "g4-option-method",
+      "rule": "G4/client-prelude",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSessionOption",
+        "method"
+      ],
+      "diagnostic": "fixture check: invalid session option was not refused before dispatch:",
+      "edits": [
+        {
+          "file": "common-cli",
+          "before": "if sessionProofFile != \"\" && (proofFile != \"\" || selected.method != \"lane.start\" && selected.method != \"lane.adopt\") {",
+          "after": "if false && sessionProofFile != \"\" && (proofFile != \"\" || selected.method != \"lane.start\" && selected.method != \"lane.adopt\") {"
+        }
+      ]
+    },
+    {
+      "id": "g1-private-read",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "current"
+      ],
+      "diagnostic": "fixture check: private session finalization failed:",
+      "edits": [
+        {
+          "file": "session",
+          "before": "snapshot, err := s.deps.Sessions.ReadSessionCommit(ctx, scope)",
+          "after": "snapshot, err := s.deps.Sessions.ReadSessionCommit(ctx, scope)\n\tif err == nil {\n\t\tsnapshot.Session, err = s.deps.Store.ReadSession(ctx, scope, snapshot.Session.Session.ID)\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "g1-stale",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "stale"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "session",
+          "before": " || snapshot.Session.Generation != 1",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "g1-foreign",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "foreign"
+      ],
+      "diagnostic": "fixture check: invalid finalization reached connection binding",
+      "edits": [
+        {
+          "file": "human",
+          "before": "storedSession.ConnectionID != scope.Connection.ID() ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "g1-credential",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "credential"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "session",
+          "before": "if !found {",
+          "after": "if !found && false {"
+        }
+      ]
+    },
+    {
+      "id": "g1-proof",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "proof"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "session",
+          "before": "proof.ConsumedBy != receipt.Operation.ID ||",
+          "after": "false && proof.ConsumedBy != receipt.Operation.ID ||"
+        }
+      ]
+    },
+    {
+      "id": "g1-receipt",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "receipt"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "session",
+          "before": "receipt.Key != key ||",
+          "after": "false && receipt.Key != key ||"
+        }
+      ]
+    },
+    {
+      "id": "g1-bytes",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "bytes"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "session",
+          "before": "!bytes.Equal(receipt.RawRequest, scope.Frame.Bytes()) ||",
+          "after": "false && !bytes.Equal(receipt.RawRequest, scope.Frame.Bytes()) ||"
+        }
+      ]
+    },
+    {
+      "id": "g1-expired",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "expired"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "human",
+          "before": " || !liveNow.Before(idle)",
+          "after": " || false && !liveNow.Before(idle)"
+        }
+      ]
+    },
+    {
+      "id": "g1-presence",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "presence"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "session",
+          "before": "receipt.SimulatedPresence != proof.SimulatedPresence ||",
+          "after": "false && receipt.SimulatedPresence != proof.SimulatedPresence ||"
+        }
+      ]
+    },
+    {
+      "id": "g1-read-fail",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "read-fail"
+      ],
+      "diagnostic": "fixture check: durable receipt masked private finalization refusal",
+      "edits": [
+        {
+          "file": "session",
+          "before": "snapshot, err := s.deps.Sessions.ReadSessionCommit(ctx, scope)\n\tif err != nil {",
+          "after": "snapshot, err := s.deps.Sessions.ReadSessionCommit(ctx, scope)\n\tif err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "g1-capability",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "missing"
+      ],
+      "diagnostic": "fixture check: session committed without private read-back capability",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if nilDependency(s.deps.Sessions) {",
+          "after": "if false && nilDependency(s.deps.Sessions) {"
+        }
+      ]
+    },
+    {
+      "id": "g1-retained",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize",
+        "unretained"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if err != nil || current != want {",
+          "after": "if false && (err != nil || current != want) {"
+        }
+      ]
+    },
+    {
+      "id": "g1-replay-same",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReplay",
+        "same"
+      ],
+      "diagnostic": "fixture check: exact finalization replay replaced or lost authority:",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if current != want {",
+          "after": "if true || current != want {"
+        }
+      ]
+    },
+    {
+      "id": "g1-replay-foreign",
+      "rule": "G1/session-finalization",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReplay",
+        "foreign"
+      ],
+      "diagnostic": "fixture check: foreign socket reached committed-session activation",
+      "edits": [
+        {
+          "file": "human",
+          "before": "storedSession.ConnectionID != scope.Connection.ID() ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "g4-current",
+      "rule": "G4/same-socket-prelude",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestRootPrelude",
+        "current"
+      ],
+      "diagnostic": "fixture check: root prelude did not authorize read-only preflight:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if spec.Access == \"spawn\" {",
+          "after": "if false && spec.Access == \"spawn\" {"
+        }
+      ]
+    },
+    {
+      "id": "g4-ticket-only",
+      "rule": "G4/same-socket-prelude",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestRootPrelude",
+        "ticket-only"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if spec.Access == \"spawn\" {",
+          "after": "if false && spec.Access == \"spawn\" {"
+        }
+      ]
+    },
+    {
+      "id": "g4-envelope",
+      "rule": "G4/same-socket-prelude",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestRootPrelude",
+        "envelope"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": " || spec.Access == \"spawn\"",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "g1-native-current",
+      "rule": "G1/session-finalization",
+      "kind": "kernel",
+      "package": "native",
+      "test": [
+        "TestNativeSession",
+        "current"
+      ],
+      "diagnostic": "fixture check: native same-socket session finalization failed:",
+      "edits": [
+        {
+          "file": "session",
+          "before": "snapshot, err := s.deps.Sessions.ReadSessionCommit(ctx, scope)",
+          "after": "snapshot, err := s.deps.Sessions.ReadSessionCommit(ctx, scope)\n\tif err == nil {\n\t\tsnapshot.Session, err = s.deps.Store.ReadSession(ctx, scope, snapshot.Session.Session.ID)\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "g1-native-stale",
+      "rule": "G1/session-finalization",
+      "kind": "kernel",
+      "package": "native",
+      "test": [
+        "TestNativeSession",
+        "stale"
+      ],
+      "diagnostic": "fixture check: native stale session reached transport binding",
+      "edits": [
+        {
+          "file": "session",
+          "before": " || snapshot.Session.Generation != 1",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "g1-native-foreign",
+      "rule": "G1/session-finalization",
+      "kind": "kernel",
+      "package": "native",
+      "test": [
+        "TestNativeSession",
+        "foreign"
+      ],
+      "diagnostic": "fixture check: native foreign session reached transport binding",
+      "edits": [
+        {
+          "file": "human",
+          "before": "storedSession.ConnectionID != scope.Connection.ID() ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "attest-no-key-usage",
+      "rule": "R131/optional-key-usage",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "no-key-usage"
+      ],
+      "diagnostic": "fixture check: valid direct attestation was refused or marked simulated:",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if leaf.Version != 3 || !leaf.BasicConstraintsValid || leaf.IsCA ||\n",
+          "after": "if leaf.Version != 3 || !leaf.BasicConstraintsValid || leaf.IsCA || leaf.KeyUsage&x509.KeyUsageDigitalSignature == 0 ||\n"
+        }
+      ]
+    },
+    {
+      "id": "attest-no-key-sig",
+      "rule": "R131/no-usage-signature",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "no-key-sig"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if !valid {",
+          "after": "if !valid && false {"
+        }
+      ]
+    },
+    {
+      "id": "attest-no-key-root",
+      "rule": "R131/no-usage-trust",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "no-key-root"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "CurrentTime: s.deps.Clock.Now(), KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {",
+          "after": "CurrentTime: s.deps.Clock.Now(), KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "attest-key-usage",
+      "rule": "R131/incompatible-key-usage",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "bad-key-usage"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if leaf.IsCA || leaf.KeyUsage != 0 && leaf.KeyUsage&x509.KeyUsageDigitalSignature == 0 {",
+          "after": "if leaf.IsCA {"
+        }
+      ]
+    },
+    {
+      "id": "attest-u2f-aaguid",
+      "rule": "R131/u2f-certificate-aaguid",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "u2f-aaguid"
+      ],
+      "diagnostic": "fixture check: valid direct attestation was refused or marked simulated:",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if u2f {\n\t\treturn leaf, nil\n\t}",
+          "after": "if false && u2f {\n\t\treturn leaf, nil\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "attest-unsupported",
+      "rule": "R131/format-before-signature",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "unsupported"
+      ],
+      "diagnostic": "fixture check: want unsupported, got invalid_request",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "clientHash := sha256.Sum256(client)\n\tswitch format {",
+          "after": "clientHash := sha256.Sum256(client)\n\tif signature, ok := statement[\"sig\"].([]byte); !ok || len(signature) == 0 || len(signature) > 8192 {\n\t\treturn registrationInvalid()\n\t}\n\tswitch format {"
+        }
+      ]
+    },
+    {
+      "id": "attest-none",
+      "rule": "R131/direct-attestation",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "none"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "return refusal(api.CodeForbidden, \"certificate-backed direct attestation is required\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "attest-packed",
+      "rule": "R131/packed",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "packed"
+      ],
+      "diagnostic": "fixture check: valid direct attestation was refused or marked simulated:",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "case \"packed\":",
+          "after": "case \"packed-disabled\":"
+        }
+      ]
+    },
+    {
+      "id": "attest-u2f",
+      "rule": "R131/fido-u2f",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "u2f"
+      ],
+      "diagnostic": "fixture check: valid direct attestation was refused or marked simulated:",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "case \"fido-u2f\":",
+          "after": "case \"fido-u2f-disabled\":"
+        }
+      ]
+    },
+    {
+      "id": "attest-allowlist",
+      "rule": "R131/allowed-aaguid",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "unknown"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if len(s.attestation.allow) > 0 && !s.attestation.allow[credential.AAGUID] {",
+          "after": "if false && len(s.attestation.allow) > 0 && !s.attestation.allow[credential.AAGUID] {"
+        }
+      ]
+    },
+    {
+      "id": "attest-chain",
+      "rule": "R131/pinned-root",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "untrusted"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "CurrentTime: s.deps.Clock.Now(), KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {",
+          "after": "CurrentTime: s.deps.Clock.Now(), KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "attest-subject",
+      "rule": "R131/packed-certificate",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "subject"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if !packedCertificate(leaf) {",
+          "after": "if false && !packedCertificate(leaf) {"
+        }
+      ]
+    },
+    {
+      "id": "attest-cert-aaguid",
+      "rule": "R131/certificate-aaguid",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "cert-aaguid"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "!bytes.Equal(aaguid, credentialAAGUID(credential)) {",
+          "after": "false && !bytes.Equal(aaguid, credentialAAGUID(credential)) {"
+        }
+      ]
+    },
+    {
+      "id": "attest-u2f-signature",
+      "rule": "R131/u2f-signature",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "u2f-signature"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if !valid {",
+          "after": "if !valid && false {"
+        }
+      ]
+    },
+    {
+      "id": "attest-config",
+      "rule": "R131/installed-config",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "config"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": " || s.attestation.config != challenge.Ceremony.Config",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "attest-installation",
+      "rule": "R131/installation-generation",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "installation"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "s.attestation.installation != challenge.InstallationGeneration {",
+          "after": "false && s.attestation.installation != challenge.InstallationGeneration {"
+        }
+      ]
+    },
+    {
+      "id": "attest-missing-roots",
+      "rule": "R131/required-install-trust",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "missing-roots"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if s.attestation.roots == nil || len(s.attestation.roots.Subjects()) == 0 || s.attestation.config != challenge.Ceremony.Config ||\n\t\ts.attestation.installation != challenge.InstallationGeneration {",
+          "after": "if false && (s.attestation.roots == nil || len(s.attestation.roots.Subjects()) == 0 || s.attestation.config != challenge.Ceremony.Config ||\n\t\ts.attestation.installation != challenge.InstallationGeneration) {"
+        },
+        {
+          "file": "attestation",
+          "before": "CurrentTime: s.deps.Clock.Now(), KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {",
+          "after": "CurrentTime: s.deps.Clock.Now(), KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "attest-no-self",
+      "rule": "R131/no-unmarked-self",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation",
+        "self"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "!hasChain && len(statement) == 2 && credential.SimulatedPresence {",
+          "after": "!hasChain && len(statement) == 2 {"
+        }
+      ]
+    },
+    {
+      "id": "f12-binding-exact",
+      "rule": "FIX12/exact-opening-binding",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjGate",
+        "binding"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !reflect.DeepEqual(durable, binding) {",
+          "after": "if false && !reflect.DeepEqual(durable, binding) {"
+        }
+      ]
+    },
+    {
+      "id": "f12-native-channel",
+      "rule": "FIX12/native-channel",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjAuth",
+        "channel"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if err := verifier.VerifyCredentialProjection(ctx, peer, a); err != nil {",
+          "after": "if err := verifier.VerifyCredentialProjection(ctx, peer, a); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f12-peer-pin",
+      "rule": "FIX12/native-peer",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjAuth",
+        "peer"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if facts != a.HelperPeer {",
+          "after": "if false && facts != a.HelperPeer {"
+        }
+      ]
+    },
+    {
+      "id": "f12-source-revoked",
+      "rule": "FIX12/current-source",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjRecord",
+        "source"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if source.Revoked || source.Generation == 0",
+          "after": "if false || source.Generation == 0"
+        }
+      ]
+    },
+    {
+      "id": "f12-broker-uid",
+      "rule": "FIX12/outside-broker",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjRecord",
+        "broker-uid"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "a.BrokerPeer.HostUID == a.ServiceUID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "f12-broker-group",
+      "rule": "FIX12/outside-containment",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjRecord",
+        "broker-group"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "a.BrokerPeer.ContainmentID == a.Request.Lease.ContainmentID {",
+          "after": "false {"
+        }
+      ]
+    },
+    {
+      "id": "f12-boot-pin",
+      "rule": "FIX12/installed-boot",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjRecord",
+        "boot"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !ok || boot != a.BootID || lifetime == \"\" {",
+          "after": "if !ok || false && boot != a.BootID || lifetime == \"\" {"
+        }
+      ]
+    },
+    {
+      "id": "f12-prepare-claim",
+      "rule": "FIX12/current-claim",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjState",
+        "claim"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !reflect.DeepEqual(effect, request.Claim.Record) ||",
+          "after": "if false && !reflect.DeepEqual(effect, request.Claim.Record) ||"
+        }
+      ]
+    },
+    {
+      "id": "f12-cancel-fence",
+      "rule": "FIX12/current-cancellation",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjState",
+        "epoch"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "lane.CancellationEpoch != request.Cause.CancellationEpoch ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "f12-current-grants",
+      "rule": "FIX12/current-grants",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjState",
+        "grants"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !equalLaunchGrants(grants, request.Handoff.Spec.Grants) {",
+          "after": "if false && !equalLaunchGrants(grants, request.Handoff.Spec.Grants) {"
+        }
+      ]
+    },
+    {
+      "id": "f12-auth-snapshot",
+      "rule": "FIX12/source-snapshot",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjAuth",
+        "drift"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "record, err = copyProjection(record)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\ta := record.Authority",
+          "after": "a := record.Authority"
+        }
+      ]
+    },
+    {
+      "id": "f12-auth-reread",
+      "rule": "FIX12/current-export",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjAuth",
+        "drift"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !reflect.DeepEqual(live, record) {\n\t\treturn empty, refusal(api.CodeConflict, \"credential projection changed during peer verification\")",
+          "after": "if false && !reflect.DeepEqual(live, record) {\n\t\treturn empty, refusal(api.CodeConflict, \"credential projection changed during peer verification\")"
+        }
+      ]
+    },
+    {
+      "id": "f12-held-receipt",
+      "rule": "FIX12/held-receipt",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjGate",
+        "held"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if err := api.ValidateCredentialProjectionGate(record, durable, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateCredentialProjectionGate(record, durable, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f12-permit-holding",
+      "rule": "FIX12/before-permit",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjPermit",
+        "missing"
+      ],
+      "diagnostic": "fixture check: want not_implemented, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if _, err := s.CheckLaunchCredentials(ctx, durable); err != nil {",
+          "after": "if _, err := s.CheckLaunchCredentials(ctx, durable); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f12-software-id",
+      "rule": "FIX11/software-identity",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRegistrationID"
+      ],
+      "diagnostic": "fixture check: software credential normalization lost its reserved identity or provenance",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "if credential.SimulatedPresence {",
+          "after": "if credential.SimulatedPresence && false {"
+        }
+      ]
+    },
+    {
+      "id": "f12-gate-reread",
+      "rule": "FIX12/current-permit",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjGate",
+        "drift"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !reflect.DeepEqual(live, record) {\n\t\treturn empty, refusal(api.CodeConflict, \"credential holding changed before its launch permit\")",
+          "after": "if false && !reflect.DeepEqual(live, record) {\n\t\treturn empty, refusal(api.CodeConflict, \"credential holding changed before its launch permit\")"
+        }
+      ]
+    },
+    {
+      "id": "f12-worker-selection",
+      "rule": "FIX12/protected-selection",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjWorker",
+        "selection"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !reflect.DeepEqual(a.Request, request) {",
+          "after": "if false && !reflect.DeepEqual(a.Request, request) {"
+        }
+      ]
+    },
+    {
+      "id": "f12-target-inventory",
+      "rule": "FIX12/complete-targets",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjRecord",
+        "targets"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if !reflect.DeepEqual(a.Targets, targets) || len(a.Sources) != len(targets) {",
+          "after": "if false && (!reflect.DeepEqual(a.Targets, targets) || len(a.Sources) != len(targets)) {"
+        }
+      ]
+    },
+    {
+      "id": "f12-current-policy",
+      "rule": "FIX12/fresh-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjState",
+        "policy"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "if policy.Generation == 0 || policy.Generation < request.Handoff.Spec.PolicyGeneration ||\n\t\trequest.Handoff.Spec.Kind == \"agent\" && (policy.Generation != request.Handoff.Spec.PolicyGeneration || policy.Generation != grants.PolicyGeneration) {",
+          "after": "if false && (policy.Generation == 0 || policy.Generation < request.Handoff.Spec.PolicyGeneration ||\n\t\trequest.Handoff.Spec.Kind == \"agent\" && (policy.Generation != request.Handoff.Spec.PolicyGeneration || policy.Generation != grants.PolicyGeneration)) {"
+        }
+      ]
+    },
+    {
+      "id": "f12-native-required",
+      "rule": "FIX12/no-native-fallback",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjAuth",
+        "missing-native"
+      ],
+      "diagnostic": "fixture check: want not_implemented, got success",
+      "edits": [
+        {
+          "file": "projection",
+          "before": "return empty, gap(\"AuthorizeCredentialProjection\", \"installed native credential-channel executable and lifetime verification\")",
+          "after": "return copyProjection(a)"
+        }
+      ]
+    },
+    {
+      "id": "f14-historical-lane-scope",
+      "rule": "FIX11/current-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLanePolicyAdvanceFixture"
+      ],
+      "diagnostic": "fixture check: running lane did not resolve the advanced policy:",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "scope.PolicyGeneration = policy.Generation\n\tif _, err := s.currentLaunch",
+          "after": "scope.PolicyGeneration = record.PolicyGeneration\n\tif _, err := s.currentLaunch"
+        }
+      ]
+    },
+    {
+      "id": "f14-record-policy-equality",
+      "rule": "FIX11/historical-launch",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLanePolicyAdvanceFixture"
+      ],
+      "diagnostic": "fixture check: running lane did not resolve the advanced policy:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "record.PolicyGeneration > scope.PolicyGeneration",
+          "after": "record.PolicyGeneration != scope.PolicyGeneration"
+        }
+      ]
+    },
+    {
+      "id": "f14-projection-policy-equality",
+      "rule": "FIX11/live-projection",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLanePolicyAdvanceFixture"
+      ],
+      "diagnostic": "fixture check: refreshed lane projection invalidated its running launch:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "lane.PolicyGeneration < record.PolicyGeneration || lane.PolicyGeneration > scope.PolicyGeneration ||",
+          "after": "lane.PolicyGeneration != record.PolicyGeneration ||"
+        }
+      ]
+    },
+    {
+      "id": "f14-issued-current-equality",
+      "rule": "FIX11/historical-grants",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLanePolicyAdvanceFixture"
+      ],
+      "diagnostic": "fixture check: running lane did not resolve the advanced policy:",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "if policy.Generation == 0 || policy.Generation < record.PolicyGeneration {\n\t\treturn refusal(api.CodeForbidden, \"current policy predates the issued launch authority\")",
+          "after": "if policy.Generation != record.PolicyGeneration {\n\t\treturn refusal(api.CodeForbidden, \"current policy predates the issued launch authority\")"
+        }
+      ]
+    },
+    {
+      "id": "f14-self-historical-policy",
+      "rule": "FIX11/current-self",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLanePolicyAdvanceFixture"
+      ],
+      "diagnostic": "fixture check: running lane self lost the current policy:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "PolicyGeneration:   scope.PolicyGeneration}, nil",
+          "after": "PolicyGeneration:   record.PolicyGeneration}, nil"
+        }
+      ]
+    },
+    {
+      "id": "f14-sealed-policy-current",
+      "rule": "FIX11/new-launch-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestPlanFence",
+        "policy"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchPolicyCurrent(plan.Reservation, grants, policy); err != nil {",
+          "after": "if err := api.ValidateLaunchPolicyCurrent(plan.Reservation, grants, policy); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f14-human-policy-reload",
+      "rule": "FIX11/policy-conflict",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopePolicyChangeFixture",
+        "human",
+        "generation"
+      ],
+      "diagnostic": "fixture check: want conflict, got unauthenticated",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "refusal(api.CodeConflict, \"connection policy changed; reload current authority\")",
+          "after": "refusal(api.CodeUnauthenticated, \"connection policy changed; reload current authority\")"
+        }
+      ]
+    },
+    {
+      "id": "f14-worker-policy-reload",
+      "rule": "FIX11/policy-conflict",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopePolicyChangeFixture",
+        "worker",
+        "generation"
+      ],
+      "diagnostic": "fixture check: want conflict, got unauthenticated",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "refusal(api.CodeConflict, \"connection policy changed; reload current authority\")",
+          "after": "refusal(api.CodeUnauthenticated, \"connection policy changed; reload current authority\")"
+        }
+      ]
+    },
+    {
+      "id": "f14-human-omit-policy",
+      "rule": "FIX11/current-human-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopePolicyChangeFixture",
+        "human",
+        "generation"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "if current.PolicyGeneration != scope.PolicyGeneration {",
+          "after": "if false && current.PolicyGeneration != scope.PolicyGeneration {"
+        }
+      ]
+    },
+    {
+      "id": "f14-worker-omit-policy",
+      "rule": "FIX11/current-worker-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopePolicyChangeFixture",
+        "worker",
+        "generation"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "if current.PolicyGeneration != scope.PolicyGeneration {",
+          "after": "if false && current.PolicyGeneration != scope.PolicyGeneration {"
+        }
+      ]
+    },
+    {
+      "id": "f11-revoke-readback",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRevocationConsumerFixture",
+        "record-drift"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "revocation",
+          "before": "if !reflect.DeepEqual(live, revocation.Record) {",
+          "after": "if false && !reflect.DeepEqual(live, revocation.Record) {"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-input",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerOperationFixture",
+        "input-lease"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "input.LeaseID != principal.Lease.ID {",
+          "after": "false && input.LeaseID != principal.Lease.ID {"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-result",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerOperationFixture",
+        "result-hash"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "result.InputSHA256 != principal.Lease.Input.SHA256 ||",
+          "after": "false && result.InputSHA256 != principal.Lease.Input.SHA256 ||"
+        }
+      ]
+    },
+    {
+      "id": "f11-read-absolute",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture",
+        "absolute"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "refresh",
+          "before": "if err := validateCommittedRefresh(scope, before, after, started, ended); err != nil {",
+          "after": "if err := validateCommittedRefresh(scope, before, after, started, ended); err != nil && false {"
+        },
+        {
+          "file": "refresh",
+          "before": "if err := api.ValidateReadAuthorityUpdate(authority, update); err != nil {",
+          "after": "if err := api.ValidateReadAuthorityUpdate(authority, update); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-read-connection",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture",
+        "connection"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "refresh",
+          "before": "if err := validateCommittedRefresh(scope, before, after, started, ended); err != nil {",
+          "after": "if err := validateCommittedRefresh(scope, before, after, started, ended); err != nil && false {"
+        },
+        {
+          "file": "refresh",
+          "before": "if err := api.ValidateReadAuthorityUpdate(authority, update); err != nil {",
+          "after": "if err := api.ValidateReadAuthorityUpdate(authority, update); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-read-close",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture",
+        "transport"
+      ],
+      "diagnostic": "fixture check: failed local refresh lost commit or connection closure",
+      "edits": [
+        {
+          "file": "refresh",
+          "before": "if err := refresher.RefreshReadAuthority(ctx, update); err != nil {\n\t\t\treturn errors.Join(err, scope.Connection.Close())\n\t\t}",
+          "after": "if err := refresher.RefreshReadAuthority(ctx, update); err != nil {\n\t\t\treturn err\n\t\t}"
+        }
+      ]
+    },
+    {
+      "id": "f11-read-readback",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture",
+        "noop"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "refresh",
+          "before": "if err != nil || current != update.After {",
+          "after": "if err != nil {"
+        }
+      ]
+    },
+    {
+      "id": "f11-read-cas",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: same-session activity was not committed and refreshed:",
+      "edits": [
+        {
+          "file": "refresh",
+          "before": "ExpectedGeneration: before.Generation}",
+          "after": "ExpectedGeneration: before.Generation + 1}"
+        }
+      ]
+    },
+    {
+      "id": "f11-credential-prod",
+      "rule": "FIX11",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestCredentialConsumerFixture"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "if err := api.ValidateHumanEnrollments(scope.Config, []api.HumanEnrollment{enrollment}); err != nil {",
+          "after": "if err := api.ValidateHumanEnrollments(scope.Config, []api.HumanEnrollment{enrollment}); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-credential-pair",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentMarkersFixture",
+        "marker"
+      ],
+      "diagnostic": "fixture check: partial registration markers were admitted",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "if err := api.ValidateCredentialPresence(credential); err != nil {",
+          "after": "if err := api.ValidateCredentialPresence(credential); err != nil && false {"
+        },
+        {
+          "file": "registration",
+          "before": "if err := api.ValidateEnrollmentInstall(challenge, request, install, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateEnrollmentInstall(challenge, request, install, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-proof-use-mark",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredPresenceFixture"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "if proof.SimulatedPresence != credential.SimulatedPresence || proof.Ref.SimulatedPresence != proof.SimulatedPresence {",
+          "after": "if false && (proof.SimulatedPresence != credential.SimulatedPresence || proof.Ref.SimulatedPresence != proof.SimulatedPresence) {"
+        }
+      ]
+    },
+    {
+      "id": "f11-confirm-mark",
+      "rule": "FIX11",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "confirm"
+      ],
+      "diagnostic": "fixture check: human transaction did not complete exactly one handoff:",
+      "edits": [
+        {
+          "file": "human",
+          "before": "api.VerifiedHumanProof{SimulatedPresence: credential.SimulatedPresence, EndpointClass:",
+          "after": "api.VerifiedHumanProof{SimulatedPresence: !credential.SimulatedPresence, EndpointClass:"
+        }
+      ]
+    },
+    {
+      "id": "f11-confirm-reference",
+      "rule": "FIX11",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestConfirmationPresenceReceiptFixture",
+        "reference"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "human",
+          "before": " || retained.SimulatedPresence != credential.SimulatedPresence",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "f11-operation-presence",
+      "rule": "FIX11",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestConfirmationPresenceReceiptFixture",
+        "operation"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if commit.Operation.SimulatedPresence != presence {",
+          "after": "if false && commit.Operation.SimulatedPresence != presence {"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-begin",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentBeginFixture",
+        "foreign"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "if err := api.ValidateEnrollmentChallenge(challenge, request, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateEnrollmentChallenge(challenge, request, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-nonce",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "used"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "if err := api.ValidateEnrollmentChallenge(challenge, request.Ceremony, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateEnrollmentChallenge(challenge, request.Ceremony, s.deps.Clock.Now()); err != nil && false {"
+        },
+        {
+          "file": "registration",
+          "before": "if err := api.ValidateEnrollmentInstall(challenge, request, install, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateEnrollmentInstall(challenge, request, install, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-evidence",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: verified registration handoff refused:",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "credential.RegistrationEvidence = evidence",
+          "after": "credential.RegistrationEvidence = api.BlobRef{}"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-cbor",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "duplicate"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "registration-cbor",
+          "before": "if _, exists := items[key]; exists {",
+          "after": "if _, exists := items[key]; exists && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-signature",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "signature"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "attestation",
+          "before": "if !valid {",
+          "after": "if !valid && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-rp",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "rp"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "subtle.ConstantTimeCompare(auth[:32], rpHash[:]) != 1 ||",
+          "after": "false && subtle.ConstantTimeCompare(auth[:32], rpHash[:]) != 1 ||"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-challenge",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "nonce"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "subtle.ConstantTimeCompare([]byte(client.Challenge), []byte(nonce)) != 1 {",
+          "after": "false && subtle.ConstantTimeCompare([]byte(client.Challenge), []byte(nonce)) != 1 {"
+        }
+      ]
+    },
+    {
+      "id": "f11-enrollment-uv",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "uv"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "registration",
+          "before": "flags&0x45 != 0x45",
+          "after": "flags&0x41 != 0x41"
+        }
+      ]
+    },
+    {
+      "id": "f11-revoke-record",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRevocationConsumerFixture",
+        "record"
+      ],
+      "diagnostic": "fixture check: invalid revocation reached transport",
+      "edits": [
+        {
+          "file": "revocation",
+          "before": "if err := api.ValidateLaunchRevocation(revocation); err != nil {",
+          "after": "if err := api.ValidateLaunchRevocation(revocation); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-revoke-close",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRevocationConsumerFixture",
+        "unknown"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "revocation",
+          "before": "if err := api.ValidateTransportInvalidation(revocation, receipt); err != nil {",
+          "after": "if err := api.ValidateTransportInvalidation(revocation, receipt); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-revoke-cause",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRevocationConsumerFixture",
+        "event"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "revocation",
+          "before": "event.Actor != revocation.Cause.Actor ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-lease",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerConsumerFixture",
+        "lease"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-peer",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerConsumerFixture",
+        "peer"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-claim",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerConsumerFixture",
+        "claim"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-operation",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerOperationFixture",
+        "inject"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil {",
+          "after": "if err := api.ValidateWorkerPrincipal(principal, endpoint, facts, operation, s.deps.Clock.Now()); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-registry",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerConsumerFixture",
+        "registry"
+      ],
+      "diagnostic": "fixture check: want containment_unknown, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "containment.Lease.UID != facts.HostUID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-input-frame",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerOperationFixture",
+        "frame"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "api.DecodeObject(scope.Frame.Bytes(), &framed) != nil || !reflect.DeepEqual(framed, request)",
+          "after": "api.DecodeObject(scope.Frame.Bytes(), &framed) != nil || false && !reflect.DeepEqual(framed, request)"
+        }
+      ]
+    },
+    {
+      "id": "f11-worker-result-frame",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerOperationFixture",
+        "result-frame"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "api.DecodeObject(scope.Frame.Bytes(), &framed) != nil || !reflect.DeepEqual(framed, request)",
+          "after": "api.DecodeObject(scope.Frame.Bytes(), &framed) != nil || false && !reflect.DeepEqual(framed, request)"
+        }
+      ]
+    },
+    {
+      "id": "request-keyed-worker-gate",
+      "rule": "PEER/stored-worker-kind",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestWorkerPermitGapFixture"
+      ],
+      "diagnostic": "fixture check: want not_implemented, got integrity",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if durable.Record.Kind == \"worker\" && durable.Record.Actor.Kind == \"worker\" {",
+          "after": "if request.Record.Kind == \"worker\" && request.Record.Actor.Kind == \"worker\" {"
+        }
+      ]
+    },
+    {
+      "id": "request-worker-before-store",
+      "rule": "PEER/worker-request-preflight",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestWorkerRequestRefusalFixture"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "return api.LaunchPermit{}, refusal(api.CodeInvalid, \"worker selector does not name a retained worker launch\")",
+          "after": "return api.LaunchPermit{}, gap(\"BindLaunch\", \"retained fixed worker handoff and native lease authority\")"
+        }
+      ]
+    },
+    {
+      "id": "omit-reserved-level",
+      "rule": "LAUNCH-PLAN/reserved-level",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReservedPinsFixture",
+        "level"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil {",
+          "after": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-reserved-role",
+      "rule": "LAUNCH-PLAN/reserved-role",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReservedPinsFixture",
+        "role"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil {",
+          "after": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-reserved-driver",
+      "rule": "LAUNCH-PLAN/reserved-driver",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReservedPinsFixture",
+        "driver"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchPlanRecord(retained); err != nil {",
+          "after": "if err := api.ValidateLaunchPlanRecord(retained); err != nil && false {"
+        },
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil {",
+          "after": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-reserved-authority",
+      "rule": "LAUNCH-PLAN/consumed-authority",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReservedPinsFixture",
+        "authority"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchPlanRecord(retained); err != nil {",
+          "after": "if err := api.ValidateLaunchPlanRecord(retained); err != nil && false {"
+        },
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil {",
+          "after": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-human-reservation-kind",
+      "rule": "LAUNCH-PLAN/human-ticket-authority",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReservedPinsFixture",
+        "human-starter"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchPlanRecord(retained); err != nil {",
+          "after": "if err := api.ValidateLaunchPlanRecord(retained); err != nil && false {"
+        },
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil {",
+          "after": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-lane-reservation-kind",
+      "rule": "LAUNCH-PLAN/lane-starter-authority",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReservedPinsFixture",
+        "lane-proof"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchPlanRecord(retained); err != nil {",
+          "after": "if err := api.ValidateLaunchPlanRecord(retained); err != nil && false {"
+        },
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil {",
+          "after": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-ready-driver",
+      "rule": "LAUNCH-PLAN/ready-driver",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadyDriverFixture"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": " || lane.Session.Driver != plan.Reservation.Driver",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "omit-current-capture-disabled",
+      "rule": "LAUNCH-PLAN/current-capture-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCurrentCaptureFixture",
+        "disabled"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateCapturePolicy(plan.Capture, policy); err != nil {",
+          "after": "if err := api.ValidateCapturePolicy(plan.Capture, policy); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-current-capture-approval",
+      "rule": "LAUNCH-PLAN/current-capture-approval",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCurrentCaptureFixture",
+        "approval"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateCapturePolicy(plan.Capture, policy); err != nil {",
+          "after": "if err := api.ValidateCapturePolicy(plan.Capture, policy); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-identity-event-actor",
+      "rule": "LAUNCH-PLAN/causal-service-actor",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIdentityEventFixture",
+        "actor"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "event.Actor != handoff.Cause.Actor ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "reject-empty-grant-projection",
+      "rule": "LAUNCH-PLAN/empty-grant-projection",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestGrantProjectionFixture",
+        "empty"
+      ],
+      "diagnostic": "fixture check: equivalent grant projection refused or changed:",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if !equalLaunchGrants(grants, plan.Inputs.Grants) {",
+          "after": "if !reflect.DeepEqual(grants, plan.Inputs.Grants) {"
+        }
+      ]
+    },
+    {
+      "id": "reject-nested-grant-projection",
+      "rule": "LAUNCH-PLAN/nested-grant-projection",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestGrantProjectionFixture",
+        "nested"
+      ],
+      "diagnostic": "fixture check: equivalent grant projection refused or changed:",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if !equalLaunchGrants(grants, plan.Inputs.Grants) {",
+          "after": "if !reflect.DeepEqual(grants, plan.Inputs.Grants) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-grant-projection-copy",
+      "rule": "LAUNCH-PLAN/immutable-grant-projection",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestGrantProjectionFixture",
+        "nested"
+      ],
+      "diagnostic": "fixture check: equivalent grant projection refused or changed:",
+      "edits": [
+        {
+          "file": "grant-equality",
+          "before": "slices.Clone(emptyGrantSlice(grants.Resources))",
+          "after": "slices.Clip(emptyGrantSlice(grants.Resources))"
+        }
+      ]
+    },
+    {
+      "id": "omit-grant-content",
+      "rule": "LAUNCH-PLAN/nonempty-grant-content",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestPlanFence",
+        "contents"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if !equalLaunchGrants(grants, plan.Inputs.Grants) {",
+          "after": "if false && !equalLaunchGrants(grants, plan.Inputs.Grants) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-live-agent-kind",
+      "rule": "PEER/live-agent-kind",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCurrentCallerFixture",
+        "legacy-kind"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "record.Revoked || record.Kind != \"agent\" ||",
+          "after": "record.Revoked ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-live-worker-kind",
+      "rule": "PEER/worker-is-not-lane",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCurrentCallerFixture",
+        "worker-kind"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "record.Revoked || record.Kind != \"agent\" ||",
+          "after": "record.Revoked ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-binding-agent-kind",
+      "rule": "PEER/new-binding-kind",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestBindingKindsFixture",
+        "kind_"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "json",
+          "before": "record.Kind != \"agent\" || !validID(record.ID)",
+          "after": "!validID(record.ID)"
+        }
+      ]
+    },
+    {
+      "id": "omit-worker-permit-gap",
+      "rule": "PEER/worker-permit-dependency",
+      "kind": "closed-gap",
+      "package": "identity",
+      "test": [
+        "TestWorkerPermitGapFixture"
+      ],
+      "diagnostic": "fixture check: want not_implemented, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "return permit, api.NotImplemented(\"lb-v2-admin\", \"retained fixed worker descriptor and native lease handoff\")",
+          "after": "return permit, nil"
+        }
+      ]
+    },
+    {
+      "id": "omit-plan-selector",
+      "rule": "LAUNCH-PLAN/retained-selector",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanReadFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: retained plan and committed event were not read:",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "s.deps.Store.LaunchPlan(ctx, scope, recovery.PlanID)",
+          "after": "s.deps.Store.LaunchPlan(ctx, scope, binding.Record.ID)"
+        }
+      ]
+    },
+    {
+      "id": "omit-plan-refusal",
+      "rule": "LAUNCH-PLAN/dependency-refusal",
+      "kind": "closed-gap",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanReadFixture",
+        "plan-gap"
+      ],
+      "diagnostic": "fixture check: launch dependency refusal was replaced:",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "retained, err := s.deps.Store.LaunchPlan(ctx, scope, recovery.PlanID)\n\tif err != nil {",
+          "after": "retained, err := s.deps.Store.LaunchPlan(ctx, scope, recovery.PlanID)\n\tif err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-plan-revision",
+      "rule": "LAUNCH-PLAN/retained-record",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanGuardsFixture",
+        "revision"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchPlanRecord(retained); err != nil {",
+          "after": "if err := api.ValidateLaunchPlanRecord(retained); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-bound-plan-phase",
+      "rule": "LAUNCH-PLAN/bound-before-permit",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanGuardsFixture",
+        "phase"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "retained.Phase != \"bound\" && retained.Phase != \"opened\" || ",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "omit-retained-handoff",
+      "rule": "LAUNCH-PLAN/exact-handoff",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanGuardsFixture",
+        "handoff"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "!reflect.DeepEqual(*retained.Handoff, recovery.Handoff) {",
+          "after": "false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-binding-plan-check",
+      "rule": "LAUNCH-PLAN/prepared-spec",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanGuardsFixture",
+        "prepared-spec"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil {",
+          "after": "if err := api.ValidateLaunchBindingPlan(binding, *retained.Plan); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-recovery-path",
+      "rule": "LAUNCH-PLAN/caller-path",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchRecoveryFixture",
+        "path"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(durable.Recovery, request.Recovery) {",
+          "after": "if false && !reflect.DeepEqual(durable.Recovery, request.Recovery) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-recovery-executable",
+      "rule": "LAUNCH-PLAN/caller-executable",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchRecoveryFixture",
+        "executable"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(durable.Recovery, request.Recovery) {",
+          "after": "if false && !reflect.DeepEqual(durable.Recovery, request.Recovery) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-recovery-reservation",
+      "rule": "LAUNCH-PLAN/foreign-reservation",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchRecoveryFixture",
+        "reservation"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(durable.Recovery, request.Recovery) {",
+          "after": "if false && !reflect.DeepEqual(durable.Recovery, request.Recovery) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-recovery-request",
+      "rule": "LAUNCH-PLAN/changed-replay",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchRecoveryFixture",
+        "request"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(durable.Recovery, request.Recovery) {",
+          "after": "if false && !reflect.DeepEqual(durable.Recovery, request.Recovery) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-recovery-budget",
+      "rule": "LAUNCH-PLAN/changed-budget",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchRecoveryFixture",
+        "budget"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(durable.Recovery, request.Recovery) {",
+          "after": "if false && !reflect.DeepEqual(durable.Recovery, request.Recovery) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-recovery-restart",
+      "rule": "LAUNCH-PLAN/recovery-required",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchRecoveryFixture",
+        "missing"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(durable.Recovery, request.Recovery) {",
+          "after": "if false && !reflect.DeepEqual(durable.Recovery, request.Recovery) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-plan-epoch",
+      "rule": "LAUNCH-PLAN/current-cancellation",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestPlanFence",
+        "epoch"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": " || lane.CancellationEpoch != plan.Reservation.CancellationEpoch",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "omit-plan-life-generation",
+      "rule": "LAUNCH-PLAN/current-life",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanGuardsFixture",
+        "generation"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "lane.Generation < plan.Reservation.Generation || ",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "omit-plan-current-grants",
+      "rule": "LAUNCH-PLAN/current-grants",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestPlanFence",
+        "grants"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "if !equalLaunchGrants(grants, plan.Inputs.Grants) {",
+          "after": "if false && !equalLaunchGrants(grants, plan.Inputs.Grants) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-identity-event",
+      "rule": "LAUNCH-PLAN/committed-event",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIdentityEventFixture",
+        "missing"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if err := s.checkIdentityEvent(ctx, serviceScope, durable); err != nil {",
+          "after": "if err := s.checkIdentityEvent(ctx, serviceScope, durable); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-identity-event-kind",
+      "rule": "LAUNCH-PLAN/identity-event-kind",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIdentityEventFixture",
+        "kind"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "event.Kind != \"identity.bound\" ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-identity-event-requester",
+      "rule": "LAUNCH-PLAN/original-requester",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIdentityEventFixture",
+        "requester"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": "event.RequestedBy != handoff.Cause.RequestedBy ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-identity-event-payload",
+      "rule": "LAUNCH-PLAN/identity-event-payload",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIdentityEventFixture",
+        "payload"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "launch",
+          "before": " || !reflect.DeepEqual(payload, record)",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "reject-client-data-extra",
+      "rule": "HUMAN-IDENTITY/browser-extensions",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestClientDataFixture",
+        "extra"
+      ],
+      "diagnostic": "fixture check: signed browser client data was refused:",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "client, err := decodeClientData(request.ClientDataJSON)",
+          "after": "var client collectedClientData\n\terr = strictObject(request.ClientDataJSON, &client)"
+        }
+      ]
+    },
+    {
+      "id": "omit-top-origin",
+      "rule": "HUMAN-IDENTITY/top-origin",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "top-origin"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "client.TopOrigin != nil ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-data-trunc-diagnostic",
+      "rule": "PEER/fixture-data-truncation",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "data-trunc"
+      ],
+      "diagnostic": "want descriptor rejection \"data truncated\", got unexpected recvmsg flag bits=",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if flags&unix.MSG_TRUNC != 0 {",
+          "after": "if false && flags&unix.MSG_TRUNC != 0 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-control-trunc-diagnostic",
+      "rule": "PEER/fixture-control-truncation",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "control-trunc"
+      ],
+      "diagnostic": "want descriptor rejection \"control truncated\", got unexpected recvmsg flag bits=",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if flags&unix.MSG_CTRUNC != 0 {",
+          "after": "if false && flags&unix.MSG_CTRUNC != 0 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-transfer-flag-check",
+      "rule": "PEER/fixture-unexpected-flags",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "unknown-flag"
+      ],
+      "diagnostic": "fixture check: invalid transfer returned a descriptor",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "unexpected != 0 {",
+          "after": "unexpected != 0 && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-transfer-data-count",
+      "rule": "PEER/fixture-data-count",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "extra-data"
+      ],
+      "diagnostic": "fixture check: invalid transfer returned a descriptor",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if len(data) != 1 {",
+          "after": "if false && len(data) != 1 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-transfer-marker",
+      "rule": "PEER/fixture-marker",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "wrong-marker"
+      ],
+      "diagnostic": "fixture check: invalid transfer returned a descriptor",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if data[0] != 'f' {",
+          "after": "if false && data[0] != 'f' {"
+        }
+      ]
+    },
+    {
+      "id": "omit-transfer-message-count",
+      "rule": "PEER/fixture-control-count",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "extra-control"
+      ],
+      "diagnostic": "want descriptor rejection \"control message count=2\", got received descriptor count=2",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if len(messages) != 1 {",
+          "after": "if false && len(messages) != 1 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-transfer-fd-count",
+      "rule": "PEER/fixture-descriptor-count",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "extra-fd"
+      ],
+      "diagnostic": "fixture check: invalid transfer returned a descriptor",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if len(descriptors) != 1 {",
+          "after": "if false && len(descriptors) != 1 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-transfer-cloexec",
+      "rule": "PEER/fixture-descriptor-cloexec",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "no-cloexec"
+      ],
+      "diagnostic": "fixture check: invalid transfer returned a descriptor",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if fdFlags&unix.FD_CLOEXEC == 0 {",
+          "after": "if false && fdFlags&unix.FD_CLOEXEC == 0 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-transfer-reject-close",
+      "rule": "PEER/fixture-rejected-descriptor-close",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture",
+        "control-trunc"
+      ],
+      "diagnostic": "fixture check: rejected descriptor is still open",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if result == nil {",
+          "after": "if result == nil || len(descriptors) > 0 {"
+        }
+      ]
+    },
+    {
+      "id": "reject-cloexec-flag",
+      "rule": "PEER/fixture-cloexec-regression",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorFlagsFixture",
+        "cloexec"
+      ],
+      "diagnostic": "fixture check: valid close-on-exec transfer refused:",
+      "edits": [
+        {
+          "file": "descriptor",
+          "before": "if unexpected := flags &^ unix.MSG_CMSG_CLOEXEC; unexpected != 0 {",
+          "after": "if unexpected := flags; unexpected != 0 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-origin",
+      "rule": "HUMAN-IDENTITY/origin",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "origin"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "client.Origin != challenge.Origin ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-rp",
+      "rule": "HUMAN-IDENTITY/rp",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "rp-id"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "subtle.ConstantTimeCompare(data[:32], rpHash[:]) != 1",
+          "after": "false && subtle.ConstantTimeCompare(data[:32], rpHash[:]) != 1"
+        }
+      ]
+    },
+    {
+      "id": "omit-ceremony",
+      "rule": "HUMAN-IDENTITY/ceremony",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "type"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "client.Type != \"webauthn.get\" ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-cross-origin",
+      "rule": "HUMAN-IDENTITY/cross-origin",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "cross-origin"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "|| client.CrossOrigin ||",
+          "after": "|| false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-nonce",
+      "rule": "HUMAN-IDENTITY/assertion-nonce",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestHumanReplayFixture",
+        "nonce"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "subtle.ConstantTimeCompare([]byte(client.Challenge), []byte(encoded)) != 1",
+          "after": "subtle.ConstantTimeCompare([]byte(client.Challenge), []byte(encoded)) != 1 && false"
+        }
+      ]
+    },
+    {
+      "id": "omit-counter",
+      "rule": "HUMAN-IDENTITY/signature-counter",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestHumanReplayFixture",
+        "counter"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "&& counter <= previousCounter {",
+          "after": "&& counter <= previousCounter && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-presence",
+      "rule": "HUMAN-IDENTITY/presence-bit",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "no-up"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "flags&0x05 != 0x05",
+          "after": "flags&0x04 != 0x04"
+        }
+      ]
+    },
+    {
+      "id": "omit-verification",
+      "rule": "HUMAN-IDENTITY/verification-bit",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "no-uv"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "flags&0x05 != 0x05",
+          "after": "flags&0x01 != 0x01"
+        }
+      ]
+    },
+    {
+      "id": "omit-reserved-bits",
+      "rule": "HUMAN-IDENTITY/reserved-bits",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "reserved"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "flags&0x62 != 0",
+          "after": "flags&0x40 != 0"
+        }
+      ]
+    },
+    {
+      "id": "omit-attested-bit",
+      "rule": "HUMAN-IDENTITY/assertion-shape",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "attested"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "flags&0x62 != 0",
+          "after": "flags&0x22 != 0"
+        }
+      ]
+    },
+    {
+      "id": "omit-backup-check",
+      "rule": "HUMAN-IDENTITY/backup-flags",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "backup"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "flags&0x10 != 0 && flags&0x08 == 0",
+          "after": "flags&0x10 != 0 && flags&0x08 == 0 && false"
+        }
+      ]
+    },
+    {
+      "id": "omit-extension-gate",
+      "rule": "HUMAN-IDENTITY/extensions",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "extension"
+      ],
+      "diagnostic": "want unsupported, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "if flags&0x80 != 0 {",
+          "after": "if false && flags&0x80 != 0 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-suffix-check",
+      "rule": "HUMAN-IDENTITY/data-suffix",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "suffix"
+      ],
+      "diagnostic": "want invalid_request, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "if len(data) != 37 {",
+          "after": "if len(data) < 37 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-challenge-id",
+      "rule": "HUMAN-IDENTITY/challenge-id",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "challenge-id"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "challenge.ID != request.ChallengeID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-credential-id",
+      "rule": "HUMAN-IDENTITY/credential-id",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "credential-id"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "request.CredentialID != credentialID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-assertion-expiry",
+      "rule": "HUMAN-IDENTITY/challenge-expiry",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "expired"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "!now.Before(expiry)",
+          "after": "!now.Before(expiry) && false"
+        }
+      ]
+    },
+    {
+      "id": "omit-assertion-ttl",
+      "rule": "HUMAN-IDENTITY/challenge-ttl",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls",
+        "too-long"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "expiry.After(now.Add(120*time.Second))",
+          "after": "false && expiry.After(now.Add(120*time.Second))"
+        }
+      ]
+    },
+    {
+      "id": "omit-es256-signature",
+      "rule": "HUMAN-IDENTITY/es256-signature",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionAlgorithms",
+        "es256"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "valid = ecdsa.VerifyASN1(key, hash[:], request.Signature)",
+          "after": "valid = ecdsa.VerifyASN1(key, hash[:], request.Signature) || len(request.Signature) > 0"
+        }
+      ]
+    },
+    {
+      "id": "omit-rs256-signature",
+      "rule": "HUMAN-IDENTITY/rs256-signature",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionAlgorithms",
+        "rs256"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "valid = rsa.VerifyPKCS1v15(key, crypto.SHA256, hash[:], request.Signature) == nil",
+          "after": "valid = rsa.VerifyPKCS1v15(key, crypto.SHA256, hash[:], request.Signature) == nil || len(request.Signature) > 0"
+        }
+      ]
+    },
+    {
+      "id": "omit-ed25519-signature",
+      "rule": "HUMAN-IDENTITY/ed25519-signature",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionAlgorithms",
+        "ed25519"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "valid = ed25519.Verify(key, signed, request.Signature)",
+          "after": "valid = ed25519.Verify(key, signed, request.Signature) || len(request.Signature) > 0"
+        }
+      ]
+    },
+    {
+      "id": "omit-json-duplicate",
+      "rule": "HUMAN-IDENTITY/duplicate-field",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestSignedJSONFixture",
+        "duplicate"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "assertion",
+          "before": "if _, err := api.CanonicalJSON(raw); err != nil {",
+          "after": "if _, err := api.CanonicalJSON(raw); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-json-null",
+      "rule": "HUMAN-IDENTITY/null-field",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestSignedJSONFixture",
+        "null"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got success",
+      "edits": [
+        {
+          "file": "json",
+          "before": "if err != nil || token == nil {",
+          "after": "if err != nil {"
+        }
+      ]
+    },
+    {
+      "id": "omit-human-principal",
+      "rule": "HUMAN-IDENTITY/proof-principal",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestHumanProofFixture",
+        "principal"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if scope.Actor.Kind != \"human\" || scope.Config == \"\" {",
+          "after": "if scope.Config == \"\" {"
+        }
+      ]
+    },
+    {
+      "id": "omit-proof-digest",
+      "rule": "HUMAN-IDENTITY/proof-intent",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestHumanProofFixture",
+        "digest"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "proof.RequestSHA256 != target.RequestSHA256 ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-proof-expiry",
+      "rule": "HUMAN-IDENTITY/proof-expiry",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestHumanProofFixture",
+        "expiry"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "!s.deps.Clock.Now().Before(expiry)",
+          "after": "false && !s.deps.Clock.Now().Before(expiry)"
+        }
+      ]
+    },
+    {
+      "id": "omit-human-operation-proof",
+      "rule": "HUMAN-IDENTITY/operation-proof",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestHumanNoProofFixture",
+        "ticket"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if spec.Mutation && !api.HumanSessionMethod(request.Method) && spec.Access != \"human-endpoint\" && spec.Access != \"human-read\" && spec.Access != \"spawn\" && request.Proof == nil {",
+          "after": "if spec.Mutation && !api.HumanSessionMethod(request.Method) && spec.Access != \"human-endpoint\" && spec.Access != \"human-read\" && spec.Access != \"spawn\" && request.Proof == nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-lane-proof-rejection",
+      "rule": "HUMAN-IDENTITY/lane-proof",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestAgentCannotUseProof"
+      ],
+      "diagnostic": "want forbidden, got not_implemented:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if request.Proof != nil || spec.Access",
+          "after": "if false || spec.Access"
+        }
+      ]
+    },
+    {
+      "id": "omit-proof-commit-gate",
+      "rule": "HUMAN-IDENTITY/proof-store-unavailable",
+      "kind": "closed-gap",
+      "package": "identity",
+      "test": [
+        "TestHumanProofFixture",
+        "commit-gap"
+      ],
+      "diagnostic": "fixture check: want not_implemented, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "verified, err := s.deps.Store.Proof(ctx, scope, proof.ID)\n\tif err != nil {\n\t\treturn api.VerifiedHumanProof{}, err\n\t}",
+          "after": "verified, err := s.deps.Store.Proof(ctx, scope, proof.ID)\n\tif err != nil {\n\t\treturn api.VerifiedHumanProof{}, nil\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "omit-actor-match",
+      "rule": "PEER/forged-actor-level-role",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLabelScopeFixture",
+        "actor"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "record.Actor != scope.Actor ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-config-match",
+      "rule": "PEER/config-binding",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "config"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "record.Config != scope.Config ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-revocation",
+      "rule": "PEER/stale-launch",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "revoked"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if record.Revoked ||",
+          "after": "if false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-endpoint-generation",
+      "rule": "PEER/endpoint-generation",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "endpoint"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "record.EndpointGeneration != scope.EndpointGeneration ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-policy-generation",
+      "rule": "PEER/policy-generation",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "policy"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if policy.Generation == 0 || policy.Generation != scope.PolicyGeneration {",
+          "after": "if false && (policy.Generation == 0 || policy.Generation != scope.PolicyGeneration) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-current-run",
+      "rule": "PEER/current-run",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "run"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "lane.Run != record.Target.Run ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-cleaned-check",
+      "rule": "PEER/cleaned-life",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "cleaned"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if lane.Cleaned ||",
+          "after": "if false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-containment",
+      "rule": "PEER/containment-binding",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestPeerChecksFixture",
+        "containment"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "id, err := p.verifier.resolve(ctx, observed.group, facts, p.binding)\n\t\tif err != nil {\n\t\t\treturn empty, err\n\t\t}",
+          "after": "id, err := p.verifier.resolve(ctx, observed.group, facts, p.binding)\n\t\tif err != nil && p.initial.ContainmentID == \"\" {\n\t\t\treturn empty, err\n\t\t}\n\t\tif err != nil {\n\t\t\tid = p.initial.ContainmentID\n\t\t}"
+        }
+      ]
+    },
+    {
+      "id": "omit-generation",
+      "rule": "PEER/process-generation",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestPeerChecksFixture",
+        "generation"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "&& facts != p.initial {",
+          "after": "&& (facts.HostUID != p.initial.HostUID || facts.HostGID != p.initial.HostGID || facts.HostPID != p.initial.HostPID || facts.ContainmentID != p.initial.ContainmentID) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-uid-check",
+      "rule": "PEER/uid-drift",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestPeerChecksFixture",
+        "uid"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "process",
+          "before": "uint32(value) != expected {",
+          "after": "uint32(value) != expected && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-lifetime",
+      "rule": "PEER/socket-pidfd-exit",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestPeerChecksFixture",
+        "lifetime"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "func liveFD(fd int) error {",
+          "after": "func liveFD(fd int) error {\n\treturn nil\n}\n\nfunc omittedLiveFD(fd int) error {"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-level-low",
+      "rule": "TICKET-ONCE/issue-level-low",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "level-low"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got not_implemented",
+      "edits": [
+        {
+          "file": "input",
+          "before": "if request.Level < 3 ||",
+          "after": "if false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-level-high",
+      "rule": "TICKET-ONCE/issue-level-high",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "level-high"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got not_implemented",
+      "edits": [
+        {
+          "file": "input",
+          "before": "request.Level > 6 ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-role",
+      "rule": "TICKET-ONCE/issue-role",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "role"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got not_implemented",
+      "edits": [
+        {
+          "file": "input",
+          "before": "!validID(api.ID(request.Role)) ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-grants",
+      "rule": "TICKET-ONCE/issue-grants",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "grants"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got not_implemented",
+      "edits": [
+        {
+          "file": "input",
+          "before": "!validID(request.GrantSetID) {",
+          "after": "false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-expiry",
+      "rule": "TICKET-ONCE/issue-expiry",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "expiry"
+      ],
+      "diagnostic": "fixture check: want invalid_request, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "!s.deps.Clock.Now().Before(expires)",
+          "after": "false && !s.deps.Clock.Now().Before(expires)"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-principal",
+      "rule": "TICKET-ONCE/issue-principal",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "principal"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if scope.Actor.Kind != \"human\" || scope.Request.Method",
+          "after": "if false || scope.Request.Method"
+        },
+        {
+          "file": "binding",
+          "before": "if scope.Actor.Kind != \"human\" || !validID(scope.Actor.ID) || scope.Config == \"\" {",
+          "after": "if !validID(scope.Actor.ID) || scope.Config == \"\" {"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-method",
+      "rule": "TICKET-ONCE/issue-method",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "method"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "scope.Request.Method != \"ticket.issue\" ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-proof",
+      "rule": "TICKET-ONCE/issue-proof",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "proof"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got not_implemented",
+      "edits": [
+        {
+          "file": "service",
+          "before": "scope.Request.Proof == nil {",
+          "after": "false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-store-gate",
+      "rule": "TICKET-ONCE/store-unavailable",
+      "kind": "closed-gap",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture",
+        "store-gap"
+      ],
+      "diagnostic": "fixture check: want not_implemented, got success",
+      "edits": [
+        {
+          "file": "service",
+          "before": "return s.issueTicket(ctx, scope, request)",
+          "after": "return api.Ticket{}, nil"
+        }
+      ]
+    },
+    {
+      "id": "omit-bind-receipt",
+      "rule": "PEER/committed-binding",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCommittedLaunchFixture",
+        "prepared"
+      ],
+      "diagnostic": "want conflict, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(durable.Record, record) || durable.Prepared != request.Prepared {",
+          "after": "if false && (!reflect.DeepEqual(durable.Record, record) || durable.Prepared != request.Prepared) {"
+        }
+      ]
+    },
+    {
+      "id": "confuse-prepared-id",
+      "rule": "PEER/prepared-gate",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCommittedLaunchFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: committed gate receipt was not preserved:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "PreparedID: durable.Prepared.ID,",
+          "after": "PreparedID: record.ID,"
+        }
+      ]
+    },
+    {
+      "id": "omit-binding-digest",
+      "rule": "PEER/committed-digest",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCommittedLaunchFixture",
+        "digest"
+      ],
+      "diagnostic": "want conflict, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "durable.Identity.RecordSHA256 != request.Identity.RecordSHA256 ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-binding-gate",
+      "rule": "PEER/prepared-gate-shape",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestBindingShapeFixture"
+      ],
+      "diagnostic": "want invalid_request, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "!validID(prepared.GateID) ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "close-borrowed-peer",
+      "rule": "PEER/transport-lifetime-owner",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestBorrowedConnectionFixture"
+      ],
+      "diagnostic": "fixture check: authentication lost or closed the borrowed connection",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "scope := api.Scope{Connection: connection, Config: binding.Config,",
+          "after": "defer connection.Peer().Close()\n\tscope := api.Scope{Connection: connection, Config: binding.Config,"
+        }
+      ]
+    },
+    {
+      "id": "omit-stored-proof-use",
+      "rule": "HUMAN-IDENTITY/stored-consumed",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture",
+        "consumed"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "proof.ConsumedBy != \"\" ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-stored-principal",
+      "rule": "HUMAN-IDENTITY/stored-principal",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture",
+        "principal"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "proof.PrincipalID != scope.Actor.ID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-stored-config",
+      "rule": "HUMAN-IDENTITY/stored-config",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture",
+        "config"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "proof.Config != scope.Config ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-stored-endpoint",
+      "rule": "HUMAN-IDENTITY/stored-endpoint",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture",
+        "endpoint"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "proof.EndpointGeneration != scope.EndpointGeneration ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-stored-target",
+      "rule": "HUMAN-IDENTITY/stored-target",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture",
+        "target"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "proof.Target != target ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-proof-future",
+      "rule": "HUMAN-IDENTITY/stored-future",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture",
+        "future"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "verified.After(s.deps.Clock.Now()) ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-proof-key-revocation",
+      "rule": "HUMAN-IDENTITY/current-key",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture",
+        "credential"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "credential.ID == proof.CredentialID && !credential.Revoked &&",
+          "after": "credential.ID == proof.CredentialID &&"
+        }
+      ]
+    },
+    {
+      "id": "omit-frame-writer",
+      "rule": "PEER/frame-writer",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopedFrameFixture",
+        "writer"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if err := scope.Frame.Verify(ctx, scope.Connection); err != nil {",
+          "after": "if err := scope.Frame.Verify(ctx, scope.Connection); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-frame-match",
+      "rule": "PEER/frame-bytes",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopedFrameFixture",
+        "changed-frame"
+      ],
+      "diagnostic": "want integrity, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if !reflect.DeepEqual(framed, request) {",
+          "after": "if false && !reflect.DeepEqual(framed, request) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-challenge-binding",
+      "rule": "HUMAN-IDENTITY/challenge-write",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "challenge"
+      ],
+      "diagnostic": "fixture check: challenge handoff lost its nonce or principal binding",
+      "edits": [
+        {
+          "file": "human",
+          "before": "Challenge: challenge, PrincipalID: scope.Actor.ID, ConnectionID: scope.Connection.ID(), Generation: 1}",
+          "after": "Challenge: challenge, PrincipalID: scope.Actor.ID, ConnectionID: \"\", Generation: 1}"
+        }
+      ]
+    },
+    {
+      "id": "omit-challenge-use-write",
+      "rule": "HUMAN-IDENTITY/challenge-use-write",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "confirm"
+      ],
+      "diagnostic": "fixture check: human transaction did not complete exactly one handoff: invalid_request: invalid typed transaction shape",
+      "edits": [
+        {
+          "file": "human",
+          "before": "stored.Consumed = true",
+          "after": "stored.Consumed = false"
+        }
+      ]
+    },
+    {
+      "id": "omit-counter-advance-write",
+      "rule": "HUMAN-IDENTITY/counter-write",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "confirm"
+      ],
+      "diagnostic": "fixture check: assertion handoff lost verified facts or private evidence",
+      "edits": [
+        {
+          "file": "human",
+          "before": "Before: credential.Counter, After: counter}",
+          "after": "Before: counter, After: counter}"
+        }
+      ]
+    },
+    {
+      "id": "expose-assertion-evidence",
+      "rule": "HUMAN-IDENTITY/assertion-acl",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "confirm"
+      ],
+      "diagnostic": "fixture check: human transaction did not complete exactly one handoff: invalid_request: invalid typed transaction shape",
+      "edits": [
+        {
+          "file": "human",
+          "before": "Audience: \"private\", Generation: 1}, Origin: \"identity\"",
+          "after": "Audience: \"public\", Generation: 1}, Origin: \"identity\""
+        }
+      ]
+    },
+    {
+      "id": "omit-transaction-proof",
+      "rule": "HUMAN-IDENTITY/proof-use-write",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "ticket"
+      ],
+      "diagnostic": "fixture check: human transaction did not complete exactly one handoff: invalid_request: invalid typed transaction shape",
+      "edits": [
+        {
+          "file": "human",
+          "before": "Writes: writes, Guards: guards}",
+          "after": "Writes: writes, Guards: nil}"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-connection",
+      "rule": "HUMAN-IDENTITY/session-write",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "session"
+      ],
+      "diagnostic": "fixture check: read session lost its exact connection or lifetime",
+      "edits": [
+        {
+          "file": "human",
+          "before": "ConnectionID: scope.Connection.ID(), EndpointGeneration: scope.EndpointGeneration, Generation: 1}",
+          "after": "ConnectionID: \"other-connection\", EndpointGeneration: scope.EndpointGeneration, Generation: 1}"
+        }
+      ]
+    },
+    {
+      "id": "extend-session-absolute",
+      "rule": "HUMAN-IDENTITY/session-absolute-write",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture",
+        "session"
+      ],
+      "diagnostic": "fixture check: read session lost its exact connection or lifetime",
+      "edits": [
+        {
+          "file": "human",
+          "before": "ExpiresAt: timestamp(now.Add(30 * time.Minute))",
+          "after": "ExpiresAt: timestamp(now.Add(time.Hour))"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-live-connection",
+      "rule": "HUMAN-IDENTITY/read-connection",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "connection"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "stored.ConnectionID != scope.Connection.ID() ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-idle",
+      "rule": "HUMAN-IDENTITY/read-idle",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "idle"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "!now.Before(idle) ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-absolute",
+      "rule": "HUMAN-IDENTITY/read-absolute",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "absolute"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "!now.Before(expiry) ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-revocation",
+      "rule": "HUMAN-IDENTITY/read-revoked",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "revoked"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "stored.Revoked ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-principal",
+      "rule": "HUMAN-IDENTITY/read-principal",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "principal"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "stored.ConnectionID != scope.Connection.ID() || stored.PrincipalID != scope.Actor.ID ||",
+          "after": "stored.ConnectionID != scope.Connection.ID() || false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-endpoint",
+      "rule": "HUMAN-IDENTITY/read-endpoint",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "endpoint"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "stored.Session.Config != scope.Config || stored.EndpointGeneration != scope.EndpointGeneration ||",
+          "after": "stored.Session.Config != scope.Config || false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-key-revocation",
+      "rule": "HUMAN-IDENTITY/read-credential",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "credential"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "credential.ID == stored.CredentialID && !credential.Revoked &&",
+          "after": "credential.ID == stored.CredentialID &&"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-boot",
+      "rule": "PEER/registry-boot",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "boot"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.BootID != boot ||",
+          "after": "false && resolved.BootID != boot ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-uid",
+      "rule": "PEER/registry-uid",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "uid"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.Lease.UID != facts.HostUID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-gid",
+      "rule": "PEER/registry-gid",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "gid"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.Lease.GID != facts.HostGID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-target",
+      "rule": "PEER/registry-target",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "target"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.Target != *binding.Target ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-allocation",
+      "rule": "PEER/registry-allocation",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "allocation"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.Generation == 0 ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-config",
+      "rule": "PEER/registry-config",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "config"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.Config != binding.Config ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-backend",
+      "rule": "PEER/registry-backend",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "backend"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.Backend != binding.Backend ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-endpoint",
+      "rule": "PEER/registry-endpoint",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "endpoint"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved.Lease.EndpointGeneration != binding.EndpointGeneration {",
+          "after": "false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-registry-directory",
+      "rule": "PEER/registry-directory",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture",
+        "directory"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "native",
+          "before": "if unix.Fstat(int(resolved.Directory.Fd()), &stat) != nil ||\n\t\tunix.Fstatfs(int(resolved.Directory.Fd()), &fs) != nil || fs.Type != unix.CGROUP2_SUPER_MAGIC ||\n\t\tstat.Mode&unix.S_IFMT != unix.S_IFDIR || key != (objectKey{device: uint64(stat.Dev), inode: stat.Ino}) {",
+          "after": "if false && (unix.Fstat(int(resolved.Directory.Fd()), &stat) != nil ||\n\t\tunix.Fstatfs(int(resolved.Directory.Fd()), &fs) != nil || fs.Type != unix.CGROUP2_SUPER_MAGIC ||\n\t\tstat.Mode&unix.S_IFMT != unix.S_IFDIR || key != (objectKey{device: uint64(stat.Dev), inode: stat.Ino})) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-gid-check",
+      "rule": "PEER/gid-drift",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestPeerChecksFixture",
+        "gid"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "process",
+          "before": "uint32(value) != expected {",
+          "after": "uint32(value) != expected && false {"
+        }
+      ]
+    },
+    {
+      "id": "compare-child-to-leader",
+      "rule": "PEER/descendant-lifetime",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneConnectionFixture",
+        "descendant"
+      ],
+      "diagnostic": "fixture check: authentic descendant was not bound to its own lifetime:",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "record.ContainmentID != facts.ContainmentID {",
+          "after": "record.ContainmentID != facts.ContainmentID || record.ProcessGeneration != facts.ProcessGeneration {"
+        }
+      ]
+    },
+    {
+      "id": "omit-launch-lease",
+      "rule": "PEER/launch-lease",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneConnectionFixture",
+        "lease"
+      ],
+      "diagnostic": "want containment_unknown, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "containment.Lease.ID != record.UIDLeaseID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-current-grants",
+      "rule": "PEER/current-grants",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneConnectionFixture",
+        "grants"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "grants.Revoked ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-current-policy",
+      "rule": "PEER/current-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIssuedGrantPolicyFixture",
+        "future"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "if policy.Generation == 0 || policy.Generation < record.PolicyGeneration {\n\t\treturn refusal(api.CodeForbidden, \"current policy predates the issued launch authority\")",
+          "after": "if false && (policy.Generation == 0 || policy.Generation < record.PolicyGeneration) {\n\t\treturn refusal(api.CodeForbidden, \"current policy predates the issued launch authority\")"
+        }
+      ]
+    },
+    {
+      "id": "omit-current-launch",
+      "rule": "PEER/current-launch",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "launch"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "lane.LaunchID != record.ID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-current-lineage",
+      "rule": "PEER/current-lineage",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift",
+        "lineage"
+      ],
+      "diagnostic": "stale or forged scope produced a self projection",
+      "edits": [
+        {
+          "file": "service",
+          "before": "lane.RootLifeID != record.RootLifeID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "replace-retained-reply",
+      "rule": "HUMAN-IDENTITY/retained-reply",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanReceiptFixture",
+        "retained"
+      ],
+      "diagnostic": "fixture check: original durable reply was replaced by a new proposal:",
+      "edits": [
+        {
+          "file": "human",
+          "before": "strictObject(commit.Reply.Result, retained)",
+          "after": "strictObject(payload, retained)"
+        }
+      ]
+    },
+    {
+      "id": "omit-receipt-sequence",
+      "rule": "HUMAN-IDENTITY/actual-commit",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanReceiptFixture",
+        "sequence"
+      ],
+      "diagnostic": "want integrity, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "commit.FirstSeq == 0 ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-receipt-completion",
+      "rule": "HUMAN-IDENTITY/completed-commit",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanReceiptFixture",
+        "pending"
+      ],
+      "diagnostic": "want integrity, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if commit.Operation.Status != \"succeeded\" {",
+          "after": "if false && commit.Operation.Status != \"succeeded\" {"
+        }
+      ]
+    },
+    {
+      "id": "swallow-retained-refusal",
+      "rule": "HUMAN-IDENTITY/retained-refusal",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanReceiptFixture",
+        "error"
+      ],
+      "diagnostic": "want conflict, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "return commit.Reply.Error",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "omit-auth-peer-bind",
+      "rule": "PEER/authentication-order",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestAuthenticateOrderFixture"
+      ],
+      "diagnostic": "fixture check: ordered authentication failed:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if err := connection.BindPeer(peer); err != nil {",
+          "after": "if err := error(nil); err != nil {"
+        }
+      ]
+    },
+    {
+      "id": "omit-auth-failure-cleanup",
+      "rule": "PEER/failed-connection-lifetime",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestAuthenticationCleanupFixture",
+        "verify"
+      ],
+      "diagnostic": "fixture check: authentication failure leaked its socket or peer lifetime",
+      "edits": [
+        {
+          "file": "service",
+          "before": "var acquired api.VerifiedPeer\n\tdefer func() {\n\t\tif resultErr != nil {",
+          "after": "var acquired api.VerifiedPeer\n\tdefer func() {\n\t\tif resultErr != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-own-life-claim",
+      "rule": "PEER/own-briefing-life",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneClaimsFixture",
+        "life"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "input.LifeID != \"\" && input.LifeID != scope.Actor.LifeID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-own-role-claim",
+      "rule": "PEER/own-briefing-role",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneClaimsFixture",
+        "role"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "input.Role != scope.Actor.Role {",
+          "after": "false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-own-grants-claim",
+      "rule": "PEER/own-template-grants",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneClaimsFixture",
+        "grants"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "if input.GrantSetID != record.GrantSetID ||",
+          "after": "if false && input.GrantSetID != record.GrantSetID ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-human-root-endpoint",
+      "rule": "TICKET-ONCE/human-root-endpoint",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestTicketEndpointFixture",
+        "lane.start"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "if ticket != \"\" && (scope.Actor.Kind != \"human\" || nilDependency(scope.Connection) || scope.Connection.Binding().Class != api.EndpointHuman) {",
+          "after": "if false && ticket != \"\" && (scope.Actor.Kind != \"human\" || nilDependency(scope.Connection) || scope.Connection.Binding().Class != api.EndpointHuman) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-human-root-ticket",
+      "rule": "TICKET-ONCE/human-root-ticket",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSpawnClaimsFixture",
+        "human-no-ticket"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "if scope.Actor.Kind == \"human\" && !validID(ticket) {",
+          "after": "if false && scope.Actor.Kind == \"human\" && !validID(ticket) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-child-level-claim",
+      "rule": "PEER/child-level",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSpawnClaimsFixture",
+        "child-level"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "scope.Actor.Kind == \"lane\" && childLevel >= scope.Actor.Level {",
+          "after": "false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-l6-claim",
+      "rule": "PEER/l6-only",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSpawnClaimsFixture",
+        "l6"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "if api.Methods[request.Method].Access == \"l6\" && (scope.Actor.Kind != \"lane\" || scope.Actor.Level != 6) {",
+          "after": "if false && api.Methods[request.Method].Access == \"l6\" && (scope.Actor.Kind != \"lane\" || scope.Actor.Level != 6) {"
+        }
+      ]
+    },
+    {
+      "id": "omit-grant-parent-claim",
+      "rule": "PEER/own-grant-parent",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSpawnClaimsFixture",
+        "grant-parent"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "if input.ParentLifeID != scope.Actor.LifeID {",
+          "after": "if false && input.ParentLifeID != scope.Actor.LifeID {"
+        }
+      ]
+    },
+    {
+      "id": "omit-root-starter-sequence",
+      "rule": "PEER/root-lineage",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRootLineageFixture",
+        "root-sequence"
+      ],
+      "diagnostic": "want invalid_request, got <nil>",
+      "edits": [
+        {
+          "file": "json",
+          "before": "len(record.StarterChain) != 0 || record.StarterEventSeq != 0 {",
+          "after": "len(record.StarterChain) != 0 {"
+        }
+      ]
+    },
+    {
+      "id": "omit-child-starter-sequence",
+      "rule": "PEER/child-lineage",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRootLineageFixture",
+        "child-sequence"
+      ],
+      "diagnostic": "want invalid_request, got <nil>",
+      "edits": [
+        {
+          "file": "json",
+          "before": "} else if record.StarterEventSeq == 0 || len(record.StarterChain) == 0 ||",
+          "after": "} else if false || len(record.StarterChain) == 0 ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-receipt-principal",
+      "rule": "TICKET-ONCE/retained-principal",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestTicketReceiptProvenanceFixture",
+        "principal"
+      ],
+      "diagnostic": "want integrity, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if !validID(retained.ID) || retained.PrincipalID != scope.Actor.ID || retained.Config != scope.Config ||\n\t\tretained.EndpointGeneration != scope.EndpointGeneration || retained.Level != request.Level || retained.Role != request.Role ||",
+          "after": "if !validID(retained.ID) || false || retained.Config != scope.Config ||\n\t\tretained.EndpointGeneration != scope.EndpointGeneration || retained.Level != request.Level || retained.Role != request.Role ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-receipt-config",
+      "rule": "TICKET-ONCE/retained-config",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestTicketReceiptProvenanceFixture",
+        "config"
+      ],
+      "diagnostic": "want integrity, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if !validID(retained.ID) || retained.PrincipalID != scope.Actor.ID || retained.Config != scope.Config ||\n\t\tretained.EndpointGeneration != scope.EndpointGeneration || retained.Level != request.Level || retained.Role != request.Role ||",
+          "after": "if !validID(retained.ID) || retained.PrincipalID != scope.Actor.ID || false ||\n\t\tretained.EndpointGeneration != scope.EndpointGeneration || retained.Level != request.Level || retained.Role != request.Role ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-ticket-receipt-endpoint",
+      "rule": "TICKET-ONCE/retained-endpoint",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestTicketReceiptProvenanceFixture",
+        "endpoint"
+      ],
+      "diagnostic": "want integrity, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if !validID(retained.ID) || retained.PrincipalID != scope.Actor.ID || retained.Config != scope.Config ||\n\t\tretained.EndpointGeneration != scope.EndpointGeneration || retained.Level != request.Level || retained.Role != request.Role ||",
+          "after": "if !validID(retained.ID) || retained.PrincipalID != scope.Actor.ID || retained.Config != scope.Config ||\n\t\tfalse || retained.Level != request.Level || retained.Role != request.Role ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-receipt-principal",
+      "rule": "HUMAN-IDENTITY/receipt-principal",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReceiptBindingFixture",
+        "principal"
+      ],
+      "diagnostic": "fixture check: principal session receipt reached transport activation: attempts=1 binds=1",
+      "edits": [
+        {
+          "file": "human",
+          "before": "storedSession.PrincipalID != scope.Actor.ID ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-receipt-connection",
+      "rule": "HUMAN-IDENTITY/receipt-connection",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReceiptBindingFixture",
+        "connection"
+      ],
+      "diagnostic": "fixture check: connection session receipt reached transport activation: attempts=1 binds=0",
+      "edits": [
+        {
+          "file": "human",
+          "before": "storedSession.ConnectionID != scope.Connection.ID() ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-receipt-endpoint",
+      "rule": "HUMAN-IDENTITY/session-receipt-endpoint",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReceiptBindingFixture",
+        "endpoint"
+      ],
+      "diagnostic": "fixture check: endpoint session receipt reached transport activation: attempts=1 binds=0",
+      "edits": [
+        {
+          "file": "human",
+          "before": "storedSession.EndpointGeneration != scope.EndpointGeneration ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-session-activation",
+      "rule": "HUMAN-IDENTITY/session-activation",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReceiptBindingFixture",
+        "current"
+      ],
+      "diagnostic": "fixture check: current session receipt did not bind its connection:",
+      "edits": [
+        {
+          "file": "human",
+          "before": "if err := scope.Connection.BindReadAuthority(api.ReadAuthorityFromSession(storedSession)); err != nil {",
+          "after": "if err := error(nil); err != nil {"
+        }
+      ]
+    },
+    {
+      "id": "omit-human-self-session",
+      "rule": "HUMAN-IDENTITY/self-read-session",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanSelfSessionFixture"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if err := s.checkReadSession(ctx, scope); err != nil {",
+          "after": "if err := s.checkReadSession(ctx, scope); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "hold-resolve-verifier-lock",
+      "rule": "PEER/acyclic-registry-resolution",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestResolveLockFixture"
+      ],
+      "diagnostic": "fixture check: registry resolution retained a verifier lock:",
+      "edits": [
+        {
+          "file": "native",
+          "before": "resolved, err := registry.ResolveContainment(ctx, facts, binding)",
+          "after": "v.mu.RLock()\n\tdefer v.mu.RUnlock()\n\tresolved, err := registry.ResolveContainment(ctx, facts, binding)"
+        }
+      ]
+    },
+    {
+      "id": "omit-dedicated-registration",
+      "rule": "PEER/dedicated-helper-registration",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryRegistrationFixture",
+        "root"
+      ],
+      "diagnostic": "want invalid_request, got <nil>",
+      "edits": [
+        {
+          "file": "registry",
+          "before": "if key == r.root || key.device != r.root.device {",
+          "after": "if key.device != r.root.device {"
+        },
+        {
+          "file": "registry",
+          "before": "if err != nil || relative == \".\" {",
+          "after": "if err != nil {"
+        }
+      ]
+    },
+    {
+      "id": "release-uid-on-revoke",
+      "rule": "PEER/quiescent-lease-release",
+      "kind": "projection",
+      "package": "linux",
+      "test": [
+        "TestRegistryRevocationFixture"
+      ],
+      "diagnostic": "fixture check: revocation lost its tombstone or released allocation before quiescence",
+      "edits": [
+        {
+          "file": "registry",
+          "before": "r.entries[id] = entry\n\t// Keep the pin, UID and retired IDs",
+          "after": "r.entries[id] = entry\n\tdelete(r.uids, entry.Lease.UID)\n\t// Keep the pin, UID and retired IDs"
+        }
+      ]
+    },
+    {
+      "id": "constant-human-principal",
+      "rule": "HUMAN-IDENTITY/native-principal",
+      "kind": "kernel",
+      "package": "native",
+      "test": [
+        "TestNativeAuthentication"
+      ],
+      "diagnostic": "fixture check: scope differs from native facts or current enrolled key",
+      "edits": [
+        {
+          "file": "binding",
+          "before": "scope.Actor.ID = enrollment.PrincipalID",
+          "after": "scope.Actor.ID = \"fixed-principal\""
+        }
+      ]
+    },
+    {
+      "id": "native-staging-without-proof",
+      "rule": "HUMAN-IDENTITY/native-staging",
+      "kind": "kernel",
+      "package": "native",
+      "test": [
+        "TestNativeAuthentication"
+      ],
+      "diagnostic": "fixture check: human UID/enrollment conferred mutation authority without proof",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if spec.Mutation && !api.HumanSessionMethod(request.Method) && spec.Access != \"human-endpoint\" && spec.Access != \"human-read\" && spec.Access != \"spawn\" && request.Proof == nil {",
+          "after": "if spec.Mutation && !api.HumanSessionMethod(request.Method) && spec.Access != \"human-endpoint\" && spec.Access != \"human-read\" && spec.Access != \"spawn\" && request.Proof == nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "stale-session-activation-clock",
+      "rule": "HUMAN-IDENTITY/session-commit-freshness",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReceiptBindingFixture",
+        "expired"
+      ],
+      "diagnostic": "fixture check: expired session receipt reached transport activation: attempts=1 binds=1",
+      "edits": [
+        {
+          "file": "human",
+          "before": "liveNow := s.deps.Clock.Now()",
+          "after": "liveNow := now"
+        }
+      ]
+    },
+    {
+      "id": "require-borrowed-cli-client",
+      "rule": "HUMAN-IDENTITY/shared-cli-preparation",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIRequiresRetainedKey"
+      ],
+      "diagnostic": "empty session form did not reach shared retained-key validation",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "if call.Config == \"\" || call.Stdout == nil {",
+          "after": "if call.Config == \"\" || call.Client == nil || call.Stdout == nil {"
+        }
+      ]
+    },
+    {
+      "id": "require-stage-operation-proof",
+      "rule": "HUMAN-IDENTITY/stage-session-class",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanReadStageFixture",
+        "current"
+      ],
+      "diagnostic": "fixture check: current read session could not authorize encrypted staging:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if spec.Mutation && !api.HumanSessionMethod(request.Method) && spec.Access != \"human-endpoint\" && spec.Access != \"human-read\" && spec.Access != \"spawn\" && request.Proof == nil {",
+          "after": "if spec.Mutation && spec.Access != \"human-endpoint\" && spec.Access != \"spawn\" && request.Proof == nil {"
+        }
+      ]
+    },
+    {
+      "id": "omit-stage-read-session",
+      "rule": "HUMAN-IDENTITY/stage-current-session",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanReadStageFixture",
+        "no-session"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if api.HumanSessionMethod(request.Method) || spec.Access == \"human-read\" || !spec.Mutation && spec.Access != \"public\" {",
+          "after": "if !spec.Mutation && spec.Access != \"public\" {"
+        }
+      ]
+    },
+    {
+      "id": "omit-input-self",
+      "rule": "HUMAN-IDENTITY/input-reg-self",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIFileValidationFixture",
+        "self",
+        "transport"
+      ],
+      "diagnostic": "fixture check: valid file did not reach installed transport",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.confirm\", \"human.session\", \"ticket.issue\"} {",
+          "after": "for _, identityMethod := range []api.Method{\"human.challenge\", \"human.confirm\", \"human.session\", \"ticket.issue\"} {"
+        }
+      ]
+    },
+    {
+      "id": "omit-input-challenge",
+      "rule": "HUMAN-IDENTITY/input-reg-challenge",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIFileValidationFixture",
+        "challenge",
+        "transport"
+      ],
+      "diagnostic": "fixture check: valid file did not reach installed transport",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.confirm\", \"human.session\", \"ticket.issue\"} {",
+          "after": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.confirm\", \"human.session\", \"ticket.issue\"} {"
+        }
+      ]
+    },
+    {
+      "id": "omit-input-confirm",
+      "rule": "HUMAN-IDENTITY/input-reg-confirm",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIFileValidationFixture",
+        "confirm",
+        "transport"
+      ],
+      "diagnostic": "fixture check: valid file did not reach installed transport",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.confirm\", \"human.session\", \"ticket.issue\"} {",
+          "after": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.session\", \"ticket.issue\"} {"
+        }
+      ]
+    },
+    {
+      "id": "omit-input-session",
+      "rule": "HUMAN-IDENTITY/input-reg-session",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIFileValidationFixture",
+        "session",
+        "transport"
+      ],
+      "diagnostic": "fixture check: valid file did not reach installed transport",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.confirm\", \"human.session\", \"ticket.issue\"} {",
+          "after": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.confirm\", \"ticket.issue\"} {"
+        }
+      ]
+    },
+    {
+      "id": "omit-input-ticket",
+      "rule": "HUMAN-IDENTITY/input-reg-ticket",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIFileValidationFixture",
+        "ticket",
+        "transport"
+      ],
+      "diagnostic": "fixture check: valid file did not reach installed transport",
+      "edits": [
+        {
+          "file": "cli",
+          "before": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.confirm\", \"human.session\", \"ticket.issue\"} {",
+          "after": "for _, identityMethod := range []api.Method{\"identity.self\", \"human.challenge\", \"human.confirm\", \"human.session\"} {"
+        }
+      ]
+    },
+    {
+      "id": "require-catalog-operation-proof",
+      "rule": "HUMAN-IDENTITY/session-method-class",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSessionMethodsFixture",
+        "blob-begin",
+        "current"
+      ],
+      "diagnostic": "fixture check: current human session method was refused:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if spec.Mutation && !api.HumanSessionMethod(request.Method) && spec.Access != \"human-endpoint\" && spec.Access != \"human-read\" && spec.Access != \"spawn\" && request.Proof == nil {",
+          "after": "if spec.Mutation && spec.Access != \"human-endpoint\" && spec.Access != \"human-read\" && spec.Access != \"spawn\" && request.Proof == nil {"
+        }
+      ]
+    },
+    {
+      "id": "omit-catalog-read-session",
+      "rule": "HUMAN-IDENTITY/session-method-authority",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSessionMethodsFixture",
+        "blob-begin",
+        "no-session"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if api.HumanSessionMethod(request.Method) || spec.Access == \"human-read\" || !spec.Mutation && spec.Access != \"public\" {",
+          "after": "if spec.Access == \"human-read\" || !spec.Mutation && spec.Access != \"public\" {"
+        }
+      ]
+    },
+    {
+      "id": "accept-human-envelope-proof",
+      "rule": "HUMAN-IDENTITY/no-envelope-proof",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanEnvelopeProofFixture",
+        "identity-self"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if (!spec.Mutation || api.HumanSessionMethod(request.Method) || spec.Access == \"human-endpoint\" ||\n\t\t\tspec.Access == \"human-read\" || spec.Access == \"spawn\") && request.Proof != nil {",
+          "after": "if (!spec.Mutation || api.HumanSessionMethod(request.Method) || spec.Access == \"human-endpoint\" ||\n\t\t\tspec.Access == \"human-read\" || spec.Access == \"spawn\") && request.Proof != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "accept-session-envelope-proof",
+      "rule": "HUMAN-IDENTITY/no-envelope-proof",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSessionMethodsFixture",
+        "blob-begin",
+        "proof"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if (!spec.Mutation || api.HumanSessionMethod(request.Method) || spec.Access == \"human-endpoint\" ||\n\t\t\tspec.Access == \"human-read\" || spec.Access == \"spawn\") && request.Proof != nil {",
+          "after": "if (!spec.Mutation || api.HumanSessionMethod(request.Method) || spec.Access == \"human-endpoint\" ||\n\t\t\tspec.Access == \"human-read\" || spec.Access == \"spawn\") && request.Proof != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "omit-bound-authority-id",
+      "rule": "HUMAN-IDENTITY/committed-connection-id",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReceiptBindingFixture",
+        "current"
+      ],
+      "diagnostic": "fixture check: current session receipt did not bind its connection:",
+      "edits": [
+        {
+          "file": "human",
+          "before": "scope.Connection.BindReadAuthority(api.ReadAuthorityFromSession(storedSession))",
+          "after": "scope.Connection.BindReadAuthority(func() api.ReadAuthority { a := api.ReadAuthorityFromSession(storedSession); a.ConnectionID = \"\"; return a }())"
+        }
+      ]
+    },
+    {
+      "id": "omit-authority-connection",
+      "rule": "HUMAN-IDENTITY/authority-conn",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "authority-connection"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "authority.ConnectionID != scope.Connection.ID() ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-authority-snapshot",
+      "rule": "HUMAN-IDENTITY/authority-snapshot",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture",
+        "snapshot"
+      ],
+      "diagnostic": "want unauthenticated, got <nil>",
+      "edits": [
+        {
+          "file": "human",
+          "before": "scope.ReadAuthority != nil && *scope.ReadAuthority != authority ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "permit-human-l6",
+      "rule": "PEER/current-l6-lane-only",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestL6AuthorityFixture",
+        "propose",
+        "human-proof"
+      ],
+      "diagnostic": "want forbidden, got <nil>",
+      "edits": [
+        {
+          "file": "claims",
+          "before": "if api.Methods[request.Method].Access == \"l6\" && (scope.Actor.Kind != \"lane\" || scope.Actor.Level != 6) {",
+          "after": "if api.Methods[request.Method].Access == \"l6\" && scope.Actor.Kind == \"lane\" && scope.Actor.Level != 6 {"
+        }
+      ]
+    },
+    {
+      "id": "decode-lane-before-proof",
+      "rule": "PEER/proof-refusal-before-params",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneProofOrderFixture",
+        "start"
+      ],
+      "diagnostic": "want forbidden, got invalid_request",
+      "edits": [
+        {
+          "file": "service",
+          "before": "if scope.Actor.Kind == \"lane\" {\n\t\tif request.Proof != nil || spec.Access == \"human-proof\" ||",
+          "after": "if scope.Actor.Kind == \"lane\" && request.Method != \"lane.start\" && request.Method != \"lane.adopt\" {\n\t\tif request.Proof != nil || spec.Access == \"human-proof\" ||"
+        }
+      ]
+    },
+    {
+      "id": "omit-human-self-policy",
+      "rule": "HUMAN-IDENTITY/policy-projection",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanSelfPolicyFixture"
+      ],
+      "diagnostic": "fixture check: human self lost current policy or leaked internal authority:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "PolicyGeneration: scope.PolicyGeneration}, nil",
+          "after": "PolicyGeneration: 0}, nil"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-current",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "current"
+      ],
+      "diagnostic": "fixture check: retained native worker handoff did not produce its exact permit:",
+      "edits": [
+        {
+          "file": "service",
+          "before": "return s.bindWorkerLaunch(ctx, request, durable)",
+          "after": "return api.LaunchPermit{}, gap(\"BindLaunch\", \"retained fixed worker handoff and native lease authority\")"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-request",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "request"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "!reflect.DeepEqual(request, durable) ||",
+          "after": "false && !reflect.DeepEqual(request, durable) ||"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-input",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "input"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "worker-files",
+          "before": "if int64(len(data)) != ref.Bytes || digestBytes(data) != ref.SHA256 {",
+          "after": "if false && (int64(len(data)) != ref.Bytes || digestBytes(data) != ref.SHA256) {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-endpoint",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "endpoint"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "worker-files",
+          "before": "if api.DecodeObject(raw, &binding) != nil || !reflect.DeepEqual(binding, expected) {",
+          "after": "if false && (api.DecodeObject(raw, &binding) != nil || !reflect.DeepEqual(binding, expected)) {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-seals",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "seals"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "worker-files",
+          "before": "seals&want != want {",
+          "after": "false && seals&want != want {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-readonly",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "readonly"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "worker-files",
+          "before": "mode&unix.O_ACCMODE != unix.O_RDONLY ||",
+          "after": "false && mode&unix.O_ACCMODE != unix.O_RDONLY ||"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-argv",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "argv"
+      ],
+      "diagnostic": "fixture check: want integrity, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "!slices.Equal(plan.Argv, argv) ||",
+          "after": "false && !slices.Equal(plan.Argv, argv) ||"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-claim",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "claim"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "if !reflect.DeepEqual(effect, p.Claim.Record) || !api.EffectLeaseClaimed(p.Claim) {",
+          "after": "if false && (!reflect.DeepEqual(effect, p.Claim.Record) || !api.EffectLeaseClaimed(p.Claim)) {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-grants",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "grants"
+      ],
+      "diagnostic": "fixture check: want forbidden, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "if err != nil || !s.deps.Clock.Now().Before(expiry) || !equalLaunchGrants(grants, a.Handoff.Spec.Grants) {",
+          "after": "if false && (err != nil || !s.deps.Clock.Now().Before(expiry) || !equalLaunchGrants(grants, a.Handoff.Spec.Grants)) {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-policy",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "policy"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "if policy.Generation == 0 || policy.Generation < p.Record.PolicyGeneration {",
+          "after": "if false && (policy.Generation == 0 || policy.Generation < p.Record.PolicyGeneration) {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-allocation",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "allocation"
+      ],
+      "diagnostic": "fixture check: want containment_unknown, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "allocation.Generation != p.AllocationGeneration ||",
+          "after": "false && allocation.Generation != p.AllocationGeneration ||"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-cancel",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "cancel"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "lane.CancellationEpoch != p.CancellationEpoch {",
+          "after": "false && lane.CancellationEpoch != p.CancellationEpoch {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-drift",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "drift"
+      ],
+      "diagnostic": "fixture check: want conflict, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "if !reflect.DeepEqual(live, durable) {",
+          "after": "if false && !reflect.DeepEqual(live, durable) {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-native",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "native"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "if current != facts {",
+          "after": "if false && current != facts {"
+        },
+        {
+          "file": "worker-bind",
+          "before": "if err := s.checkWorkerLaunchState(ctx, a, current); err != nil {",
+          "after": "if err := s.checkWorkerLaunchState(ctx, a, current); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-guard",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "guard"
+      ],
+      "diagnostic": "fixture check: worker guard refusal was lost:",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "if err := guard.Check(ctx); err != nil {\n\t\treturn permit, err\n\t}\n\ta, err := copyProjection",
+          "after": "if err := guard.Check(ctx); err != nil && false {\n\t\treturn permit, err\n\t}\n\ta, err := copyProjection"
+        },
+        {
+          "file": "worker-bind",
+          "before": "if err := guard.Check(ctx); err != nil {\n\t\treturn permit, err\n\t}\n\tif !reflect.DeepEqual(guard.Authority()",
+          "after": "if err := guard.Check(ctx); err != nil && false {\n\t\treturn permit, err\n\t}\n\tif !reflect.DeepEqual(guard.Authority()"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-close",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "close"
+      ],
+      "diagnostic": "fixture check: worker guard refusal was lost:",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "if err := guard.Close(); err != nil {",
+          "after": "if err := guard.Close(); err != nil && false {"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-missing",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind",
+        "missing"
+      ],
+      "diagnostic": "fixture check: want not_implemented, got success",
+      "edits": [
+        {
+          "file": "worker-bind",
+          "before": "return permit, api.NotImplemented(\"lb-v2-admin\", \"retained fixed worker descriptor and native lease handoff\")",
+          "after": "return permit, nil"
+        }
+      ]
+    },
+    {
+      "id": "g6-worker-life",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestWorkerConsumerFixture",
+        "life-label"
+      ],
+      "diagnostic": "fixture check: want containment_unknown, got success",
+      "edits": [
+        {
+          "file": "worker",
+          "before": "principal.Record.Actor.LifeID != \"\" ||",
+          "after": "false ||"
+        }
+      ]
+    },
+    {
+      "id": "confirm-revision-1",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestConfirmRevision",
+        "1"
+      ],
+      "diagnostic": "fixture check: confirmation did not advance the consumed challenge revision",
+      "edits": [
+        {
+          "file": "human",
+          "before": "stored.Generation++",
+          "after": "// control: omit consumed-challenge revision"
+        }
+      ]
+    },
+    {
+      "id": "confirm-revision-41",
+      "rule": "G6/fixed-worker",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestConfirmRevision",
+        "41"
+      ],
+      "diagnostic": "fixture check: confirmation did not advance the consumed challenge revision",
+      "edits": [
+        {
+          "file": "human",
+          "before": "stored.Generation++",
+          "after": "// control: omit consumed-challenge revision"
+        }
+      ]
+    }
+  ]
+}

@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"golang.org/x/sys/unix"
 )
 
-// Keep callback provenance and path hashes, never tool arguments or file contents.
-func recordCallback(event map[string]any, runner, pinned string, allowed bool, reason string) error {
+// Keep callback provenance and path hashes, never tool arguments or file contents. guard is what the decision guard did
+// (decision ids, outcomes and scores, never the call's text); it is nil when the guard asked nobody anything.
+func recordCallback(event map[string]any, runner, pinned string, allowed bool, reason string, guard map[string]any) error {
 	if pinned == "" {
 		return nil
 	}
@@ -48,7 +50,19 @@ func recordCallback(event map[string]any, runner, pinned string, allowed bool, r
 	}
 	act, err := eventAction(event, runner, cwd)
 	complete := err == nil
-	if err != nil && allowed {
+	if err != nil && allowed && isObservationGap(err) {
+		tool, _ := event["tool_name"].(string)
+		if runner == "codex" {
+			tool = strings.TrimPrefix(tool, "functions.")
+		}
+		if len(act.commands) == 0 {
+			act.commands = []command{{argv: []string{tool}, directory: cwd, opaque: true}}
+		}
+		for i := range act.commands {
+			act.commands[i].opaque = true
+		}
+		complete = false
+	} else if err != nil && allowed {
 		return err
 	}
 	if err != nil {
@@ -60,11 +74,18 @@ func recordCallback(event map[string]any, runner, pinned string, allowed bool, r
 	}
 	effects := []fileEffect{}
 	for _, word := range act.reads {
-		effects = append(effects, fileEffect{word, cwd})
+		effects = append(effects, fileEffect{word: word, directory: cwd})
 	}
 	for _, command := range act.commands {
-		for _, word := range command.reads {
-			effects = append(effects, fileEffect{word, command.directory})
+		for _, directory := range commandDirectories(command) {
+			for _, word := range command.reads {
+				effects = append(effects, fileEffect{word: word, directory: directory})
+			}
+		}
+	}
+	for _, command := range act.commands {
+		if command.opaque || command.changesState || command.directoryUncertain {
+			complete = false
 		}
 	}
 	paths := []string{}
@@ -84,8 +105,15 @@ func recordCallback(event map[string]any, runner, pinned string, allowed bool, r
 	if allowed {
 		decision = "allow"
 	}
-	data, err := json.Marshal(map[string]any{"event": event["hook_event_name"], "tool": act.tool,
-		"decision": decision, "reason": reason, "read_path_sha256": paths, "runner": runner, "inspection_complete": complete})
+	entry := map[string]any{"event": event["hook_event_name"], "tool": act.tool,
+		"decision": decision, "reason": reason, "read_path_sha256": paths, "runner": runner, "inspection_complete": complete}
+	if !complete && allowed {
+		entry["inspection_notice"] = "file effects were not fully inspected; blacklist mode allowed the call"
+	}
+	if guard != nil {
+		entry["guard"] = guard
+	}
+	data, err := json.Marshal(entry)
 	if err != nil {
 		return err
 	}

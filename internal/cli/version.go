@@ -9,6 +9,9 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"laneboss.io/laneboss/internal/jobcatalog"
+	"laneboss.io/laneboss/internal/orghook"
 )
 
 // The syntax tree preserves the launcher's parser declarations. It is used only
@@ -51,6 +54,15 @@ var rootSyntax = func() commandSyntax {
 	var root commandSyntax
 	if err := json.Unmarshal(syntaxData, &root); err != nil {
 		panic("invalid embedded command syntax")
+	}
+	if err := orghook.SetLanebossSyntax(syntaxData); err != nil {
+		panic("invalid embedded hook command syntax")
+	}
+	root.Commands = append(root.Commands, commandSyntax{Name: "dashboard", Help: "Watch the org in a local read-only dashboard."})
+	root.Commands = append(root.Commands, commandSyntax{Name: "service", Help: "Run or query the dedicated-user identity service."})
+	expanded, err := json.Marshal(root)
+	if err != nil || jobcatalog.Register(syntaxData, expanded) != nil {
+		panic("invalid embedded job catalog")
 	}
 	return root
 }()

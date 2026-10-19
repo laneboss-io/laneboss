@@ -6,6 +6,12 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/caller/records"
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/observation"
+	"laneboss.io/laneboss/internal/rolepolicy"
+	"laneboss.io/laneboss/internal/settings"
 )
 
 var laneRE = rx(`^[a-z0-9][a-z0-9._-]{0,63}$`)
@@ -150,7 +156,7 @@ func lanePayload(kind, lane string, p map[string]any) error {
 	file := exactObject(map[string]validator{"path": absoluteCheck, "sha256": textCheck(`[0-9a-f]{64}`, 64)})
 	carried := sortedList(integerCheck(1, 999999999), 0, 64)
 	announced := sortedList(integerCheck(1, 999999999), 1, 64)
-	chosen := exactObject(map[string]validator{"runner": choices("routing", "supervisor", "previous"), "model": choices("routing", "supervisor", "previous"), "effort": nullable(choices("routing", "supervisor", "previous")), "account": nullable(choices("supervisor", "default", "previous", "room"))})
+	chosen := exactObject(map[string]validator{"runner": choices("routing", "supervisor", "previous", "settings"), "model": choices("routing", "supervisor", "previous", "settings"), "effort": nullable(choices("routing", "supervisor", "previous", "settings")), "account": nullable(choices("supervisor", "default", "previous", "room", "settings"))})
 	fields := map[string]validator{}
 	switch kind {
 	case "lane.planned", "lane.merged", "lane.deployed", "lane.landed":
@@ -163,7 +169,20 @@ func lanePayload(kind, lane string, p map[string]any) error {
 			fields["held"] = heldCheck
 		}
 	case "lane.started", "lane.adopted":
+		if err := records.Validate(p); err != nil {
+			return invalid(label, "payload report line", err.Error())
+		}
 		fields = map[string]validator{"runner": name, "model": modelCheck, "effort": nullableName, "account": nullable(textCheck(accountRule, 64)), "chosen_by": chosen, "difficulty": nullable(choices("mechanical", "standard", "hard", "review")), "project": nullableName, "worktree": absoluteCheck, "branch": nullable(textCheck(`[A-Za-z0-9][A-Za-z0-9._/+_-]{0,254}`, 255)), "base": nullable(textCheck(`[0-9a-f]{40}|[0-9a-f]{64}`, 64)), "repository": nullable(absoluteCheck), "budget_minutes": numberCheck(0, 10080, true), "quiet_seconds": integerCheck(1, 604800), "brief": file, "log": absoluteCheck, "session": exactObject(map[string]validator{"socket": absoluteCheck, "name": textCheck(`[a-z0-9][a-z0-9_-]{0,63}`, 64)}), "touches": touchesCheck, "claims": nullable(absoluteCheck)}
+		for _, key := range []string{"level", "level_source", "starter"} {
+			if _, ok := p[key]; ok {
+				fields[key] = func(label string, value any, path string) error {
+					if err := records.Field(key, value); err != nil {
+						return invalid(label, path, err.Error())
+					}
+					return nil
+				}
+			}
+		}
 		if kind == "lane.started" {
 			fields["run"] = run
 			fields["how"] = choices("start", "resume", "reuse")
@@ -199,7 +218,21 @@ func lanePayload(kind, lane string, p map[string]any) error {
 	case "lane.cleaned":
 		fields = map[string]validator{"removed": listCheck(cleanCheck(false), false, false, 64), "kept": listCheck(cleanCheck(true), false, false, 64)}
 	case "lane.mailed":
-		fields = map[string]validator{"sequence": integerCheck(1, 999999999), "sender": textCheck(accountRule, 64), "sha256": textCheck(`[0-9a-f]{64}`, 64), "bytes": integerCheck(1, 262144)}
+		fields = map[string]validator{"sequence": integerCheck(1, 999999999), "sender": func(label string, value any, path string) error {
+			id, ok := value.(string)
+			if !ok || !records.ValidSender(id) {
+				return invalid(label, path, "must be a sender label or principal node id")
+			}
+			return nil
+		}, "sha256": textCheck(`[0-9a-f]{64}`, 64), "bytes": integerCheck(1, 262144)}
+		if _, exists := p["legacy_relationship"]; exists {
+			fields["legacy_relationship"] = func(label string, value any, path string) error {
+				if value != true {
+					return invalid(label, path, "must be true when present")
+				}
+				return nil
+			}
+		}
 	case "lane.delivered", "lane.returned":
 		fields = map[string]validator{"run": integerCheck(2, 1000000), "sequences": announced}
 		if kind == "lane.returned" {
@@ -216,7 +249,7 @@ func lanePayload(kind, lane string, p map[string]any) error {
 			fields = map[string]validator{"run": run, "refusal": refusalID, "guard": textCheck(accountRule, 64), "kind": nullable(choices("hook", "permission", "harness")), "format": choices("claude-code", "text"), "via": choices("tool-result", "hook", "log"), "hook": nullable(exactObject(map[string]validator{"event": nullable(textCheck(`[A-Za-z][A-Za-z0-9_]{0,63}`, 64)), "name": nullable(textCheck(`[A-Za-z0-9][A-Za-z0-9._:/ -]{0,127}`, 128))})), "tool": nullable(tool), "at": nullable(timestampCheck), "command": nullable(excerptCheck), "message": excerptCheck, "targets": sortedList(recordPathCheck, 0, 1024), "call": nullable(exactObject(map[string]validator{"id": callID, "record": nullable(position)})), "record": position, "workarounds_checked": boolCheck}
 		}
 		if kind == "lane.workaround_suspected" {
-			fields = map[string]validator{"run": run, "suspicion": suspicionID, "refusal": refusalID, "how": sortedList(choices("reworded", "shell-write"), 1, 2), "paths": sortedList(suspectedPathCheck, 1, 1024), "tool": tool, "at": nullable(timestampCheck), "command": excerptCheck, "call": call, "similarity": nullable(exactObject(map[string]validator{"containment": numberCheck(0, 1, false), "coverage": numberCheck(0, 1, false)}))}
+			fields = map[string]validator{"run": run, "suspicion": suspicionID, "refusal": nullable(refusalID), "how": sortedList(choices("reworded", "shell-write", "shell-substitution-in-text"), 1, 2), "paths": sortedList(suspectedPathCheck, 1, 1024), "tool": tool, "at": nullable(timestampCheck), "command": excerptCheck, "call": call, "similarity": nullable(exactObject(map[string]validator{"containment": numberCheck(0, 1, false), "coverage": numberCheck(0, 1, false)}))}
 		}
 		if kind == "lane.refusal_reviewed" {
 			fields = map[string]validator{"refusal": refusalID, "path": suspectedPathCheck, "verdict": choices("clean", "workaround"), "suspicions": sortedList(suspicionID, 1, 4096), "note": nullable(noteCheck)}
@@ -228,6 +261,24 @@ func lanePayload(kind, lane string, p map[string]any) error {
 	}
 	if !laneRE.MatchString(lane) {
 		return integrity("lane: is required for lane events")
+	}
+	if kind == "lane.started" || kind == "lane.adopted" {
+		if _, exists := p["settings"]; exists {
+			check := settings.EventField(p)
+			fields["settings"] = func(_ string, value any, path string) error { return check(value, path) }
+		}
+		if _, exists := p["runner_sandbox"]; exists {
+			fields["runner_sandbox"] = choices(lanesandbox.RunnerReplaced)
+		}
+		if err := rolepolicy.ValidateEvent(p); err != nil {
+			return integrity(err.Error())
+		}
+		if _, exists := p["role_context"]; exists {
+			for _, key := range []string{"role", "role_context"} {
+				check := rolepolicy.EventField(p, key)
+				fields[key] = func(_ string, value any, path string) error { return check(value, path) }
+			}
+		}
 	}
 	if err := exactObject(fields)(label, p, "payload"); err != nil {
 		return integrity(err.Error())
@@ -311,8 +362,13 @@ func lanePayload(kind, lane string, p map[string]any) error {
 			return bad("call", "is required for a refusal in a claude-code record")
 		}
 	}
-	if kind == "lane.workaround_suspected" && (p["similarity"] != nil) != contains(stringsOf(p["how"]), "reworded") {
-		return bad("similarity", "is given exactly when the way includes reworded")
+	if kind == "lane.workaround_suspected" {
+		if err := observation.Check(p); err != nil {
+			return integrity(kind + ": " + err.Error())
+		}
+		if (p["similarity"] != nil) != contains(stringsOf(p["how"]), "reworded") {
+			return bad("similarity", "is given exactly when the way includes reworded")
+		}
 	}
 	if kind == "lane.refusal_reviewed" && rx(`^\([1-9][0-9]{0,8} more\)$`).MatchString(str(p["path"])) {
 		return bad("path", "a verdict names one path")
@@ -419,11 +475,11 @@ func laneTransition(row, event map[string]any) error {
 			if recorded[rid] != nil {
 				return bad("already records this refusal")
 			}
-		} else if recorded[rid] == nil {
+		} else if !(kind == "lane.workaround_suspected" && p["refusal"] == nil) && recorded[rid] == nil {
 			return bad("has no recorded refusal for this event")
 		}
 		if kind == "lane.workaround_suspected" {
-			if suspected[str(p["suspicion"])] != nil || integer(p["run"]) < integer(object(recorded[rid])["run"]) {
+			if suspected[str(p["suspicion"])] != nil || p["refusal"] != nil && integer(p["run"]) < integer(object(recorded[rid])["run"]) {
 				return bad("the suspicion is duplicate or precedes its refusal")
 			}
 		}
@@ -465,6 +521,9 @@ func applyRefusal(row, event map[string]any) {
 	open := map[string]any{}
 	for _, sid := range sortedKeys(object(found["suspected"])) {
 		item := object(object(found["suspected"])[sid])
+		if item["refusal"] == nil {
+			continue
+		}
 		for _, path := range stringsOf(item["paths"]) {
 			if reviewed[sid+"\x00"+path] {
 				continue

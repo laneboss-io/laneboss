@@ -3,16 +3,19 @@
 #
 #     curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh
 #
-# It is a bootstrap and holds no installer of its own: it gets the source of one version and runs that version's own
-# scripts/install.sh, which does the installing (docs/install.md). What it fetches runs with your rights, and nothing
-# checks it. It never uses sudo and refuses to run as root. It writes only under the prefix (default ~/.local) and a
+# By default it installs released Laneboss and claudock-cli binaries, verifying each archive against SHA256SUMS.
+# --without-claudock skips the companion. --from-source keeps the Laneboss source build path.
+# It never uses sudo and refuses to run as root. It writes only under the prefix (default ~/.local) and a
 # temporary directory that it removes on the exits it catches: a normal end, a failure, and the signals HUP, INT, QUIT,
 # PIPE and TERM. When it is piped, options go after `sh -s --`, for example: sh -s -- --prefix DIR
 #
+#   LANEBOSS_VERSION  release version (optional v prefix); default: GitHub's latest release redirect
+#   LANEBOSS_RELEASE_BASE_URL  explicit test asset directory for both programs; requires a Laneboss release version
+#   With --from-source:
 #   LANEBOSS_SOURCE   a directory, or a .tar, .tar.gz or .tgz file, on this machine; it is used first
 #   LANEBOSS_REPO     the repository's address; default: the REPO line below. It is cloned with git (a private
 #                     repository works with your own git credentials), else its tarball is fetched with curl
-#   LANEBOSS_VERSION  a tag or a branch of the repository; default: main
+#   LANEBOSS_VERSION  a tag or a branch of the source repository; default: main
 #   LANEBOSS_GO       the Go executable; default: go (the source installer pins the toolchain)
 #
 # Every command of this file after this header is inside one brace group, and the closing brace is the last line of
@@ -23,9 +26,245 @@ set -eu
 
 # The repository's public address, used when neither LANEBOSS_SOURCE nor LANEBOSS_REPO names a source.
 REPO=https://github.com/laneboss-io/laneboss.git
+RELEASES=https://github.com/laneboss-io/laneboss/releases
+CLAUDOCK_RELEASES=https://github.com/laneboss-io/claudock-cli/releases
+CLAUDOCK_VERSION=0.1.0
+
+release_requirements() {
+    for release_tool in curl tar gzip awk; do
+        if ! command -v "$release_tool" >/dev/null 2>&1; then
+            echo "install: missing release prerequisite: $release_tool" >&2
+            exit 2
+        fi
+    done
+    if command -v sha256sum >/dev/null 2>&1; then
+        checksum_tool=sha256sum
+    elif command -v shasum >/dev/null 2>&1; then
+        checksum_tool=shasum
+    else
+        echo "install: sha256sum or shasum is required; refusing an unverified download" >&2
+        exit 2
+    fi
+    case "$system" in
+        Linux) release_os=linux ;;
+        Darwin) release_os=darwin ;;
+    esac
+    machine=$(uname -m)
+    case "$machine" in
+        x86_64|amd64) release_arch=amd64 ;;
+        arm64|aarch64) release_arch=arm64 ;;
+        *) echo "install: unsupported architecture; releases support amd64 and arm64" >&2; exit 2 ;;
+    esac
+}
+
+release_location() {
+    release_base=${LANEBOSS_RELEASE_BASE_URL:-}
+    release_protocols=https
+    if [ -n "$release_base" ]; then
+        # HTTP is allowed only for an explicitly selected loopback test server.
+        case "$release_base" in
+            https://*) ;;
+            http://*)
+                if ! LC_ALL=C awk -v base="$release_base" 'BEGIN {
+                    exit !(base ~ /^http:\/\/(127\.0\.0\.1|localhost):[0-9]+(\/[^@?#]*)?$/)
+                }'; then
+                    echo "install: HTTP release testing requires a loopback server with a port" >&2
+                    exit 2
+                fi
+                release_protocols=http,https
+                ;;
+            *) echo "install: release base must use HTTPS or a loopback HTTP test server" >&2; exit 2 ;;
+        esac
+    fi
+}
+
+release_temporary_dir() {
+    if [ -z "$tmp" ]; then
+        tmp=$(mktemp -d "${TMPDIR:-/tmp}/laneboss-install.XXXXXX")
+        case "$tmp" in
+            /*) ;;
+            *) tmp=$PWD/$tmp ;;
+        esac
+    fi
+}
+
+fetch_verified_release() {
+    verified_program=$1
+    verified_version=$2
+    verified_default_base=$3
+    release_requirements
+    release_location
+    if [ -z "$release_base" ]; then
+        release_base=$verified_default_base
+    fi
+    release_base=${release_base%/}
+    release_temporary_dir
+    verified_dir=$tmp/$verified_program-download
+    mkdir "$verified_dir"
+    asset=${verified_program}_${verified_version}_${release_os}_${release_arch}.tar.gz
+    printf 'install: downloading %s %s for %s/%s\n' \
+        "$verified_program" "$verified_version" "$release_os" "$release_arch"
+    if ! curl -fsSL --proto "=$release_protocols" --proto-redir "=$release_protocols" \
+        -o "$verified_dir/$asset" "$release_base/$asset" </dev/null; then
+        echo "install: $verified_program release archive download failed" >&2
+        exit 2
+    fi
+    if ! curl -fsSL --proto "=$release_protocols" --proto-redir "=$release_protocols" \
+        -o "$verified_dir/SHA256SUMS" "$release_base/SHA256SUMS" </dev/null; then
+        echo "install: $verified_program checksum download failed" >&2
+        exit 2
+    fi
+    if ! expected=$(LC_ALL=C awk -v asset="$asset" '
+        $2 == asset {
+            matches++
+            if (NF != 2 || length($1) != 64 || $1 ~ /[^0-9a-fA-F]/) bad = 1
+            digest = tolower($1)
+        }
+        END { if (matches != 1 || bad) exit 1; print digest }
+    ' "$verified_dir/SHA256SUMS"); then
+        echo "install: $verified_program SHA256SUMS must contain exactly one valid checksum for the archive" >&2
+        exit 2
+    fi
+    case "$checksum_tool" in
+        sha256sum) actual=$(sha256sum "$verified_dir/$asset") ;;
+        shasum) actual=$(shasum -a 256 "$verified_dir/$asset") ;;
+    esac
+    # Checksum tools escape filenames containing a backslash on some systems.
+    actual=${actual#\\}
+    actual=${actual%% *}
+    if [ "$actual" != "$expected" ]; then
+        echo "install: $verified_program SHA-256 mismatch; refusing to unpack or execute the release" >&2
+        exit 2
+    fi
+    printf 'install: %s release archive SHA-256 verified\n' "$verified_program"
+    verified_root=$verified_dir/unpacked
+    mkdir "$verified_root"
+    tar -xzf "$verified_dir/$asset" -C "$verified_root" </dev/null
+}
+
+laneboss_release() {
+    release_requirements
+    release_location
+    if [ -n "$release_base" ] && [ -z "$wanted" ]; then
+        echo "install: a release base override requires --version or LANEBOSS_VERSION" >&2
+        exit 2
+    fi
+    if [ -z "$wanted" ]; then
+        if ! latest=$(curl -fsSL --proto =https --proto-redir =https -o /dev/null \
+            -w '%{url_effective}' "$RELEASES/latest" </dev/null); then
+            echo "install: could not resolve the latest GitHub release" >&2
+            exit 2
+        fi
+        case "$latest" in
+            "$RELEASES"/tag/v*) wanted=${latest##*/} ;;
+            *) echo "install: latest release did not redirect to a version tag" >&2; exit 2 ;;
+        esac
+    fi
+    release_version=${wanted#v}
+    case "$release_version" in
+        ''|*[!0-9A-Za-z.+-]*)
+            echo "install: release version contains unsupported characters" >&2
+            exit 2
+            ;;
+    esac
+    if ! LC_ALL=C awk -v version="$release_version" 'BEGIN {
+        exit !(version ~ /^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$/ && version !~ /\.\./)
+    }'; then
+        echo "install: release version must look like 1.2.3 or 1.2.3-label" >&2
+        exit 2
+    fi
+    fetch_verified_release laneboss "$release_version" "$RELEASES/download/v$release_version"
+    root=$verified_root
+    if [ ! -f "$root/laneboss" ] || [ -L "$root/laneboss" ] || [ ! -x "$root/laneboss" ] \
+        || [ ! -d "$root/plugins/claude-code" ]; then
+        echo "install: verified archive is missing its executable or plugins" >&2
+        exit 2
+    fi
+    # The compiled identity must equal the release name before any prefix write.
+    "$root/laneboss" --install-release "$root" "$prefix" "$release_version" </dev/null
+}
+
+read_claudock_version() {
+    if ! claudock_version_text=$("$1" version </dev/null 2>/dev/null); then
+        return 1
+    fi
+    if ! claudock_seen=$(printf '%s\n' "$claudock_version_text" | LC_ALL=C awk '
+        NR == 1 && tolower($1) == "claudock" {
+            version = $2
+            if (tolower(version) == "version") version = $3
+            sub(/^v/, "", version)
+            if (version ~ /^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$/) {
+                print version
+                valid = 1
+            }
+        }
+        END { if (NR != 1 || !valid) exit 1 }
+    '); then
+        return 1
+    fi
+}
+
+install_claudock() {
+    if [ "$with_claudock" = 0 ]; then
+        echo "install: claudock skipped (--without-claudock)"
+        return
+    fi
+    claudock_target=$prefix/bin/claudock
+    claudock_existing=""
+    claudock_location="on PATH"
+    if claudock_candidate=$(command -v claudock 2>/dev/null); then
+        claudock_existing=$claudock_candidate
+    elif [ -e "$claudock_target" ] || [ -L "$claudock_target" ]; then
+        claudock_existing=$claudock_target
+        claudock_location="in the prefix"
+    fi
+    if [ -n "$claudock_existing" ]; then
+        claudock_seen=""
+        if [ -f "$claudock_existing" ] && [ -x "$claudock_existing" ] \
+            && read_claudock_version "$claudock_existing" \
+            && [ "$claudock_seen" = "$CLAUDOCK_VERSION" ]; then
+            printf 'install: claudock %s is already %s; keeping it\n' "$CLAUDOCK_VERSION" "$claudock_location"
+            return
+        fi
+        if [ "$upgrade_claudock" = 0 ]; then
+            echo "install: keeping existing claudock $claudock_location (different or unreadable version)."
+            echo "install: Laneboss installation is complete; use --upgrade-claudock to install the pinned claudock."
+            return
+        fi
+    fi
+    if [ -d "$claudock_target" ]; then
+        echo "install: claudock destination is a directory; Laneboss is installed, claudock is not" >&2
+        exit 2
+    fi
+    echo "install: Laneboss installation is complete; installing claudock next (a failure exits nonzero)."
+    fetch_verified_release claudock "$CLAUDOCK_VERSION" "$CLAUDOCK_RELEASES/download/v$CLAUDOCK_VERSION"
+    claudock_binary=$verified_root/claudock
+    if [ ! -f "$claudock_binary" ] || [ -L "$claudock_binary" ] || [ ! -x "$claudock_binary" ] \
+        || ! read_claudock_version "$claudock_binary" || [ "$claudock_seen" != "$CLAUDOCK_VERSION" ]; then
+        echo "install: verified claudock binary is missing or has the wrong version; Laneboss remains installed" >&2
+        exit 2
+    fi
+    # Copy and rename on the destination filesystem so a failed copy or chmod
+    # leaves the previous executable intact. The subshell cleans its staging dir.
+    (
+        claudock_stage=$(mktemp -d "$prefix/bin/.claudock-install.XXXXXX")
+        trap 'rm -r -- "$claudock_stage"' EXIT
+        trap 'exit 129' HUP
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        cp "$claudock_binary" "$claudock_stage/claudock"
+        chmod 755 "$claudock_stage/claudock"
+        mv -f "$claudock_stage/claudock" "$claudock_target"
+    )
+    printf 'install: installed claudock %s beside laneboss\n' "$CLAUDOCK_VERSION"
+    case ":${PATH:-}:" in
+        *":$prefix/bin:"*) ;;
+        *) echo "install: add the selected prefix bin directory to PATH to use both commands" ;;
+    esac
+}
 
 laneboss_bootstrap() {
-    usage="usage: install.sh [--prefix DIR]   (default prefix: ~/.local)"
+    usage="usage: install.sh [--prefix DIR] [--version VERSION] [--from-source] [--without-claudock] [--upgrade-claudock]"
     tmp=""
     trap 'status=$?; if [ -n "$tmp" ]; then chmod -R u+rwX -- "$tmp" 2>/dev/null || true; rm -rf -- "$tmp" || true; fi; exit "$status"' EXIT
     trap 'exit 129' HUP
@@ -35,6 +274,10 @@ laneboss_bootstrap() {
     trap 'exit 143' TERM
 
     prefix=""
+    from_source=0
+    with_claudock=1
+    upgrade_claudock=0
+    wanted=${LANEBOSS_VERSION:-}
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --prefix)
@@ -49,11 +292,24 @@ laneboss_bootstrap() {
                 prefix=${1#--prefix=}
                 shift
                 ;;
+            --from-source) from_source=1; shift ;;
+            --without-claudock) with_claudock=0; shift ;;
+            --upgrade-claudock) upgrade_claudock=1; shift ;;
+            --version)
+                if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                    echo "install: --version needs a version; $usage" >&2
+                    exit 2
+                fi
+                wanted=$2
+                shift 2
+                ;;
+            --version=?*) wanted=${1#--version=}; shift ;;
             -h|--help)
                 echo "$usage"
-                echo "Gets the source of one version of Laneboss and runs that version's own scripts/install.sh."
-                echo "Variables: LANEBOSS_SOURCE (a directory, .tar or .tar.gz on this machine), LANEBOSS_REPO (the"
-                echo "repository's address), LANEBOSS_VERSION (a tag or branch; default main), LANEBOSS_GO."
+                echo "Installs Laneboss (latest or --version) and pinned claudock-cli, verifying both archives without Go."
+                echo "--without-claudock skips the companion; --upgrade-claudock replaces a different existing version."
+                echo "Default prefix: ~/.local. Variables: LANEBOSS_VERSION, LANEBOSS_RELEASE_BASE_URL (explicit test asset directory)."
+                echo "--from-source builds instead: LANEBOSS_SOURCE, LANEBOSS_REPO, LANEBOSS_VERSION (default main), LANEBOSS_GO."
                 exit 0
                 ;;
             *)
@@ -106,10 +362,29 @@ laneboss_bootstrap() {
         *) prefix=$PWD/$prefix ;;
     esac
 
+    if [ "$from_source" = 0 ]; then
+        if [ -n "${LANEBOSS_SOURCE:-}" ] || [ -n "${LANEBOSS_REPO:-}" ]; then
+            echo "install: LANEBOSS_SOURCE and LANEBOSS_REPO require --from-source" >&2
+            exit 2
+        fi
+        laneboss_release
+        "$prefix/bin/laneboss" --version </dev/null
+        install_claudock
+        case ":${PATH:-}:" in
+            *":$prefix/bin:"*) ;;
+            *) printf 'install: add %s/bin to PATH to use laneboss\n' "$prefix" ;;
+        esac
+        echo "install: next, run laneboss doctor --config NAME (see the README's Quick start)"
+        if ! command -v tmux >/dev/null 2>&1; then
+            echo "install: warning: install tmux before starting a lane" >&2
+        fi
+        return
+    fi
+
     # Where the source comes from: LANEBOSS_SOURCE, else the repository.
     source=${LANEBOSS_SOURCE:-}
     repo=${LANEBOSS_REPO:-$REPO}
-    wanted=${LANEBOSS_VERSION:-main}
+    wanted=${wanted:-main}
     kind=""
     if [ -n "$source" ]; then
         case "$source" in
@@ -351,6 +626,7 @@ laneboss_bootstrap() {
         printf 'install: installed laneboss %s in %s\n' "$installed" "$prefix"
     fi
     printf '%s\n' "$shown"
+    install_claudock
     case ":${PATH:-}:" in
         *":$prefix/bin:"*) ;;
         *)

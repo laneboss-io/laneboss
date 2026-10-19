@@ -4,5 +4,5 @@ package identity
 const (
 	Program   = "laneboss"
 	EnvPrefix = "LANEBOSS_"
-	Version   = "0.6.0-dev4"
+	Version   = "0.7.0"
 )

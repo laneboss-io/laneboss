@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"laneboss.io/laneboss/internal/adapters"
+	"laneboss.io/laneboss/internal/identityd"
 	"laneboss.io/laneboss/internal/judge"
 	"laneboss.io/laneboss/internal/laneturns"
 )
@@ -29,6 +30,9 @@ func testBridge(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	if args[0] == "room-choice" {
 		return laneturns.ChoiceProbe(stdin, stdout, stderr)
+	}
+	if args[0] == "identityd-launch" {
+		return identityd.LaunchProbe(stdin, stdout, stderr)
 	}
 	if args[0] == "attach-editor" {
 		return laneturns.EditorProbe(stdin, stdout, stderr)

@@ -1,16 +1,22 @@
 # Laneboss with claudock-cli
 
 Use [claudock-cli](https://github.com/laneboss-io/claudock-cli), the Go command line for macOS and Linux.
-It builds one static executable named `claudock`. Install it on PATH before using the runner or either helper.
+It ships one static executable named `claudock`. Laneboss's one-line installer includes claudock-cli
+`0.1.0` by default after verifying its release archive; see [install.md](install.md).
+Keep it on PATH before using the runner or either helper.
 Start with the credential-free [Laneboss walkthrough](getting-started.md) before making real model requests.
 
 ## Portable CLI setup
 
-Install Claude Code using its vendor instructions, then install claudock-cli and add a profile of your own.
+Install Claude Code using its vendor instructions, then add a claudock profile of your own.
+Laneboss's release installer supplies the wrapper unless `--without-claudock` was selected.
 
 ### Install claudock-cli
 
-Build claudock-cli from a reviewed checkout: this pinned source revision, with Go 1.26.0, on macOS or Linux.
+The normal Laneboss install already includes it. If a different claudock is present, rerun the bootstrap
+with `--upgrade-claudock` to install the pinned release in the selected prefix.
+For a source alternative, build claudock-cli from a reviewed checkout: this pinned source revision,
+with Go 1.26.0, on macOS or Linux.
 These commands are run in the **claudock-cli** repository, not in the Laneboss repository:
 
 ```sh

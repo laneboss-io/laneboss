@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"laneboss.io/laneboss/internal/jsontext"
@@ -25,15 +26,40 @@ type object = map[string]any
 type problem struct {
 	code            int
 	prefix, message string
+	haltBatch       bool
+	prefixRecovery  bool
 }
 
-func (e *problem) Error() string           { return e.message }
-func refuse(format string, a ...any) error { return &problem{2, "refused", fmt.Sprintf(format, a...)} }
+func (e *problem) Error() string { return e.message }
+func refuse(format string, a ...any) error {
+	if format == "%s" && len(a) == 1 {
+		if err, ok := a[0].(error); ok {
+			var p *problem
+			if errors.As(err, &p) && p.prefix == "refused" {
+				return err
+			}
+		}
+	}
+	return &problem{code: 2, prefix: "refused", message: fmt.Sprintf(format, a...)}
+}
+
+func (p *problem) write(w io.Writer) {
+	for _, line := range strings.Split(p.message, "\n") {
+		if strings.HasPrefix(line, "Instead: ") {
+			fmt.Fprintln(w, line)
+		} else {
+			fmt.Fprintln(w, p.prefix+": "+line)
+		}
+	}
+}
 func integrity(format string, a ...any) error {
-	return &problem{3, "integrity problem", fmt.Sprintf(format, a...)}
+	return &problem{code: 3, prefix: "integrity problem", message: fmt.Sprintf(format, a...)}
 }
 func invalid(file, field, message string) error {
-	return &problem{2, "invalid configuration", file + ": " + field + ": " + message}
+	return &problem{code: 2, prefix: "invalid configuration", message: file + ": " + field + ": " + message}
+}
+func haltArchive(format string, a ...any) error {
+	return &problem{code: 2, prefix: "refused", message: fmt.Sprintf(format, a...), haltBatch: true}
 }
 func obj(v any) object { m, _ := v.(map[string]any); return m }
 func str(v any) string { s, _ := v.(string); return s }
@@ -386,6 +412,7 @@ type arguments struct {
 	values   map[string]string
 	booleans map[string]bool
 	touches  []string
+	sets     []string
 }
 
 func (a arguments) get(k string) string { return a.values[k] }
@@ -397,8 +424,8 @@ func parseArgs(args []string) (arguments, error) {
 	}
 	a.action = args[0]
 	options := map[string]string{
-		"start":  "config lane brief project difficulty runner model effort account budget touches worktree base reuse turns idle",
-		"resume": "config lane message account budget", "stop": "config lane run", "status": "config lane", "check": "config lane", "mark": "config lane state landing gone accept-uncovered", "clean": "config lane", "scan": "config lane", "refusals": "config lane", "review": "config lane refusal path verdict note"}
+		"start":  "config lane brief project difficulty runner model effort account budget touches worktree base reuse turns idle role level principal instance set",
+		"resume": "config lane message account budget", "stop": "config lane run", "status": "config lane", "check": "config lane", "mark": "config lane state landing gone accept-uncovered", "clean": "config lane", "archive": "config lane dry-run to", "scan": "config lane", "refusals": "config lane", "review": "config lane refusal path verdict note"}
 	allowed, ok := options[a.action]
 	if !ok {
 		return a, refuse("%s", cliargs.Reject("ACTION"))
@@ -415,7 +442,7 @@ func parseArgs(args []string) (arguments, error) {
 		if !strings.HasPrefix(args[i], "--") || !contains(strings.Fields(allowed), key) {
 			return a, refuse("%s", cliargs.Reject(""))
 		}
-		if contains([]string{"reuse", "turns", "gone", "accept-uncovered"}, key) {
+		if contains([]string{"reuse", "turns", "gone", "accept-uncovered", "dry-run"}, key) {
 			if inline {
 				return a, refuse("%s", cliargs.Reject("--"+key))
 			}
@@ -434,6 +461,8 @@ func parseArgs(args []string) (arguments, error) {
 		}
 		if key == "touches" {
 			a.touches = append(a.touches, v)
+		} else if key == "set" {
+			a.sets = append(a.sets, v)
 		} else {
 			a.values[key] = v
 		}

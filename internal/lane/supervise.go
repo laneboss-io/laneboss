@@ -14,7 +14,13 @@ import (
 	"syscall"
 	"time"
 
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/faults"
 	"laneboss.io/laneboss/internal/hookconfig"
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/rolepolicy"
+	"laneboss.io/laneboss/internal/settings"
+	"laneboss.io/laneboss/internal/subreaper"
 )
 
 func receiveFIFO(path string) (object, error) {
@@ -157,7 +163,10 @@ func (r *recorder) work() {
 	}
 }
 func (r *recorder) put(kind string, p object, at string) {
-	e := envelope(r.lane, kind, p, "laneboss")
+	r.putActor(kind, p, at, "laneboss")
+}
+func (r *recorder) putActor(kind string, p object, at, actor string) {
+	e := envelope(r.lane, kind, p, caller.LifecycleActor(actor))
 	if at != "" {
 		e["occurred_at"] = at
 	}
@@ -212,6 +221,7 @@ type supervisedRun struct {
 	promptDone    chan struct{}
 	promptWriter  *os.File
 	runnerWaited  bool
+	forcedExit    any
 }
 
 func supervise(fifo string, stderr io.Writer) int {
@@ -337,6 +347,13 @@ func (r *supervisedRun) sample() ([]object, error) {
 			}
 		}
 	}
+	if r.record["runner_session"] == nil && !r.runnerWaited {
+		if identity, err := caller.RunnerSessionIdentity(runnerPID); err != nil {
+			debugRun(r.run, r.watch, "%s", err.Error())
+		} else {
+			r.record["runner_session"] = identity
+		}
+	}
 	for pid, p := range table {
 		if r.reaper && p.ppid == os.Getpid() && pid != runnerPID && !r.helpers[pid] && strings.HasPrefix(p.state, "Z") {
 			var status syscall.WaitStatus
@@ -417,12 +434,30 @@ func (r *supervisedRun) execute(root *os.Root, environment object, signals chan 
 	r.record["log"] = object{"start": offset, "end": nil}
 	r.saveRecord()
 	if resumed := obj(r.spec["resumed"]); resumed != nil {
-		if _, err = r.s.append(envelope(r.lane, "lane.resumed", resumed, "laneboss"), 10); err != nil {
+		if _, err = r.s.append(envelope(r.lane, "lane.resumed", resumed, caller.LifecycleActor(str(r.spec["actor"]))), 10); err != nil {
 			debugRun(r.run, r.watch, "resume was refused: %s", safeMessage(err.Error()))
 			return 2
 		}
 	}
-	if _, err = r.s.append(envelope(r.lane, "lane.started", obj(r.spec["started"]), "laneboss"), 10); err != nil {
+	started := obj(r.spec["started"])
+	for _, point := range []string{"legacy-start-without-starter", "legacy-start-with-level", "historical-supervisors"} {
+		if faults.Get(point).Point != "" {
+			if err = faults.Reach(point); err != nil {
+				return 3
+			}
+			// Tagged historical fixtures keep the real runner and run record.
+			if point == "historical-supervisors" {
+				started["level_source"] = "supervisors"
+			} else {
+				delete(started, "starter")
+			}
+			if point == "legacy-start-without-starter" {
+				delete(started, "level")
+				delete(started, "level_source")
+			}
+		}
+	}
+	if _, err = r.s.append(envelope(r.lane, "lane.started", started, caller.LifecycleActor(str(r.spec["actor"]))), 10); err != nil {
 		debugRun(r.run, r.watch, "start was refused: %s", safeMessage(err.Error()))
 		return 2
 	}
@@ -442,7 +477,15 @@ func (r *supervisedRun) execute(root *os.Root, environment object, signals chan 
 		}
 		r.promptSet = true
 	}
-	r.reaper = becomeSubreaper()
+	r.reaper, err = subreaper.Enable()
+	if err != nil {
+		debugRun(r.run, r.watch, "%s; the runner was not started", safeMessage(err.Error()))
+		r.record["finished"] = true
+		r.forcedExit = 125
+		r.finishLog(log)
+		r.end("exit", 0, nil, nil, utcNow(), 0, false)
+		return r.finishRecording()
+	}
 	argv := stringsOf(r.spec["argv"])
 	if len(argv) == 0 {
 		debugRun(r.run, r.watch, "runner description has no argument vector")
@@ -458,7 +501,11 @@ func (r *supervisedRun) execute(root *os.Root, environment object, signals chan 
 			base = append(base, k+"="+str(v))
 		}
 	}
-	r.command.Env = changedEnv(base, map[string]string{"LANEBOSS_CONFIG": r.s.c.name, "LANEBOSS_LANE": r.lane, "LANEBOSS_RUN": strconv.Itoa(r.run)}, nil)
+	r.command.Env, err = settings.Environment(base, obj(r.spec["started"])["settings"], map[string]string{"LANEBOSS_CONFIG": r.s.c.name, "LANEBOSS_LANE": r.lane, "LANEBOSS_RUN": strconv.Itoa(r.run), "LANEBOSS_PRINCIPAL": "supervisor"})
+	if err != nil {
+		debugRun(r.run, r.watch, "runner environment settings are invalid")
+		return r.finishRecording()
+	}
 	r.command.Stdout = hookMonitor.Writer(log, false)
 	r.command.Stderr = hookMonitor.Writer(log, true)
 	r.command.WaitDelay = 2 * time.Second
@@ -473,7 +520,8 @@ func (r *supervisedRun) execute(root *os.Root, environment object, signals chan 
 		}
 		r.command.Stdin = promptReader
 	}
-	if err = hookconfig.Revet(argv, r.command.Dir, r.command.Env); err != nil {
+	replaced := obj(r.spec["started"])["runner_sandbox"] == lanesandbox.RunnerReplaced
+	if err = hookconfig.Revet(argv, r.command.Dir, r.command.Env, replaced); err != nil {
 		if promptReader != nil {
 			promptReader.Close()
 			r.promptWriter.Close()
@@ -489,6 +537,42 @@ func (r *supervisedRun) execute(root *os.Root, environment object, signals chan 
 		r.end("hook-config", 0, nil, nil, utcNow(), time.Since(began).Seconds(), false)
 		r.finishRecording()
 		return hookconfig.ExitCode
+	}
+	if err = rolepolicy.Revet(r.s.c.home, r.s.c.data, obj(r.spec["started"]), argv, screenRoleSource); err != nil {
+		if promptReader != nil {
+			promptReader.Close()
+			r.promptWriter.Close()
+		}
+		r.record["finished"] = true
+		obj(r.record["log"])["end"] = offset
+		r.saveRecord()
+		debugRun(r.run, r.watch, "role policy refused before runner exec: %s", safeMessage(err.Error()))
+		r.forcedExit = 125
+		r.end("exit", 0, nil, nil, utcNow(), time.Since(began).Seconds(), false)
+		return r.finishRecording()
+	}
+	sandbox := lanesandbox.Prepare(r.command, lanesandbox.Configuration{Home: r.s.c.home, StateHome: r.s.c.states, Directory: r.s.c.directory, StateDir: r.s.c.state, Data: r.s.c.data})
+	if replaced && !sandbox.Prepared {
+		if promptReader != nil {
+			promptReader.Close()
+			r.promptWriter.Close()
+		}
+		r.record["finished"] = true
+		obj(r.record["log"])["end"] = offset
+		r.saveRecord()
+		r.forcedExit = 125
+		debugRun(r.run, r.watch, "lane sandbox could not be prepared; the full-access runner was not started")
+		debugRun(r.run, r.watch, "sandbox notice: %s", sandbox.Notice)
+		r.end("exit", 0, nil, nil, utcNow(), time.Since(began).Seconds(), false)
+		return r.finishRecording()
+	}
+	if replaced {
+		debugRun(r.run, r.watch, "%s", lanesandbox.RunnerReplaced)
+	}
+	if sandbox.Notice != "" {
+		debugRun(r.run, r.watch, "sandbox notice: %s", sandbox.Notice)
+	} else if sandbox.Prepared {
+		debugRun(r.run, r.watch, "runner sandbox prepared: %s (%d protected paths)", sandbox.Backend, sandbox.ProtectedCount)
 	}
 	if err = r.command.Start(); err != nil {
 		if promptReader != nil {
@@ -527,6 +611,11 @@ func (r *supervisedRun) execute(root *os.Root, environment object, signals chan 
 	if e == nil && id != nil {
 		r.record["runner"] = id
 		r.known = append(r.known, id)
+	}
+	if identity, err := caller.RunnerSessionIdentity(r.command.Process.Pid); err != nil {
+		debugRun(r.run, r.watch, "%s", err.Error())
+	} else {
+		r.record["runner_session"] = identity
 	}
 	r.saveRecord()
 	defer func() {
@@ -613,6 +702,13 @@ func (r *supervisedRun) execute(root *os.Root, environment object, signals chan 
 			debugRun(r.run, r.watch, "stop requested")
 			survivors := r.stopAll(number(r.spec["grace_seconds"]))
 			r.finishLog(log)
+			actor, err := caller.StopActor(r.s.c.callerConfig(), r.lane, str(r.spec["launch"]))
+			if err != nil {
+				debugRun(r.run, r.watch, "stop caller could not be read: %s", safeMessage(err.Error()))
+				r.finishRecording()
+				return 3
+			}
+			r.spec["stop_actor"] = actor
 			r.end("stopped", survivors, nil, nil, utcNow(), time.Since(began).Seconds(), true)
 			break
 		}
@@ -652,6 +748,9 @@ func (r *supervisedRun) finishLog(log *os.File) {
 func (r *supervisedRun) end(reason string, survivors int, pattern, classification any, at string, duration float64, ran bool) {
 	r.stopScanner(true, at)
 	var exitCode, sig any
+	if r.forcedExit != nil {
+		exitCode = r.forcedExit
+	}
 	if ran && r.command.ProcessState != nil {
 		status, ok := r.command.ProcessState.Sys().(syscall.WaitStatus)
 		if ok && status.Signaled() {
@@ -667,7 +766,11 @@ func (r *supervisedRun) end(reason string, survivors int, pattern, classificatio
 	if r.promptSet {
 		p["prompt"] = r.promptFate()
 	}
-	r.recorder.put("lane.ended", p, at)
+	actor := "laneboss"
+	if reason == "stopped" {
+		actor = str(r.spec["stop_actor"])
+	}
+	r.recorder.putActor("lane.ended", p, at, actor)
 	carried := list(obj(r.spec["started"])["mail"])
 	if len(carried) > 0 {
 		outcome, why := settlement("ended", p)

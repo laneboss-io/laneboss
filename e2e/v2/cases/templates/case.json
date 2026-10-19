@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "templates",
+  "owner": "lb-v2-templates",
+  "platforms": ["linux"],
+  "requires": ["policy", "service", "identity", "grants", "approval", "lifecycle"],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": ["TPL-SCOPE", "LB-FIRST"]
+}

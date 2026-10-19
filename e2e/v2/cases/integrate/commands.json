@@ -1,0 +1,1785 @@
+{
+  "schema": "laneboss.command-ledger.v2",
+  "legacy_source": "internal/cli/syntax.json",
+  "dispatch_source": "internal/v2/cli/dispatch.go",
+  "note": "Dynamic legacy groups require the separate inventory in v2-lanes.md. Help and reserved dispatch do not establish behavior.",
+  "legacy": [
+    {
+      "path": "settings",
+      "flags": [],
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "store search",
+      "flags": [
+        "--help",
+        "--config",
+        "--kind",
+        "--lane"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "store record",
+      "flags": [
+        "--help",
+        "--config",
+        "--kind",
+        "--file",
+        "--lane",
+        "--private"
+      ],
+      "method": "records.append",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "archive daily",
+      "flags": [
+        "--help",
+        "--config",
+        "--dry-run"
+      ],
+      "method": "lane.archive",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "init",
+      "flags": [
+        "--help",
+        "--project",
+        "--runner",
+        "--top-level"
+      ],
+      "method": "org.bootstrap",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "report watch",
+      "flags": [
+        "--help",
+        "--config",
+        "--as"
+      ],
+      "method": "mail.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions init",
+      "flags": [
+        "--help",
+        "--db"
+      ],
+      "method": "records.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions migrate",
+      "flags": [
+        "--help",
+        "--db"
+      ],
+      "method": "migration.plan",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions add",
+      "flags": [
+        "--help",
+        "--db",
+        "--file"
+      ],
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions supersede",
+      "flags": [
+        "--help",
+        "--db",
+        "--file"
+      ],
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions annotate",
+      "flags": [
+        "--help",
+        "--db",
+        "--file"
+      ],
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions get",
+      "flags": [
+        "--help",
+        "--db"
+      ],
+      "method": "records.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions search",
+      "flags": [
+        "--help",
+        "--db",
+        "--config",
+        "--mode",
+        "--id",
+        "--project",
+        "--area",
+        "--topic",
+        "--kind",
+        "--status",
+        "--date-from",
+        "--date-to",
+        "--limit",
+        "--all",
+        "--level",
+        "--instance",
+        "--scope",
+        "--rank",
+        "--now",
+        "--half-life",
+        "--cautions"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions embed",
+      "flags": [
+        "--help",
+        "--db",
+        "--config"
+      ],
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions egress",
+      "flags": [
+        "--help",
+        "--db",
+        "--list"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions stats",
+      "flags": [
+        "--help",
+        "--db"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions verify",
+      "flags": [
+        "--help",
+        "--db"
+      ],
+      "method": "store.verify",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions export",
+      "flags": [
+        "--help",
+        "--db",
+        "--out"
+      ],
+      "method": "records.export",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions import",
+      "flags": [
+        "--help",
+        "--db",
+        "--in"
+      ],
+      "method": "records.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions load",
+      "flags": [
+        "--help",
+        "--db",
+        "--in",
+        "--dry-run"
+      ],
+      "method": "records.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions feedback",
+      "flags": [
+        "--help",
+        "--db",
+        "--event",
+        "--source",
+        "--at"
+      ],
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "plugin",
+      "flags": [
+        "--help"
+      ],
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org init",
+      "flags": [
+        "--help",
+        "--levels",
+        "--name"
+      ],
+      "method": "org.bootstrap",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org roles init",
+      "flags": [
+        "--help",
+        "--update"
+      ],
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org roles list",
+      "flags": [
+        "--help"
+      ],
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org instance add",
+      "flags": [
+        "--help",
+        "--level",
+        "--role",
+        "--discord-channel",
+        "--secret"
+      ],
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org render",
+      "flags": [
+        "--help"
+      ],
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org validate",
+      "flags": [
+        "--help",
+        "--format",
+        "--config"
+      ],
+      "method": "org.validate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org hook",
+      "flags": [
+        "--help",
+        "--runner",
+        "--instance"
+      ],
+      "method": "policy.evaluate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org refusals",
+      "flags": [
+        "--help",
+        "--format"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org check-hooks",
+      "flags": [
+        "--help"
+      ],
+      "method": "config.validate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org blacklist list",
+      "flags": [
+        "--help",
+        "--config",
+        "--format"
+      ],
+      "method": "policy.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org blacklist try",
+      "flags": [
+        "--help",
+        "--config",
+        "--level",
+        "--role"
+      ],
+      "method": "policy.evaluate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org channel read",
+      "flags": [
+        "--help",
+        "--json"
+      ],
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org channel add",
+      "flags": [
+        "--help",
+        "--channel-id",
+        "--create",
+        "--member",
+        "--role-id",
+        "--dry-run"
+      ],
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org hook-history",
+      "flags": [
+        "--help",
+        "--runner",
+        "--org-dir",
+        "--instance",
+        "--event"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org capture-decision",
+      "flags": [
+        "--help",
+        "--config",
+        "--org-dir",
+        "--source",
+        "--text-file",
+        "--author-authority",
+        "--instance",
+        "--judge",
+        "--at"
+      ],
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config list",
+      "flags": [
+        "--help"
+      ],
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config show",
+      "flags": [
+        "--help"
+      ],
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config validate",
+      "flags": [
+        "--help",
+        "--all"
+      ],
+      "method": "config.validate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config path",
+      "flags": [
+        "--help"
+      ],
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "event append",
+      "flags": [
+        "--help",
+        "--config",
+        "--file"
+      ],
+      "method": "records.append",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "event tail",
+      "flags": [
+        "--help",
+        "--config",
+        "--since",
+        "--follow",
+        "--lane",
+        "--until"
+      ],
+      "method": "event.tail",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state events",
+      "flags": [
+        "--help",
+        "--config"
+      ],
+      "method": "event.tail",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state lanes",
+      "flags": [
+        "--help",
+        "--config"
+      ],
+      "method": "lane.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state rebuild",
+      "flags": [
+        "--help",
+        "--config"
+      ],
+      "method": "store.rebuild",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state verify",
+      "flags": [
+        "--help",
+        "--config"
+      ],
+      "method": "store.verify",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "brief render",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--in",
+        "--out",
+        "--project",
+        "--touches"
+      ],
+      "method": "brief.render",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane start",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--brief",
+        "--instance",
+        "--set",
+        "--project",
+        "--difficulty",
+        "--runner",
+        "--model",
+        "--effort",
+        "--account",
+        "--budget",
+        "--touches",
+        "--worktree",
+        "--base",
+        "--reuse",
+        "--turns",
+        "--idle",
+        "--role",
+        "--level",
+        "--principal"
+      ],
+      "method": "lane.start",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane adopt",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--session",
+        "--runner",
+        "--model",
+        "--effort",
+        "--account",
+        "--worktree",
+        "--brief",
+        "--project",
+        "--idle",
+        "--budget",
+        "--role",
+        "--level",
+        "--principal"
+      ],
+      "method": "lane.adopt",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane resume",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--message",
+        "--account",
+        "--budget"
+      ],
+      "method": "lane.resume",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane turn",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--idle",
+        "--account",
+        "--budget"
+      ],
+      "method": "lane.turn",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane send",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--file",
+        "--from",
+        "--ask"
+      ],
+      "method": "mail.send",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane attach",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane"
+      ],
+      "method": "lane.attach",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane stop",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--run"
+      ],
+      "method": "lane.stop",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane status",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane"
+      ],
+      "method": "lane.status",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane check",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane"
+      ],
+      "method": "lane.check",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane loop",
+      "flags": [
+        "--help",
+        "--config",
+        "--detach",
+        "--status",
+        "--stop"
+      ],
+      "method": "lane.loop",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane mark",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--state",
+        "--landing",
+        "--gone",
+        "--accept-uncovered"
+      ],
+      "method": "lane.mark",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane clean",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane"
+      ],
+      "method": "lane.clean",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane archive",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--dry-run",
+        "--to"
+      ],
+      "method": "lane.archive",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane scan",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane refusals",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane review",
+      "flags": [
+        "--help",
+        "--config",
+        "--lane",
+        "--refusal",
+        "--path",
+        "--verdict",
+        "--note"
+      ],
+      "method": "lane.review",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "judge list",
+      "flags": [
+        "--help",
+        "--config"
+      ],
+      "method": "judge.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "judge ask",
+      "flags": [
+        "--help",
+        "--config",
+        "--judge",
+        "--question",
+        "--prompt-file",
+        "--subject",
+        "--lane"
+      ],
+      "method": "judge.ask",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "judge egress",
+      "flags": [
+        "--help",
+        "--config",
+        "--since"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "disk",
+      "flags": [
+        "--help",
+        "--config"
+      ],
+      "method": "doctor",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "doctor",
+      "flags": [
+        "--help",
+        "--config"
+      ],
+      "method": "doctor",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "ticket issue",
+      "flags": [
+        "--help",
+        "--config",
+        "--level",
+        "--role",
+        "--ttl"
+      ],
+      "method": "ticket.issue",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "start",
+      "flags": [
+        "--help",
+        "--config",
+        "--role",
+        "--level",
+        "--ticket-file",
+        "--format"
+      ],
+      "method": "brief.start",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "ledger",
+      "flags": [
+        "--help"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "refusal",
+      "flags": [
+        "--help"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "tool",
+      "flags": [
+        "--help"
+      ],
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "box",
+      "flags": [
+        "--help"
+      ],
+      "method": "box.list",
+      "status": "pending",
+      "evidence": []
+    }
+  ],
+  "typed": [
+    {
+      "path": "internal channel",
+      "method": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "archive daily",
+      "method": "lane.archive",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "blob begin",
+      "method": "blob.begin",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "blob chunk",
+      "method": "blob.chunk",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "blob commit",
+      "method": "blob.commit",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "blob read",
+      "method": "blob.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "box",
+      "method": "box.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "box end",
+      "method": "box.end",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "box harvest",
+      "method": "box.harvest",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "box launch",
+      "method": "box.launch",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "box list",
+      "method": "box.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "box run",
+      "method": "box.run",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "brief render",
+      "method": "brief.render",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "brief start",
+      "method": "brief.start",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config list",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config path",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config read",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config show",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "config validate",
+      "method": "config.validate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard",
+      "method": "dashboard.tree",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard approvals",
+      "method": "dashboard.approvals",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard decisions",
+      "method": "dashboard.decisions",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard lifecycle",
+      "method": "dashboard.lifecycle",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard plugins",
+      "method": "dashboard.plugins",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard raw",
+      "method": "dashboard.raw",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard refusals",
+      "method": "dashboard.refusals",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard resources",
+      "method": "dashboard.resources",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "dashboard tree",
+      "method": "dashboard.tree",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions add",
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions annotate",
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions egress",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions embed",
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions export",
+      "method": "records.export",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions feedback",
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions get",
+      "method": "records.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions import",
+      "method": "records.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions init",
+      "method": "records.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions load",
+      "method": "records.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions migrate",
+      "method": "migration.plan",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions mutate",
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions search",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions stats",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions supersede",
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "decisions verify",
+      "method": "store.verify",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "disk",
+      "method": "doctor",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "doctor",
+      "method": "doctor",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "event append",
+      "method": "records.append",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "event tail",
+      "method": "event.tail",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "grants get",
+      "method": "grants.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "grants revoke",
+      "method": "grants.revoke",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "grants root",
+      "method": "grants.root",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "grants test-child",
+      "method": "grants.test-child",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "grants validate",
+      "method": "grants.validate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "guidance select",
+      "method": "guidance.select",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "health",
+      "method": "health",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "human challenge",
+      "method": "human.challenge",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "human confirm",
+      "method": "human.confirm",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "human session",
+      "method": "human.session",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "identity self",
+      "method": "identity.self",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "init",
+      "method": "org.bootstrap",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "internal credential",
+      "method": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "internal helper",
+      "method": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "internal judge",
+      "method": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "internal supervisor",
+      "method": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "internal worker",
+      "method": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "judge ask",
+      "method": "judge.ask",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "judge egress",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "judge list",
+      "method": "judge.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane adopt",
+      "method": "lane.adopt",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane archive",
+      "method": "lane.archive",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane attach",
+      "method": "lane.attach",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane check",
+      "method": "lane.check",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane clean",
+      "method": "lane.clean",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane input",
+      "method": "lane.input",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane list",
+      "method": "lane.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane loop",
+      "method": "lane.loop",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane mark",
+      "method": "lane.mark",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane refusals",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane resume",
+      "method": "lane.resume",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane review",
+      "method": "lane.review",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane scan",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane send",
+      "method": "mail.send",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane start",
+      "method": "lane.start",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane status",
+      "method": "lane.status",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane stop",
+      "method": "lane.stop",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "lane turn",
+      "method": "lane.turn",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "ledger",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "mail list",
+      "method": "mail.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "mail send",
+      "method": "mail.send",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "migration apply",
+      "method": "migration.apply",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "migration plan",
+      "method": "migration.plan",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "operation get",
+      "method": "operation.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org blacklist list",
+      "method": "policy.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org blacklist try",
+      "method": "policy.evaluate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org bootstrap",
+      "method": "org.bootstrap",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org capture-decision",
+      "method": "decisions.mutate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org change apply",
+      "method": "org.change.apply",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org change approve",
+      "method": "org.change.approve",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org change get",
+      "method": "org.change.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org change propose",
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org channel add",
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org channel read",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org check-hooks",
+      "method": "config.validate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org hook",
+      "method": "policy.evaluate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org hook-history",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org init",
+      "method": "org.bootstrap",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org instance add",
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org refusals",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org render",
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org roles init",
+      "method": "org.change.propose",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org roles list",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "org validate",
+      "method": "org.validate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "plugin",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "policy evaluate",
+      "method": "policy.evaluate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "policy get",
+      "method": "policy.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "records append",
+      "method": "records.append",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "records export",
+      "method": "records.export",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "records get",
+      "method": "records.get",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "records import",
+      "method": "records.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "records query",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "refusal",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "report",
+      "method": "report.submit",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "report submit",
+      "method": "report.submit",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "report watch",
+      "method": "mail.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "secret import",
+      "method": "secret.import",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "secret key",
+      "method": "secret.key",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "secret list",
+      "method": "secret.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "secret revoke",
+      "method": "secret.revoke",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "secret rotate",
+      "method": "secret.rotate",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "secret stage",
+      "method": "secret.stage",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "serve",
+      "method": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "service status",
+      "method": "health",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "settings",
+      "method": "config.read",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "start",
+      "method": "brief.start",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state events",
+      "method": "event.tail",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state lanes",
+      "method": "lane.list",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state rebuild",
+      "method": "store.rebuild",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "state verify",
+      "method": "store.verify",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "store rebuild",
+      "method": "store.rebuild",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "store record",
+      "method": "records.append",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "store search",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "store verify",
+      "method": "store.verify",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "ticket issue",
+      "method": "ticket.issue",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "tool",
+      "method": "records.query",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "upgrade apply",
+      "method": "upgrade.apply",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "upgrade plan",
+      "method": "upgrade.plan",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "path": "whoami",
+      "method": "identity.self",
+      "status": "pending",
+      "evidence": []
+    }
+  ]
+}

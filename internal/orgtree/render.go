@@ -11,10 +11,13 @@ import (
 	"syscall"
 	"unicode"
 
+	"laneboss.io/laneboss/internal/config"
+	"laneboss.io/laneboss/internal/jobcatalog"
 	"laneboss.io/laneboss/internal/orghook"
+	"laneboss.io/laneboss/internal/rolepolicy"
 )
 
-var roles = map[int]string{3: "executor", 4: "stream-supervisor", 5: "top-supervisor", 6: "org-supervisor"}
+var roles = map[int]string{3: "executor", 4: "supervisor", 5: "top-supervisor", 6: "supervisor"}
 var exampleNames = map[int]string{3: "L3-lane-example", 4: "L4-stream", 5: "L5-top", 6: "L6-super-top"}
 
 const sharedRules = `# Shared org rules
@@ -160,6 +163,21 @@ func (t *tree) agents(sources []string) (string, error) {
 func (t *tree) renderPlan() (map[string]string, error) {
 	shared := t.sources(home + "/shared/protocol")
 	plan := map[string]string{}
+	if jobcatalog.Available() {
+		files := map[string]string{}
+		for path, text := range t.files {
+			files[strings.TrimPrefix(path, home+"/")] = text
+		}
+		catalog, err := jobcatalog.Build([]byte(t.files[home+"/org.toml"]), files)
+		if err != nil {
+			return nil, err
+		}
+		text, err := jsonText(catalog, true)
+		if err != nil {
+			return nil, err
+		}
+		plan[home+"/"+jobcatalog.RelativePath] = text
+	}
 	add := func(directory string, claudeSources, agentsSources []string) error {
 		claudePath := path.Join(directory, "CLAUDE.md")
 		agentsPath := path.Join(directory, "AGENTS.md")
@@ -194,8 +212,43 @@ func (t *tree) renderPlan() (map[string]string, error) {
 		notes := directory + "/state/notes.md"
 		claudeSources := []string{fmt.Sprintf("%s/L%d/CLAUDE.md", home, level), notes}
 		agentsSources := append(append([]string{}, levelSources[level]...), notes)
+		role, _ := data["role"].(string)
+		if err := rolepolicy.CheckName(role); err != nil {
+			return nil, err
+		}
+		roleDirectory := fmt.Sprintf("%s/L%d/roles", home, level)
+		rolePath := roleDirectory + "/" + role + ".md"
+		_, ownMarkdown := t.files[rolePath]
+		_, ownDrivers := t.files[roleDirectory+"/"+role+".toml"]
+		var builtin *rolepolicy.Template
+		if ownMarkdown || ownDrivers {
+			if !ownMarkdown || !ownDrivers {
+				return nil, errors.New("instance role needs paired Markdown and TOML org sources")
+			}
+			if err := rolepolicy.CheckSourcePair([]byte(t.files[rolePath]), []byte(t.files[roleDirectory+"/"+role+".toml"]), t.filename(roleDirectory+"/"+role+".toml")); err != nil {
+				return nil, fmt.Errorf("instance role sources: %w", err)
+			}
+			claudeSources = []string{fmt.Sprintf("%s/L%d/CLAUDE.md", home, level), rolePath, notes}
+			agentsSources = append(append(append([]string{}, levelSources[level]...), rolePath), notes)
+		} else {
+			var err error
+			builtin, err = rolepolicy.Builtin(level, role)
+			if err != nil {
+				return nil, err
+			}
+			if builtin == nil {
+				return nil, errors.New("instance role has no template at its level in the org or built-in library; add its Markdown and TOML role sources before rendering")
+			}
+		}
 		if err := add(directory, claudeSources, agentsSources); err != nil {
 			return nil, err
+		}
+		if builtin != nil {
+			// Embedded sources have no on-disk import target. Keep the existing
+			// level/notes imports and include the real role bytes in both drivers.
+			section := "\n<!-- Source: " + builtin.Path + " -->\n\n" + string(builtin.Bytes) + "\n"
+			plan[directory+"/CLAUDE.md"] += section
+			plan[directory+"/AGENTS.md"] += section
 		}
 	}
 	for _, relative := range sortedKeys(plan) {
@@ -380,6 +433,9 @@ func instanceData(configuration map[string]any, name string, level int, role str
 		data["discord_channel_id"] = value
 	}
 	for _, field := range []string{"services", "secrets", "writable_repos", "allowed_tools"} {
+		if _, exists := defaults[field]; field == "allowed_tools" && !exists {
+			continue
+		}
 		items, _ := array(defaults[field])
 		data[field] = append([]any{}, items...)
 	}
@@ -455,7 +511,8 @@ func initOrg(argument, levelsArgument string, selectedName *string) (writeResult
 	t.configuration = map[string]any{
 		"schema_version": 1, "name": name, "company": name, "levels": t.levels, "owner_channel": "owner",
 		"secret_store": map[string]any{"kind": "keychain", "path": "laneboss/" + name},
-		"defaults":     map[string]any{"level": defaultLevel, "role": roles[defaultLevel], "services": []any{}, "secrets": []any{}, "writable_repos": []any{}, "allowed_tools": []any{}},
+		"defaults":     map[string]any{"level": defaultLevel, "role": roles[defaultLevel], "services": []any{}, "secrets": []any{}, "writable_repos": []any{}},
+		"hooks":        map[string]any{"mode": "blacklist", "blacklist": rawTaskBlacklist()},
 	}
 	if err := problemsError(checkOrg(t.configuration, home+"/org.toml", root)); err != nil {
 		return writeResult{}, err
@@ -464,7 +521,10 @@ func initOrg(argument, levelsArgument string, selectedName *string) (writeResult
 	if err != nil {
 		return writeResult{}, err
 	}
-	files := map[string]string{home + "/org.toml": text, home + "/shared/protocol/rules.md": sharedRules}
+	files := map[string]string{
+		home + "/org.toml":                 text,
+		home + "/shared/protocol/rules.md": sharedRules,
+	}
 	directories := []string{"worktrees"}
 	for _, part := range []string{"protocol", "hooks", "tools", "services"} {
 		directories = append(directories, home+"/shared/"+part)
@@ -515,9 +575,6 @@ func initOrg(argument, levelsArgument string, selectedName *string) (writeResult
 	if err != nil {
 		return writeResult{}, err
 	}
-	if err := orghook.SeedHookRules(root, t.levels); err != nil {
-		return writeResult{}, errors.New("(hooks): hook rules could not be seeded")
-	}
 	if _, err := orghook.RenderHookSettings(root); err != nil {
 		return writeResult{}, fmt.Errorf("(hooks): runner hook settings could not be rendered: %w", err)
 	}
@@ -530,6 +587,9 @@ func renderOrg(argument string) (writeResult, error) {
 		return writeResult{}, err
 	}
 	if err := problemsError(t.problems); err != nil {
+		return writeResult{}, err
+	}
+	if _, err := rolepolicy.Load(t.root, config.ScreenSettings); err != nil {
 		return writeResult{}, err
 	}
 	generated, err := t.renderPlan()
@@ -564,6 +624,9 @@ func addInstance(argument, name string, level int, role string, channel *string,
 		return writeResult{}, err
 	}
 	if err := problemsError(checkInstance(data, home+"/instances/(new)/instance.toml", name, t.levels)); err != nil {
+		return writeResult{}, err
+	}
+	if err := t.instanceRole(level, role); err != nil {
 		return writeResult{}, err
 	}
 	credential, scanErr := credentialValueUntil(data, t.deadline)

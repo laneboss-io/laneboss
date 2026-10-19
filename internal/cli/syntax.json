@@ -17,6 +17,135 @@
   ],
   "commands": [
     {
+      "name": "settings",
+      "description": "Resolve org, role, instance and recorded lane settings.",
+      "help": "get or list effective settings and explain their sources",
+      "args": [],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "store",
+      "description": "Append screened history records and search the configuration's store.",
+      "help": "record and search retained history",
+      "args": [{"name": "--help", "short": "-h", "flag": true}],
+      "subcommand": "action",
+      "subcommand_required": true,
+      "commands": [
+        {
+          "name": "search",
+          "help": "search record text and sources by keyword",
+          "args": [
+            {"name": "--help", "short": "-h", "flag": true},
+            {"name": "--config", "metavar": "NAME"},
+            {"name": "query", "metavar": "QUERY", "required": true},
+            {"name": "--kind", "metavar": "K"},
+            {"name": "--lane", "metavar": "L"}
+          ],
+          "commands": [], "exclusive": []
+        },
+        {
+          "name": "record",
+          "help": "append a record from a screened text file",
+          "args": [
+            {"name": "--help", "short": "-h", "flag": true},
+            {"name": "--config", "metavar": "NAME"},
+            {"name": "--kind", "metavar": "K", "required": true},
+            {"name": "--file", "hook_path": {"read":true}, "metavar": "FILE", "required": true},
+            {"name": "--lane", "metavar": "L"},
+            {"name": "--private", "flag": true}
+          ],
+          "commands": [], "exclusive": []
+        }
+      ],
+      "exclusive": []
+    },
+    {
+      "name": "archive",
+      "description": "Archive finished lanes before local collection.",
+      "help": "run routine verified lane archival",
+      "args": [{"name": "--help", "short": "-h", "flag": true}],
+      "subcommand": "action",
+      "subcommand_required": true,
+      "commands": [
+        {
+          "name": "daily",
+          "help": "archive finished lanes, report refusals and continue, then return aggregate status",
+          "args": [
+            {"name": "--help", "short": "-h", "flag": true},
+            {"name": "--config", "metavar": "NAME"},
+            {"name": "--dry-run", "flag": true}
+          ],
+          "commands": [], "exclusive": []
+        }
+      ],
+      "exclusive": []
+    },
+    {
+      "name": "init",
+      "description": "Create a configuration and org without starting an agent.",
+      "help": "bootstrap an org and its Git projects",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        },
+        {
+          "name": "org",
+          "metavar": "ORG",
+          "required": true
+        },
+        {
+          "name": "--project", "hook_path": {"read":true,"write":true},
+          "metavar": "PATH",
+          "help": "a Git work tree; may be repeated"
+        },
+        {
+          "name": "--runner",
+          "choices": ["claudock", "claude", "codex"],
+          "help": "default: first available in the listed order"
+        },
+        {
+          "name": "--top-level",
+          "metavar": "N",
+          "type": "int",
+          "choices": [5, 6],
+          "help": "top supervisor level (default 5)"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "report",
+      "hook": {"state":"write","config":"--config","reads":["--file"],"report":true},
+      "description": "Report to the recorded supervisor, falling back to the human.",
+      "help": "deliver a report through every installed channel, or watch terminal reports",
+      "args": [
+        {"name": "--help", "short": "-h", "flag": true, "help": "show this help message and exit"},
+        {"name": "--config", "metavar": "NAME", "help": "the bound configuration"},
+        {"name": "--file", "hook_path": {"read":true}, "metavar": "FILE|-", "help": "a credential-screened report, at most 4000 characters"},
+        {"name": "--ask", "flag": true, "help": "return a recorded answer to a decided question instead of sending it"}
+      ],
+      "commands": [
+        {
+          "name": "watch",
+          "description": "Receive reports on a private FIFO tied to this process identity.",
+          "help": "watch terminal reports for the resolved principal",
+          "args": [
+            {"name": "--help", "short": "-h", "flag": true, "help": "show this help message and exit"},
+            {"name": "--config", "metavar": "NAME", "help": "the bound configuration"},
+            {"name": "--as", "metavar": "TARGET", "required": true, "help": "human, supervisor:NAME or instance:NAME"}
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": []
+    },
+    {
       "name": "decisions",
       "description": "",
       "help": "the owner decision store; arguments pass through unchanged",
@@ -28,8 +157,519 @@
           "help": "show this help message and exit"
         }
       ],
-      "commands": [],
-      "exclusive": []
+      "commands": [
+        {
+          "name": "init",
+          "help": "Create a new decision store.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "migrate",
+          "help": "Upgrade a supported decision store to the current schema.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "add",
+          "help": "Append a decision record from a JSON file.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--file", "hook_path": {"read":true},
+              "repeat": true,
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "supersede",
+          "help": "Append a replacement decision and supersede an existing record.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--file", "hook_path": {"read":true},
+              "repeat": true,
+              "required": true
+            },
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "annotate",
+          "help": "Append actions, evidence and followups to a decision record.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--file", "hook_path": {"read":true},
+              "repeat": true,
+              "required": true
+            },
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "get",
+          "help": "Read one stored decision by its identifier.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": [],
+          "hook": {
+            "state": "read",
+            "reads": [
+              "--db"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "help": "Search decision and lane records with the selected retrieval mode.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--config",
+              "repeat": true
+            },
+            {
+              "name": "--mode",
+              "repeat": true,
+              "choices": [
+                "exact",
+                "keyword",
+                "vector",
+                "hybrid"
+              ]
+            },
+            {
+              "name": "--id",
+              "repeat": true
+            },
+            {
+              "name": "--project",
+              "repeat": true
+            },
+            {
+              "name": "--area",
+              "repeat": true
+            },
+            {
+              "name": "--topic",
+              "repeat": true
+            },
+            {
+              "name": "--kind",
+              "repeat": true
+            },
+            {
+              "name": "--status",
+              "repeat": true
+            },
+            {
+              "name": "--date-from",
+              "repeat": true,
+              "aliases": [
+                "--from",
+                "--since"
+              ]
+            },
+            {
+              "name": "--date-to",
+              "repeat": true,
+              "aliases": [
+                "--to",
+                "--until"
+              ]
+            },
+            {
+              "name": "--limit",
+              "repeat": true,
+              "type": "positive"
+            },
+            {
+              "name": "--all",
+              "repeat": true,
+              "flag": true
+            },
+            {
+              "name": "--level",
+              "repeat": true,
+              "type": "integer",
+              "choices": [
+                3,
+                4,
+                5,
+                6
+              ]
+            },
+            {
+              "name": "--instance",
+              "repeat": true
+            },
+            {
+              "name": "--scope",
+              "repeat": true,
+              "choices": [
+                "intersection",
+                "own-or-level"
+              ]
+            },
+            {
+              "name": "--rank",
+              "repeat": true,
+              "choices": [
+                "relevance",
+                "time"
+              ]
+            },
+            {
+              "name": "--now",
+              "repeat": true
+            },
+            {
+              "name": "--half-life",
+              "repeat": true
+            },
+            {
+              "name": "--cautions",
+              "repeat": true,
+              "type": "positive"
+            },
+            {
+              "name": "query",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": [],
+          "hook": {
+            "state": "read",
+            "reads": [
+              "--db"
+            ],
+            "limits": {
+              "--mode": [
+                "exact",
+                "keyword"
+              ]
+            }
+          }
+        },
+        {
+          "name": "embed",
+          "help": "Embed stored decision text with the configured provider.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--config",
+              "repeat": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "egress",
+          "help": "Inspect decision-store provider egress records.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--list",
+              "repeat": true,
+              "flag": true,
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": [],
+          "hook": {
+            "state": "read",
+            "reads": [
+              "--db"
+            ]
+          }
+        },
+        {
+          "name": "stats",
+          "help": "Show decision-store record, index and provider statistics.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            }
+          ],
+          "commands": [],
+          "exclusive": [],
+          "hook": {
+            "state": "read",
+            "reads": [
+              "--db"
+            ]
+          }
+        },
+        {
+          "name": "verify",
+          "help": "Verify decision-store integrity and derived indexes.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            }
+          ],
+          "commands": [],
+          "exclusive": [],
+          "hook": {
+            "state": "read",
+            "reads": [
+              "--db"
+            ]
+          }
+        },
+        {
+          "name": "export",
+          "help": "Export a verified decision store to portable JSONL.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--out", "hook_path": {"write":true},
+              "repeat": true,
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "import",
+          "help": "Import a verified portable JSONL export into a decision store.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--in", "hook_path": {"read":true},
+              "repeat": true,
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "load",
+          "help": "Apply a checked JSONL batch of decision operations.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--in", "hook_path": {"read":true},
+              "repeat": true,
+              "required": true
+            },
+            {
+              "name": "--dry-run",
+              "repeat": true,
+              "flag": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "feedback",
+          "help": "Record append-only outcome feedback for decision ranking.",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            },
+            {
+              "name": "--db", "hook_path": {"read":true,"write":true,"sqlite":true},
+              "required": true,
+              "metavar": "FILE"
+            },
+            {
+              "name": "--event",
+              "repeat": true,
+              "required": true
+            },
+            {
+              "name": "--source",
+              "repeat": true,
+              "required": true
+            },
+            {
+              "name": "--at",
+              "repeat": true
+            },
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": [],
+      "subcommand": "COMMAND",
+      "subcommand_required": true
     },
     {
       "name": "plugin",
@@ -71,7 +711,7 @@
               "help": "show this help message and exit"
             },
             {
-              "name": "org_dir",
+              "name": "org_dir", "hook_path": {"read":true,"write":true},
               "metavar": "ORG_DIR",
               "required": true
             },
@@ -87,6 +727,67 @@
             }
           ],
           "commands": [],
+          "exclusive": []
+        },
+        {
+          "name": "roles",
+          "description": "",
+          "help": "install and list the embedded role library and org roles",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            }
+          ],
+          "commands": [
+            {
+              "name": "init",
+              "description": "",
+              "help": "install missing library roles; --update shows changes before replacing sources",
+              "args": [
+                {
+                  "name": "--help",
+                  "short": "-h",
+                  "flag": true,
+                  "help": "show this help message and exit"
+                },
+                {
+                  "name": "org_dir", "hook_path": {"read":true,"write":true},
+                  "metavar": "ORG_DIR",
+                  "required": true
+                },
+                {
+                  "name": "--update",
+                  "flag": true,
+                  "help": "show a diff and replace existing library sources"
+                }
+              ],
+              "commands": [],
+              "exclusive": []
+            },
+            {
+              "name": "list",
+              "description": "",
+              "help": "list library and org roles with drivers and source hashes",
+              "args": [
+                {
+                  "name": "--help",
+                  "short": "-h",
+                  "flag": true,
+                  "help": "show this help message and exit"
+                },
+                {
+                  "name": "org_dir", "hook_path": {"read":true},
+                  "metavar": "ORG_DIR",
+                  "required": true
+                }
+              ],
+              "commands": [],
+              "exclusive": []
+            }
+          ],
           "exclusive": []
         },
         {
@@ -114,7 +815,7 @@
                   "help": "show this help message and exit"
                 },
                 {
-                  "name": "org_dir",
+                  "name": "org_dir", "hook_path": {"read":true,"write":true},
                   "metavar": "ORG_DIR",
                   "required": true
                 },
@@ -170,7 +871,7 @@
               "help": "show this help message and exit"
             },
             {
-              "name": "org_dir",
+              "name": "org_dir", "hook_path": {"read":true,"write":true},
               "metavar": "ORG_DIR",
               "required": true
             }
@@ -190,7 +891,7 @@
               "help": "show this help message and exit"
             },
             {
-              "name": "org_dir",
+              "name": "org_dir", "hook_path": {"read":true},
               "metavar": "ORG_DIR",
               "required": true
             },
@@ -201,6 +902,11 @@
                 "text",
                 "json"
               ]
+            },
+            {
+              "name": "--config",
+              "metavar": "NAME",
+              "help": "check this named configuration's runners and lane role usage"
             }
           ],
           "commands": [],
@@ -226,7 +932,7 @@
               "required": true
             },
             {
-              "name": "--instance",
+              "name": "--instance", "hook_path": {"read":true},
               "metavar": "FILE",
               "help": "pin the caller to an instance.toml (used by rendered hooks)"
             }
@@ -246,7 +952,7 @@
               "help": "show this help message and exit"
             },
             {
-              "name": "org",
+              "name": "org", "hook_path": {"read":true},
               "metavar": "ORG",
               "required": true
             },
@@ -273,13 +979,80 @@
               "help": "show this help message and exit"
             },
             {
-              "name": "org",
+              "name": "org", "hook_path": {"read":true},
               "metavar": "ORG",
               "required": true
             }
           ],
           "commands": [],
           "exclusive": []
+        },
+        {
+          "name": "blacklist",
+          "description": "read the calling lane's rules or preview a sample call as a human",
+          "help": "list effective rules; human previews retain explicit configuration and role options",
+          "args": [
+            {
+              "name": "--help",
+              "short": "-h",
+              "flag": true,
+              "help": "show this help message and exit"
+            }
+          ],
+          "commands": [
+            {
+              "name": "list",
+              "description": "read effective blacklist entries and built-in refusals for the authenticated lane or instance",
+              "help": "run first inside a lane; detects its org, level, role and instance",
+              "hook": {"state":"read","config":"--config","reads":[]},
+              "args": [
+                {"name":"--help","short":"-h","flag":true,"help":"show this help message and exit"},
+                {"name":"--config","metavar":"NAME","help":"must match the session's bound configuration"},
+                {"name":"--format","choices":["text","json"],"default":"text"}
+              ],
+              "commands": [],
+              "exclusive": []
+            },
+            {
+              "name": "try",
+              "description": "preview one command without writing a decision or receipt",
+              "help": "preview entries with --config NAME -- [COMMAND...]",
+              "args": [
+                {
+                  "name": "--help",
+                  "short": "-h",
+                  "flag": true,
+                  "help": "show this help message and exit"
+                },
+                {
+                  "name": "--config",
+                  "metavar": "NAME",
+                  "required": true
+                },
+                {
+                  "name": "--level",
+                  "metavar": "N",
+                  "choices": [3, 4, 5, 6],
+                  "type": "int"
+                },
+                {
+                  "name": "--role",
+                  "metavar": "ROLE"
+                },
+                {
+                  "name": "command",
+                  "metavar": "COMMAND",
+                  "nargs": "*",
+                  "required": true
+                }
+              ],
+              "commands": [],
+              "exclusive": []
+            }
+          ],
+          "exclusive": [],
+          "subcommand": "ACTION",
+          "subcommand_required": true
         },
         {
           "name": "channel",
@@ -295,6 +1068,32 @@
           ],
           "commands": [
             {
+              "name": "read",
+              "description": "",
+              "help": "print validated gateway configuration without resolving secrets",
+              "args": [
+                {
+                  "name": "--help",
+                  "short": "-h",
+                  "flag": true,
+                  "help": "show this help message and exit"
+                },
+                {
+                  "name": "org_dir", "hook_path": {"read":true},
+                  "metavar": "ORG-DIR",
+                  "required": true
+                },
+                {
+                  "name": "--json",
+                  "flag": true,
+                  "required": true,
+                  "help": "print names-only settings and resolved event/state paths"
+                }
+              ],
+              "commands": [],
+              "exclusive": []
+            },
+            {
               "name": "add",
               "description": "",
               "help": "register a Discord channel and verify its hello",
@@ -306,7 +1105,7 @@
                   "help": "show this help message and exit"
                 },
                 {
-                  "name": "org_dir",
+                  "name": "org_dir", "hook_path": {"read":true,"write":true},
                   "metavar": "ORG-DIR",
                   "required": true
                 },
@@ -379,11 +1178,11 @@
               "required": true
             },
             {
-              "name": "--org-dir",
+              "name": "--org-dir", "hook_path": {"read":true,"org_history":"inject"},
               "help": "the org folder; otherwise the LANEBOSS_ORG variable"
             },
             {
-              "name": "--instance",
+              "name": "--instance", "hook_path": {"read":true,"selector":true},
               "help": "otherwise use instance.toml or LANEBOSS_INSTANCE"
             },
             {
@@ -415,7 +1214,7 @@
               "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
             },
             {
-              "name": "--org-dir",
+              "name": "--org-dir", "hook_path": {"read":true,"org_history":"capture"},
               "required": true
             },
             {
@@ -424,7 +1223,7 @@
               "required": true
             },
             {
-              "name": "--text-file",
+              "name": "--text-file", "hook_path": {"read":true},
               "required": true
             },
             {
@@ -436,7 +1235,7 @@
               "required": true
             },
             {
-              "name": "--instance",
+              "name": "--instance", "hook_path": {"read":true,"selector":true},
               "help": "otherwise use instance.toml or LANEBOSS_INSTANCE"
             },
             {
@@ -591,7 +1390,7 @@
               "help": "the configuration to bind (or set LANEBOSS_CONFIG)"
             },
             {
-              "name": "--file",
+              "name": "--file", "hook_path": {"read":true},
               "help": "the event as a JSON file, or - for stdin",
               "required": true
             }
@@ -601,6 +1400,7 @@
         },
         {
           "name": "tail",
+          "hook": {"state":"read","config":"--config"},
           "description": "",
           "help": "print events as JSON lines",
           "args": [
@@ -659,6 +1459,7 @@
       "commands": [
         {
           "name": "events",
+          "hook": {"state":"read","config":"--config"},
           "description": "",
           "help": "every event as one JSON array",
           "args": [
@@ -679,6 +1480,7 @@
         },
         {
           "name": "lanes",
+          "hook": {"state":"read","config":"--config"},
           "description": "",
           "help": "the current state and times of every lane",
           "args": [
@@ -776,12 +1578,12 @@
               "required": true
             },
             {
-              "name": "--in",
+              "name": "--in", "hook_path": {"read":true},
               "metavar": "BRIEF",
               "required": true
             },
             {
-              "name": "--out",
+              "name": "--out", "hook_path": {"write":true},
               "metavar": "RENDERED",
               "required": true
             },
@@ -821,6 +1623,7 @@
           "name": "start",
           "description": "",
           "help": "start a lane's first run in the background",
+          "hook": {"state":"write","config":"--config","reads":["--brief"]},
           "args": [
             {
               "name": "--help",
@@ -838,10 +1641,21 @@
               "required": true
             },
             {
-              "name": "--brief",
+              "name": "--brief", "hook_path": {"read":true},
               "metavar": "FILE",
               "help": "the brief, always a file",
               "required": true
+            },
+            {
+              "name": "--instance",
+              "metavar": "NAME",
+              "help": "the org instance overlay; must agree with --level and --role"
+            },
+            {
+              "name": "--set",
+              "metavar": "KEY=VALUE",
+              "repeat": true,
+              "help": "override a lane setting; may be repeated for distinct keys"
             },
             {
               "name": "--project"
@@ -866,7 +1680,8 @@
               "name": "--effort"
             },
             {
-              "name": "--account"
+              "name": "--account",
+              "help": "On start, --account applies to run 1 only, and later turns and resumes may rotate by room. --set account=NAME stays for every run. On resume or turn, --account applies to that run."
             },
             {
               "name": "--budget",
@@ -875,13 +1690,14 @@
             },
             {
               "name": "--touches",
+              "repeat": true,
               "choices": [
                 "billing",
                 "deploy"
               ]
             },
             {
-              "name": "--worktree",
+              "name": "--worktree", "hook_path": {"read":true,"write":true},
               "metavar": "PATH",
               "help": "an existing directory to work in",
               "exclusive": 1
@@ -906,6 +1722,25 @@
               "name": "--idle",
               "metavar": "SECONDS",
               "help": "with --turns: the lane's idle interval (default [turns] idle_seconds)"
+            },
+            {
+              "name": "--role",
+              "metavar": "ROLE",
+              "help": "the org-owned role template at the lane level; required for supervisors"
+            },
+            {
+              "name": "--level",
+              "metavar": "N",
+              "help": "enabled org level 3-6 (default 3)"
+            },
+            {
+              "name": "--principal",
+              "metavar": "PRINCIPAL",
+              "choices": [
+                "human",
+                "supervisor"
+              ],
+              "help": "caller principal (default supervisor); supervised sessions cannot select human"
             }
           ],
           "commands": [],
@@ -921,6 +1756,7 @@
         },
         {
           "name": "adopt",
+          "hook": {"state":"write","config":"--config","reads":["--brief"]},
           "description": "",
           "help": "take a session something outside the launcher started and make it a turn-based lane",
           "args": [
@@ -957,16 +1793,17 @@
               "name": "--effort"
             },
             {
-              "name": "--account"
+              "name": "--account",
+              "help": "On start, --account applies to run 1 only, and later turns and resumes may rotate by room. --set account=NAME stays for every run. On resume or turn, --account applies to that run."
             },
             {
-              "name": "--worktree",
+              "name": "--worktree", "hook_path": {"read":true,"write":true},
               "metavar": "PATH",
               "help": "the existing directory the session works in",
               "required": true
             },
             {
-              "name": "--brief",
+              "name": "--brief", "hook_path": {"read":true},
               "metavar": "FILE",
               "help": "the lane's standing brief, always a file",
               "required": true
@@ -983,6 +1820,25 @@
               "name": "--budget",
               "metavar": "MINUTES",
               "help": "the time budget; default [lanes] budget_minutes"
+            },
+            {
+              "name": "--role",
+              "metavar": "ROLE",
+              "help": "the org-owned role template at the lane level; required for supervisors"
+            },
+            {
+              "name": "--level",
+              "metavar": "N",
+              "help": "enabled org level 3-6 (default 3)"
+            },
+            {
+              "name": "--principal",
+              "metavar": "PRINCIPAL",
+              "choices": [
+                "human",
+                "supervisor"
+              ],
+              "help": "caller principal (default supervisor); supervised sessions cannot select human"
             }
           ],
           "commands": [],
@@ -990,6 +1846,7 @@
         },
         {
           "name": "resume",
+          "hook": {"state":"write","config":"--config","reads":["--message"]},
           "description": "",
           "help": "continue a lane in the same directory",
           "args": [
@@ -1009,12 +1866,13 @@
               "required": true
             },
             {
-              "name": "--message",
+              "name": "--message", "hook_path": {"read":true},
               "metavar": "FILE",
               "help": "a follow-up message, always a file"
             },
             {
-              "name": "--account"
+              "name": "--account",
+              "help": "On start, --account applies to run 1 only, and later turns and resumes may rotate by room. --set account=NAME stays for every run. On resume or turn, --account applies to that run."
             },
             {
               "name": "--budget",
@@ -1026,6 +1884,7 @@
         },
         {
           "name": "turn",
+          "hook": {"state":"write","config":"--config"},
           "description": "",
           "help": "start the next turn of a turn-based lane",
           "args": [
@@ -1050,7 +1909,8 @@
               "flag": true
             },
             {
-              "name": "--account"
+              "name": "--account",
+              "help": "On start, --account applies to run 1 only, and later turns and resumes may rotate by room. --set account=NAME stays for every run. On resume or turn, --account applies to that run."
             },
             {
               "name": "--budget",
@@ -1062,6 +1922,7 @@
         },
         {
           "name": "send",
+          "hook": {"state":"write","config":"--config","reads":["--file"]},
           "description": "",
           "help": "store a message for a turn-based lane",
           "args": [
@@ -1081,7 +1942,7 @@
               "required": true
             },
             {
-              "name": "--file",
+              "name": "--file", "hook_path": {"read":true},
               "metavar": "PATH",
               "help": "the message, always a file"
             },
@@ -1095,6 +1956,11 @@
               "name": "--from",
               "metavar": "NAME",
               "help": "who sends it (default supervisor)"
+            },
+            {
+              "name": "--ask",
+              "flag": true,
+              "help": "the message is a question: one that a recorded decision already answers is answered, not sent"
             }
           ],
           "commands": [],
@@ -1102,6 +1968,7 @@
         },
         {
           "name": "attach",
+          "hook": {"state":"write","config":"--config"},
           "description": "",
           "help": "show a turn-based lane's turns as they run and type messages to it",
           "args": [
@@ -1126,6 +1993,7 @@
         },
         {
           "name": "stop",
+          "hook": {"state":"write","config":"--config"},
           "description": "",
           "help": "stop a lane's run and its whole process tree",
           "args": [
@@ -1156,6 +2024,7 @@
         },
         {
           "name": "status",
+          "hook": {"state":"read","config":"--config"},
           "description": "",
           "help": "the projection and what can be seen now",
           "args": [
@@ -1250,6 +2119,7 @@
         },
         {
           "name": "mark",
+          "hook": {"state":"write","config":"--config"},
           "description": "",
           "help": "record a supervisor's decision about a lane",
           "args": [
@@ -1301,8 +2171,9 @@
         },
         {
           "name": "clean",
-          "description": "",
-          "help": "remove a merged or abandoned lane's worktree",
+          "hook": {"state":"write","config":"--config"},
+          "description": "Archive and verify a finished lane before collecting local files.",
+          "help": "verify an archive, then collect a merged or abandoned lane",
           "args": [
             {
               "name": "--help",
@@ -1322,6 +2193,19 @@
           ],
           "commands": [],
           "exclusive": []
+        },
+        {
+          "name": "archive",
+          "description": "Verify a tar, manifest, store records and receipt before cleaning a finished lane.",
+          "help": "archive then collect a finished lane",
+          "args": [
+            {"name": "--help", "short": "-h", "flag": true},
+            {"name": "--config", "metavar": "NAME"},
+            {"name": "--lane", "metavar": "L", "required": true},
+            {"name": "--dry-run", "flag": true},
+            {"name": "--to", "hook_path": {"write":true}, "metavar": "DIR"}
+          ],
+          "commands": [], "exclusive": []
         },
         {
           "name": "scan",
@@ -1396,7 +2280,7 @@
               "required": true
             },
             {
-              "name": "--path",
+              "name": "--path", "hook_path": {"metadata":true},
               "metavar": "PATH",
               "help": "absolute, or relative to the lane's worktree",
               "required": true
@@ -1410,7 +2294,7 @@
               "required": true
             },
             {
-              "name": "--note",
+              "name": "--note", "hook_path": {"read":true},
               "metavar": "FILE",
               "help": "a note, always a file"
             }
@@ -1484,13 +2368,13 @@
               "required": true
             },
             {
-              "name": "--prompt-file",
+              "name": "--prompt-file", "hook_path": {"read":true},
               "metavar": "FILE",
               "help": "the question in words",
               "required": true
             },
             {
-              "name": "--subject",
+              "name": "--subject", "hook_path": {"read":true,"named":true},
               "metavar": "NAME=FILE",
               "help": "a named text for the judge to read, one to eight times",
               "required": true
@@ -1574,6 +2458,31 @@
       "exclusive": []
     },
     {
+      "name": "ticket",
+      "description": "Issue a single-use registration ticket as the human at a real terminal.",
+      "help": "issue a human-authorized supervisor registration ticket",
+      "args": [
+        {"name": "--help", "short": "-h", "flag": true, "help": "show this help message and exit"}
+      ],
+      "commands": [
+        {
+          "name": "issue",
+          "description": "Print the ticket once; the service stores only its hash.",
+          "help": "issue a ticket for one configuration, level and role",
+          "args": [
+            {"name": "--help", "short": "-h", "flag": true, "help": "show this help message and exit"},
+            {"name": "--config", "metavar": "NAME", "required": true, "help": "the bound configuration"},
+            {"name": "--level", "metavar": "LEVEL", "required": true, "help": "the explicit issued level, matching the configured role (3-6)"},
+            {"name": "--role", "metavar": "ROLE", "required": true, "help": "the configured supervisor role"},
+            {"name": "--ttl", "metavar": "DURATION", "help": "positive lifetime, at most 10m (default 10m)"}
+          ],
+          "commands": [],
+          "exclusive": []
+        }
+      ],
+      "exclusive": []
+    },
+    {
       "name": "start",
       "description": "",
       "help": "print the briefing a supervisor session reads when it begins",
@@ -1595,12 +2504,82 @@
           "help": "a [supervisors] entry of the configuration"
         },
         {
+          "name": "--level",
+          "metavar": "LEVEL",
+          "help": "the exact issued level (3-6); required with --ticket-file"
+        },
+        {
+          "name": "--ticket-file", "hook_path": {"read":true},
+          "metavar": "PATH",
+          "help": "private human-issued ticket file for role registration"
+        },
+        {
           "name": "--format",
           "help": "text (Markdown, the default) or json",
           "choices": [
             "text",
             "json"
           ]
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "ledger",
+      "description": "Read an employee's ledger from existing records.",
+      "help": "read an instance or lane ledger without writing state",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "refusal",
+      "description": "record human refusal-review proposals without changing policy",
+      "help": "record human refusal-review proposals without changing policy",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "tool",
+      "description": "record employee-written tools for visibility",
+      "help": "record employee-written tools for visibility",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
+        }
+      ],
+      "commands": [],
+      "exclusive": []
+    },
+    {
+      "name": "box",
+      "description": "",
+      "help": "start spot test machines on AWS or GCP, run a suite on one, bring the results back and prove it is gone",
+      "args": [
+        {
+          "name": "--help",
+          "short": "-h",
+          "flag": true,
+          "help": "show this help message and exit"
         }
       ],
       "commands": [],

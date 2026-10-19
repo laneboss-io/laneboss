@@ -1,0 +1,1164 @@
+{
+  "status": "Static-only candidate; Linux must demonstrate reached red and candidate pass for every row.",
+  "controls": [
+    {
+      "id": "f14-job-claim",
+      "package": "api",
+      "test": "TestCollectJob/claim",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "claim.ClaimID != claim.Record.ClaimID ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-expiry",
+      "package": "api",
+      "test": "TestCollectJob/expiry",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!now.Before(expires)",
+          "!now.Before(expires) && expires.IsZero()"
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-state",
+      "package": "api",
+      "test": "TestCollectJob/state",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "i.Decision != \"merged\" && i.Decision != \"abandoned\"",
+          "i.Decision == \"\""
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-target",
+      "package": "api",
+      "test": "TestCollectJob/target",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "CleanRequest{Target: c.Target, ExpectedGeneration: i.ExpectedGeneration, ArchiveReceiptID: i.Archive.ID}",
+          "CleanRequest{Target: effect.Clean.Target, ExpectedGeneration: i.ExpectedGeneration, ArchiveReceiptID: i.Archive.ID}"
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-generation",
+      "package": "api",
+      "test": "TestCollectJob/generation",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "CleanRequest{Target: c.Target, ExpectedGeneration: i.ExpectedGeneration, ArchiveReceiptID: i.Archive.ID}",
+          "CleanRequest{Target: c.Target, ExpectedGeneration: effect.Clean.ExpectedGeneration, ArchiveReceiptID: i.Archive.ID}"
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-epoch",
+      "package": "api",
+      "test": "TestCollectJob/epoch",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(*effect.Context, c) ||",
+          "!reflect.DeepEqual(*effect.Context, c) && effect.Context.CancellationEpoch == c.CancellationEpoch ||"
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-archive",
+      "package": "api",
+      "test": "TestCollectJob/archive",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "a.ArchiveSHA256 != a.ReadBackSHA256 ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-archive_run",
+      "package": "api",
+      "test": "TestCollectJob/archive_run",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "i.ArchiveRequest.Target != c.Target ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-survivors",
+      "package": "api",
+      "test": "TestCollectJob/survivors",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "ValidateReleaseReceipt(release) != nil ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-workspace",
+      "package": "api",
+      "test": "TestCollectJob/workspace",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "w.RootIdentity == \"\" ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-branch",
+      "package": "api",
+      "test": "TestCollectJob/branch",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "w.Branch != \"lane/\"+string(c.Target.LifeID) ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-job-requester",
+      "package": "api",
+      "test": "TestCollectJob/requester",
+      "diagnostic": "cleanup job authority fence was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!cleanupActor(c.RequestedBy) ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-inventory-empty",
+      "package": "api",
+      "test": "TestCollectInventory/empty",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!launchGeneration(inventory.GraphGeneration) || len(inventory.Objects) == 0",
+          "!launchGeneration(inventory.GraphGeneration)"
+        ],
+        [
+          "!archive || !launchBlob(inventory.Manifest",
+          "archive && len(inventory.Objects) == 0 || !launchBlob(inventory.Manifest"
+        ]
+      ]
+    },
+    {
+      "id": "f14-inventory-duplicate",
+      "package": "api",
+      "test": "TestCollectInventory/duplicate",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || seen[object.Ref.ID]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-inventory-epoch",
+      "package": "api",
+      "test": "TestCollectInventory/epoch",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "inventory.CancellationEpoch != c.CancellationEpoch ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-inventory-graph",
+      "package": "api",
+      "test": "TestCollectInventory/graph",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!launchGeneration(inventory.GraphGeneration) ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-inventory-archive",
+      "package": "api",
+      "test": "TestCollectInventory/archive",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!archive || !launchBlob(inventory.Manifest",
+          "archive && len(inventory.Objects) == 0 || !launchBlob(inventory.Manifest"
+        ]
+      ]
+    },
+    {
+      "id": "f14-inventory-role",
+      "package": "api",
+      "test": "TestCollectInventory/role",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "default:\n\t\t\treturn launchInvalid(\"cleanup object role is outside its retention catalog\")",
+          "default:\n\t\t\t_ = object.Role"
+        ]
+      ]
+    },
+    {
+      "id": "f14-inventory-digest",
+      "package": "api",
+      "test": "TestCollectInventory/digest",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "inventory.Manifest.SHA256 != digest",
+          "len(inventory.Manifest.SHA256) != len(digest)"
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-missing",
+      "package": "api",
+      "test": "TestCollectReceipt/missing",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || len(receipt.Objects) != len(inventory.Objects)",
+          ""
+        ],
+        [
+          "for n, object := range inventory.Objects {\n\t\tresult := receipt.Objects[n]",
+          "for n := range receipt.Objects {\n\t\tobject := inventory.Objects[n]\n\t\tresult := receipt.Objects[n]"
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-action",
+      "package": "api",
+      "test": "TestCollectReceipt/action",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "result.Action != action ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-reason",
+      "package": "api",
+      "test": "TestCollectReceipt/reason",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "result.Reason != reason ||",
+          "result.Reason != reason && reason == \"\" ||"
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-root",
+      "package": "api",
+      "test": "TestCollectReceipt/root",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "read.RootIdentity != o.RootIdentity",
+          "read.RootIdentity == \"\""
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-identity",
+      "package": "api",
+      "test": "TestCollectReceipt/identity",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "read.Identity == o.Identity &&",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-hash",
+      "package": "api",
+      "test": "TestCollectReceipt/hash",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "read.SHA256 == o.Ref.SHA256",
+          "len(read.SHA256) == len(o.Ref.SHA256)"
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-absent",
+      "package": "api",
+      "test": "TestCollectReceipt/absent",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "read.State != state ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-journal_id",
+      "package": "api",
+      "test": "TestCollectReceipt/journal_id",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || result.Before.ID == result.After.ID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-claim",
+      "package": "api",
+      "test": "TestCollectReceipt/claim",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "receipt.ClaimID != job.Claim.ClaimID || receipt.InventoryID",
+          "receipt.InventoryID"
+        ]
+      ]
+    },
+    {
+      "id": "f14-receipt-digest",
+      "package": "api",
+      "test": "TestCollectReceipt/digest",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "receipt.Manifest.Bytes != int64(len(body))",
+          "receipt.Manifest.Bytes < int64(len(body))"
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-forced",
+      "package": "api",
+      "test": "TestCollectWorkspace/forced",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || !receipt.Unforced",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-sync",
+      "package": "api",
+      "test": "TestCollectWorkspace/sync",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || !receipt.Synced",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-branch",
+      "package": "api",
+      "test": "TestCollectWorkspace/branch",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || after.BranchState != \"absent\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-worktree",
+      "package": "api",
+      "test": "TestCollectWorkspace/worktree",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || after.WorktreeState != \"absent\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-dirty_unknown",
+      "package": "api",
+      "test": "TestCollectWorkspace/dirty_unknown",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || before.Dirty == nil",
+          ""
+        ],
+        [
+          "if *before.Dirty {",
+          "if before.Dirty != nil && *before.Dirty {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-dirty_remove",
+      "package": "api",
+      "test": "TestCollectWorkspace/dirty_remove",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "if *before.Dirty {",
+          "if *before.Dirty && receipt.Action == \"retain_dirty\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-git",
+      "package": "api",
+      "test": "TestCollectWorkspace/git",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || read.GitIdentity != w.GitIdentity",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-workspace-head",
+      "package": "api",
+      "test": "TestCollectWorkspace/head",
+      "diagnostic": "workspace collection boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || before.Head != w.Head",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-object",
+      "package": "api",
+      "test": "TestCollectVerify/object",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "read, err := source.ReadCleanupObject(ctx, job, object)",
+          "_, err = source.ReadCleanupObject(ctx, job, object)\n\t\tread := receipt.Objects[n].After"
+        ],
+        [
+          "observed[read.ID] || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-retained",
+      "package": "api",
+      "test": "TestCollectVerify/retained",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "read, err := source.ReadCleanupObject(ctx, job, object)",
+          "_, err = source.ReadCleanupObject(ctx, job, object)\n\t\tread := receipt.Objects[n].After"
+        ],
+        [
+          "observed[read.ID] || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-object_journal",
+      "package": "api",
+      "test": "TestCollectVerify/object_journal",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(journal, receipt.Objects[n])",
+          "journal.ObjectID != receipt.Objects[n].ObjectID"
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-workspace",
+      "package": "api",
+      "test": "TestCollectVerify/workspace",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "current.After = workspace",
+          "current.After = receipt.Workspace.After"
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-workspace_journal",
+      "package": "api",
+      "test": "TestCollectVerify/workspace_journal",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(journal, receipt.Workspace)",
+          "journal.IntentID != receipt.Workspace.IntentID"
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-inventory",
+      "package": "api",
+      "test": "TestCollectVerify/inventory",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(actualInventory, inventory)",
+          "actualInventory.ID != inventory.ID"
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-revoke",
+      "package": "api",
+      "test": "TestCollectVerify/revoke",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "proof.Workspace = workspace\n\tif err := source.CheckCleanup(ctx, job, inventory); err != nil {\n\t\treturn zero, err\n\t}",
+          "proof.Workspace = workspace\n\t_ = source.CheckCleanup(ctx, job, inventory)"
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-expiry",
+      "package": "api",
+      "test": "TestCollectVerify/expiry",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "if err := ValidateCleanupJob(job, finished); err != nil {",
+          "if err := ValidateCleanupJob(job, finished); err != nil && finished.IsZero() {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-seal",
+      "package": "api",
+      "test": "TestCollectComplete/seal",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          " || verified.jobDigest == \"\" || jd != verified.jobDigest",
+          " || jd != verified.jobDigest && verified.jobDigest != \"\""
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-generation",
+      "package": "api",
+      "test": "TestCollectComplete/generation",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "lane.Generation != i.ExpectedGeneration+1 ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-epoch",
+      "package": "api",
+      "test": "TestCollectComplete/epoch",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "lane.CancellationEpoch != c.CancellationEpoch ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-flag",
+      "package": "api",
+      "test": "TestCollectComplete/flag",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          " || !lane.Cleaned",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-event",
+      "package": "api",
+      "test": "TestCollectComplete/event",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          " || event.RequestedBy != c.RequestedBy",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-claim",
+      "package": "api",
+      "test": "TestCollectComplete/claim",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "outcome.ClaimID != job.Claim.ClaimID ||",
+          ""
+        ],
+        [
+          "ClaimID: job.Claim.ClaimID, ExpectedGeneration: job.Claim.Record.Generation, Status: \"succeeded\", Output: &verified.receipt.Manifest",
+          "ClaimID: outcome.ClaimID, ExpectedGeneration: job.Claim.Record.Generation, Status: \"succeeded\", Output: &verified.receipt.Manifest"
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-output",
+      "package": "api",
+      "test": "TestCollectComplete/output",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          " || *outcome.Output != verified.receipt.Manifest",
+          ""
+        ],
+        [
+          "Status: \"succeeded\", Output: &verified.receipt.Manifest",
+          "Status: \"succeeded\", Output: outcome.Output"
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-competing",
+      "package": "api",
+      "test": "TestCollectComplete/competing",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(outcome, expectedOutcome)",
+          "!reflect.DeepEqual(outcome, expectedOutcome) && outcome.Output == nil"
+        ]
+      ]
+    },
+    {
+      "id": "f14-complete-payload",
+      "package": "api",
+      "test": "TestCollectComplete/payload",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          " || !reflect.DeepEqual(body.RemovedObjectIDs, removed)",
+          " || len(body.RemovedObjectIDs) > len(removed)"
+        ]
+      ]
+    },
+    {
+      "id": "f14-dirty-complete",
+      "package": "api",
+      "test": "TestCollectDirty",
+      "diagnostic": "dirty retention was credited as collection",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "verified.receipt.Workspace.Action != \"remove_clean\"",
+          "verified.receipt.Workspace.Action == \"\""
+        ]
+      ]
+    },
+    {
+      "id": "f14-dirty-clone",
+      "package": "api",
+      "test": "TestCollectDirty",
+      "diagnostic": "cleanup verification exposed mutable receipt data",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "r.Workspace.Before = cloneWorkspaceReadback(r.Workspace.Before)",
+          "_ = r.Workspace.Before"
+        ]
+      ]
+    },
+    {
+      "id": "f14-object-clone",
+      "package": "api",
+      "test": "TestCollectDirty",
+      "diagnostic": "cleanup verification exposed mutable receipt data",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "func cloneCleanupReceipt(r CleanupReceipt) CleanupReceipt {\n\tr.Objects = append([]ObjectDisposition(nil), r.Objects...)",
+          "func cloneCleanupReceipt(r CleanupReceipt) CleanupReceipt {\n\t_ = r.Objects"
+        ]
+      ]
+    },
+    {
+      "id": "f14-unknown-complete",
+      "package": "api",
+      "test": "TestCollectUnknown",
+      "diagnostic": "unknown ownership was credited as collection",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "if result.Reason == \"unknown\" {",
+          "if result.Reason == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-archive",
+      "package": "api",
+      "test": "TestCollectPolicy/archive",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "return \"retain\", object.Role",
+          "return \"remove\", object.Role"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-capture",
+      "package": "api",
+      "test": "TestCollectPolicy/capture",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "return \"retain\", object.Role",
+          "return \"remove\", object.Role"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-input",
+      "package": "api",
+      "test": "TestCollectPolicy/input",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "return \"retain\", object.Role",
+          "return \"remove\", object.Role"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-report",
+      "package": "api",
+      "test": "TestCollectPolicy/report",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "return \"retain\", object.Role",
+          "return \"remove\", object.Role"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-event",
+      "package": "api",
+      "test": "TestCollectPolicy/event",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "return \"retain\", object.Role",
+          "return \"remove\", object.Role"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-referenced",
+      "package": "api",
+      "test": "TestCollectPolicy/referenced",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "if object.References != 0 {",
+          "if object.References > launchMaxInteger {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-unowned",
+      "package": "api",
+      "test": "TestCollectPolicy/unowned",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "if object.OwnerLifeID != target.LifeID {",
+          "if object.OwnerLifeID != target.LifeID && object.OwnerLifeID == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-history",
+      "package": "api",
+      "test": "TestCollectPolicy/history",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "if object.Ref.Class != \"artifact\" {",
+          "if object.Ref.Class != \"artifact\" && object.Ref.Class == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-policy-unknown",
+      "package": "api",
+      "test": "TestCollectPolicy/unknown",
+      "diagnostic": "protected cleanup object became removable",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "if object.Role == \"unknown\" || object.OwnerLifeID == \"\" {",
+          "if object.Role == \"unknown\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f14-verify-receipt",
+      "package": "api",
+      "test": "TestCollectVerify/receipt",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "actualReceipt, err := source.ReadCleanupReceipt(ctx, job, receipt.ID)",
+          "actualReceipt, err := receipt, error(nil)"
+        ]
+      ]
+    },
+    {
+      "id": "f14-source-missing",
+      "package": "api",
+      "test": "TestCollectUnavailable",
+      "diagnostic": "missing cleanup readback source became success",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "return zero, NotImplemented(\"lb-v2-service\", \"installed cleanup readback source\")",
+          "return zero, nil"
+        ]
+      ]
+    },
+    {
+      "id": "f14-source-canceled",
+      "package": "api",
+      "test": "TestCollectUnavailable",
+      "diagnostic": "cleanup swallowed context cancellation",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "var zero VerifiedCleanup\n\tif err := ctx.Err(); err != nil {\n\t\treturn zero, err\n\t}",
+          "var zero VerifiedCleanup\n\tif err := ctx.Err(); err != nil {\n\t\treturn zero, nil\n\t}"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-owner-inventory",
+      "package": "api",
+      "test": "TestCollectVerify/inventory",
+      "diagnostic": "cleanup failure reached wrong owner",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "cleanupIntegrity(\"lb-v2-service\", \"cleanup inventory differs from its protected complete inventory\")",
+          "cleanupIntegrity(\"lb-v2-integrate\", \"cleanup inventory differs from its protected complete inventory\")"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-owner-receipt",
+      "package": "api",
+      "test": "TestCollectVerify/receipt_record",
+      "diagnostic": "cleanup failure reached wrong owner",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "cleanupIntegrity(\"lb-v2-service\", \"cleanup receipt was not retained with its exact bytes\")",
+          "cleanupIntegrity(\"lb-v2-integrate\", \"cleanup receipt was not retained with its exact bytes\")"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-owner-object-journal",
+      "package": "api",
+      "test": "TestCollectVerify/object_journal",
+      "diagnostic": "cleanup failure reached wrong owner",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "cleanupIntegrity(\"lb-v2-service\", \"cleanup object operation lacks its protected readback journal\")",
+          "cleanupIntegrity(\"lb-v2-integrate\", \"cleanup object operation lacks its protected readback journal\")"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-owner-object",
+      "package": "api",
+      "test": "TestCollectVerify/object",
+      "diagnostic": "cleanup failure reached wrong owner",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "cleanupIntegrity(\"lb-v2-service\", \"cleanup object removal or retention failed independent readback\")",
+          "cleanupIntegrity(\"lb-v2-integrate\", \"cleanup object removal or retention failed independent readback\")"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-owner-workspace-journal",
+      "package": "api",
+      "test": "TestCollectVerify/workspace_journal",
+      "diagnostic": "cleanup failure reached wrong owner",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "cleanupIntegrity(\"lb-v2-admin\", \"workspace removal lacks the actual unforced administrator journal\")",
+          "cleanupIntegrity(\"lb-v2-integrate\", \"workspace removal lacks the actual unforced administrator journal\")"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-owner-workspace",
+      "package": "api",
+      "test": "TestCollectVerify/workspace",
+      "diagnostic": "cleanup failure reached wrong owner",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "cleanupIntegrity(\"lb-v2-admin\", \"workspace or branch failed independent absence readback\")",
+          "cleanupIntegrity(\"lb-v2-integrate\", \"workspace or branch failed independent absence readback\")"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-known-generation",
+      "package": "api",
+      "test": "TestCollectInventory/owner_generation",
+      "diagnostic": "owned inventory boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!launchGeneration(object.OwnershipGeneration) && (object.OwnerLifeID != \"\" || object.OwnershipGeneration != 0)",
+          "object.OwnershipGeneration != 0 && !launchGeneration(object.OwnershipGeneration)"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-unknown-generation",
+      "package": "api",
+      "test": "TestCollectUnknown/owner",
+      "diagnostic": "unknown object was not retained",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "!launchGeneration(object.OwnershipGeneration) && (object.OwnerLifeID != \"\" || object.OwnershipGeneration != 0)",
+          "!launchGeneration(object.OwnershipGeneration)"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-fresh-object_id",
+      "package": "api",
+      "test": "TestCollectVerify/object_id",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "observed[read.ID] || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14b-fresh-object_dup",
+      "package": "api",
+      "test": "TestCollectVerify/object_dup",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "observed[read.ID] || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14b-fresh-workspace",
+      "package": "api",
+      "test": "TestCollectVerify/workspace_id",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "observed[workspace.ID] || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14b-manifest-id",
+      "package": "api",
+      "test": "TestCollectReceipt/manifest_id",
+      "diagnostic": "cleanup receipt readback boundary was bypassed",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          " || receipt.Manifest.ID == inventory.Manifest.ID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14b-clock-verify",
+      "package": "api",
+      "test": "TestCollectVerify/clock",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "if owner := cleanupProofTimeOwner(proof); owner != \"\" {",
+          "if owner := cleanupProofTimeOwner(proof); owner != \"\" && finished.IsZero() {"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-clock-complete",
+      "package": "api",
+      "test": "TestCollectComplete/proof_time",
+      "diagnostic": "cleanup completion bypassed its measured receipt",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          " || cleanupProofTimeOwner(verified.verification) != \"\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f14b-clock-object",
+      "package": "api",
+      "test": "TestCollectTime/lb-v2-service",
+      "diagnostic": "cleanup proof accepted a future readback",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "if !cleanupOrder(read.ObservedAt, proof.CheckedAt) {",
+          "if !cleanupOrder(read.ObservedAt, proof.CheckedAt) && read.ObservedAt == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-clock-workspace",
+      "package": "api",
+      "test": "TestCollectTime/lb-v2-admin",
+      "diagnostic": "cleanup proof accepted a future readback",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "if !cleanupOrder(proof.Workspace.ObservedAt, proof.CheckedAt) {",
+          "if !cleanupOrder(proof.Workspace.ObservedAt, proof.CheckedAt) && proof.Workspace.ObservedAt == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f14b-receipt-record",
+      "package": "api",
+      "test": "TestCollectVerify/receipt_record",
+      "diagnostic": "cleanup accepted an unmeasured removal or retention",
+      "file": "api/collection_proof.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(actualReceipt, receipt)",
+          "actualReceipt.ID != receipt.ID"
+        ]
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ package orgdiscord
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/contextio"
 
 	"github.com/BurntSushi/toml"
 )
@@ -92,6 +95,13 @@ func (files *orgFiles) checkPath(relative string) error {
 }
 
 func readHandle(handle *os.File, label string, private bool) ([]byte, error) {
+	return readHandleContext(context.Background(), handle, label, private)
+}
+
+func readHandleContext(ctx context.Context, handle *os.File, label string, private bool) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	info, err := handle.Stat()
 	if err != nil {
 		return nil, refused("cannot read " + label)
@@ -105,8 +115,11 @@ func readHandle(handle *os.File, label string, private bool) ([]byte, error) {
 			return nil, refused("the org secret store must be owned by this user and have mode 600 or stricter")
 		}
 	}
-	data, err := io.ReadAll(io.LimitReader(handle, maxBytes+1))
+	data, err := io.ReadAll(&contextio.Reader{Context: ctx, Source: io.LimitReader(handle, maxBytes+1)})
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, refused("cannot read " + label)
 	}
 	if len(data) > maxBytes {
@@ -116,6 +129,13 @@ func readHandle(handle *os.File, label string, private bool) ([]byte, error) {
 }
 
 func (files *orgFiles) read(relative, label string) ([]byte, error) {
+	return files.readContext(context.Background(), relative, label)
+}
+
+func (files *orgFiles) readContext(ctx context.Context, relative, label string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := files.checkPath(relative); err != nil {
 		return nil, err
 	}
@@ -124,7 +144,7 @@ func (files *orgFiles) read(relative, label string) ([]byte, error) {
 		return nil, refused("cannot read " + label)
 	}
 	defer handle.Close()
-	return readHandle(handle, label, false)
+	return readHandleContext(ctx, handle, label, false)
 }
 
 func parseTOML(data []byte, label string) (map[string]any, error) {

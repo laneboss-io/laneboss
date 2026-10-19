@@ -1,0 +1,95 @@
+{
+  "schema": "laneboss.identity-before-cases.v1",
+  "base": "f5f6ba9a",
+  "scope": "Shared fix-11 contract with unchanged candidate identity test bytes; no shared/production overlay",
+  "cases": [
+    {
+      "id": "enrollment-create",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentBeginFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: stored create challenge was not returned:"
+    },
+    {
+      "id": "registration-attestation",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: verified registration handoff refused:"
+    },
+    {
+      "id": "registration-es256",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentAlgorithmsFixture",
+        "ES256"
+      ],
+      "diagnostic": "fixture check: real registration key refused:"
+    },
+    {
+      "id": "read-activity",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: same-session activity was not committed and refreshed:"
+    },
+    {
+      "id": "read-absolute-cap",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture",
+        "cap"
+      ],
+      "diagnostic": "fixture check: same-session activity was not committed and refreshed:"
+    },
+    {
+      "id": "proof-presence",
+      "package": "identity",
+      "test": [
+        "TestStoredPresenceFixture"
+      ],
+      "diagnostic": "fixture check: want unauthenticated, got success"
+    },
+    {
+      "id": "operation-presence",
+      "package": "identity",
+      "test": [
+        "TestConfirmationPresenceReceiptFixture",
+        "operation"
+      ],
+      "diagnostic": "fixture check: want integrity, got success"
+    },
+    {
+      "id": "confirmation-reference",
+      "package": "identity",
+      "test": [
+        "TestConfirmationPresenceReceiptFixture",
+        "reference"
+      ],
+      "diagnostic": "fixture check: want integrity, got success"
+    },
+    {
+      "id": "invalidation-binding",
+      "package": "identity",
+      "test": [
+        "TestInvalidatorBindingFixture"
+      ],
+      "diagnostic": "fixture check: want prerequisite_missing, got not_implemented"
+    },
+    {
+      "id": "worker-mapping",
+      "package": "identity",
+      "test": [
+        "TestWorkerConsumerFixture",
+        "valid"
+      ],
+      "diagnostic": "fixture check: protected worker mapping was refused or relabelled:"
+    }
+  ]
+}

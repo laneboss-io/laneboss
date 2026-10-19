@@ -28,7 +28,7 @@ func nativeProcesses() bool {
 	return runtime.GOOS == "linux" && os.Getenv("LANEBOSS_PROCESSES") != "portable"
 }
 func linuxInfo(pid int) (*processInfo, error) {
-	b, err := faults.ProcStat(fmt.Sprintf("/proc/%d/stat", pid))
+	b, err := faults.ProcStat(fmt.Sprintf("/proc/%d/stat", pid), "lane.linuxInfo")
 	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ESRCH) {
 		return nil, nil
 	}
@@ -462,6 +462,10 @@ func (s *session) latest(lane string) (object, object, error) {
 	return obj(e["payload"]), nil, err
 }
 func (s *session) refuseLive(lane string) error {
+	s.authority = true
+	if _, err := s.recordedRow(lane); err != nil {
+		return err
+	}
 	p, record, err := s.latest(lane)
 	if err != nil {
 		return err

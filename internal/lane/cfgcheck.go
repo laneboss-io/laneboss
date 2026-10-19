@@ -86,6 +86,11 @@ func nestedGuardRepeat(re *syntax.Regexp, inside bool) bool {
 }
 func (c *configuration) validateDetails() error {
 	label := "configuration " + c.name + ": config.toml"
+	if value, exists := c.data["identity_service"]; exists {
+		if err := validateConfigTable(label, "identity_service", value, map[string]configCheck{"runtime_root": absoluteCheck}, ""); err != nil {
+			return err
+		}
+	}
 	text := textCheck("", 1000)
 	name := textCheck(`[a-z0-9][a-z0-9-]{0,31}`, 32)
 	account := textCheck(`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`, 64)
@@ -107,6 +112,9 @@ func (c *configuration) validateDetails() error {
 			}
 		}
 		return true
+	}
+	if v, ok := c.data["archive_command"]; ok && !plainCommand(v) {
+		return invalid(label, "archive_command", "must be a nonempty command array without placeholders")
 	}
 	command := func(v any) bool {
 		return validateTemplate(v, "account brief effort lane log machine model project worktree") == nil
@@ -141,10 +149,11 @@ func (c *configuration) validateDetails() error {
 		}
 	}
 	for section, fields := range map[string]map[string]configCheck{
-		"lanes": {"budget_minutes": budget, "quiet_seconds": wholeCheck(1, 604800), "stop_grace_seconds": wholeCheck(1, 600), "lock_wait_seconds": wholeCheck(1, 3600), "room_timeout_seconds": wholeCheck(1, 60)},
-		"turns": {"idle_message": relativeCheck, "idle_seconds": wholeCheck(1, 604800), "poll_seconds": wholeCheck(1, 3600), "backoff_seconds": wholeCheck(1, 604800), "limit_backoff_seconds": wholeCheck(1, 604800)},
-		"disk":  {"path": absoluteCheck, "warn_percent": wholeCheck(1, 99), "stop_percent": wholeCheck(1, 99)},
-		"cost":  {"currency": textCheck(`[A-Z]{3}`, 3), "daily_cap": amount, "per_run_cap": amount, "report_threshold": amount},
+		"dashboard": {"org": absoluteCheck, "board": relativeCheck},
+		"lanes":     {"budget_minutes": budget, "quiet_seconds": wholeCheck(1, 604800), "stop_grace_seconds": wholeCheck(1, 600), "lock_wait_seconds": wholeCheck(1, 3600), "room_timeout_seconds": wholeCheck(1, 60), "sandbox": chooseCheck("off laneboss-files"), "sandbox_deny_extra": arrayCheck(absoluteCheck, 0, true)},
+		"turns":     {"idle_message": relativeCheck, "idle_seconds": wholeCheck(1, 604800), "poll_seconds": wholeCheck(1, 3600), "backoff_seconds": wholeCheck(1, 604800), "limit_backoff_seconds": wholeCheck(1, 604800)},
+		"disk":      {"path": absoluteCheck, "warn_percent": wholeCheck(1, 99), "stop_percent": wholeCheck(1, 99)},
+		"cost":      {"currency": textCheck(`[A-Z]{3}`, 3), "daily_cap": amount, "per_run_cap": amount, "report_threshold": amount},
 	} {
 		if v, ok := c.data[section]; ok {
 			required := ""
@@ -383,6 +392,12 @@ func (c *configuration) validateDetails() error {
 	}
 	if org := str(c.data["organisation"]); org != "" {
 		orgRoot := filepath.Join(c.home, "orgs")
+		for _, element := range stringsOf(c.data["archive_command"]) {
+			p := filepath.Clean(element)
+			if filepath.IsAbs(element) && strings.HasPrefix(p, orgRoot+"/") && strings.Split(strings.TrimPrefix(p, orgRoot+"/"), "/")[0] != org {
+				return invalid(label, "archive_command", "points into another organisation's directory; tools are not shared")
+			}
+		}
 		for _, section := range []string{"runners", "judges", "resources"} {
 			for _, v := range obj(c.data[section]) {
 				for _, key := range []string{"command", "resume", "room"} {

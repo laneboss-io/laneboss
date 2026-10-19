@@ -17,14 +17,29 @@ import (
 type validationReport struct {
 	Valid    bool      `json:"valid"`
 	Problems []problem `json:"problems"`
+	Warnings []problem `json:"warnings"`
 }
 
-func validateOrg(argument string) validationReport {
+func validateOrg(argument string, configured ...string) validationReport {
 	t, err := inspect(argument, false)
 	if err != nil {
-		return validationReport{false, []problem{{"(org folder)", err.Error()}}}
+		return validationReport{false, []problem{{"(org folder)", err.Error()}}, []problem{}}
 	}
 	problems := append([]problem{}, t.problems...)
+	laneUses := map[string]bool{}
+	lanesChecked := false
+	if len(configured) == 1 && configured[0] != "" {
+		var err error
+		laneUses, err = configuredRoleUses(t.root, configured[0])
+		if err != nil {
+			problems = append(problems, problem{"(configuration)", err.Error()})
+		} else {
+			lanesChecked = true
+		}
+	}
+	roleProblems, warnings := t.roleReport(laneUses, lanesChecked)
+	warnings = append(warnings, t.hookDeprecations()...)
+	problems = append(problems, roleProblems...)
 	if len(problems) == 0 {
 		// Integration is reached only after the tree itself passes, as in org.py.
 		report, err := orghook.CheckHooks(t.root)
@@ -60,7 +75,7 @@ func validateOrg(argument string) validationReport {
 			problems = append(problems, problem{"(discord)", message})
 		}
 	}
-	return validationReport{len(problems) == 0, problems}
+	return validationReport{len(problems) == 0, problems, warnings}
 }
 
 type commandArgs struct {
@@ -129,13 +144,16 @@ func usage(action string) string {
 	case "render":
 		return "laneboss org render ORG_DIR"
 	case "validate":
-		return "laneboss org validate ORG_DIR [--format text|json]"
+		return "laneboss org validate ORG_DIR [--format text|json|json-diagnostics] [--config NAME]"
 	}
 	return "laneboss org ACTION ..."
 }
 
 // Run executes one org tree action and returns the process exit code.
 func Run(action string, args []string, stdout, stderr io.Writer) int {
+	if action == "roles" {
+		return runRoles(args, stdout, stderr)
+	}
 	allowed := []string{}
 	expected := 1
 	switch action {
@@ -156,7 +174,7 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 		allowed = []string{"--level", "--role", "--discord-channel", "--secret"}
 	case "render":
 	case "validate":
-		allowed = []string{"--format"}
+		allowed = []string{"--format", "--config"}
 	default:
 		fmt.Fprintln(stderr, "laneboss org: error: "+cliargs.Reject("ACTION"))
 		return 2
@@ -182,7 +200,7 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	format := parsed.value("--format", "text")
-	if err == nil && action == "validate" && format != "text" && format != "json" {
+	if err == nil && action == "validate" && format != "text" && format != "json" && format != "json-diagnostics" {
 		err = errors.New(cliargs.Reject("--format"))
 	}
 	if err != nil {
@@ -192,9 +210,18 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 	}
 	argument := parsed.positionals[0]
 	if action == "validate" {
-		report := validateOrg(argument)
-		if format == "json" {
-			text, err := jsonText(report, false)
+		report := validateOrg(argument, parsed.value("--config", ""))
+		if format == "json" || format == "json-diagnostics" {
+			var output any = report
+			if format == "json" {
+				// Preserve the established machine-readable validation contract.
+				// Diagnostics are opt-in; every real problem remains in both forms.
+				output = struct {
+					Valid    bool      `json:"valid"`
+					Problems []problem `json:"problems"`
+				}{report.Valid, report.Problems}
+			}
+			text, err := jsonText(output, false)
 			if err != nil {
 				fmt.Fprintln(stderr, "cannot encode the validation report")
 				return 2
@@ -209,6 +236,13 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 		} else {
 			for _, item := range report.Problems {
 				fmt.Fprintln(stderr, item.Path+": "+item.Message)
+			}
+		}
+		// The json form keeps its stdout contract (valid, problems); its warnings,
+		// including the 1.0.0 hook deprecation, go to stderr as in the text form.
+		if format == "text" || format == "json" {
+			for _, item := range report.Warnings {
+				fmt.Fprintln(stderr, "warning: "+item.Path+": "+item.Message)
 			}
 		}
 		if report.Valid {
@@ -233,6 +267,13 @@ func Run(action string, args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return 2
+	}
+	if action == "render" {
+		if tree, inspectErr := inspect(argument, false); inspectErr == nil {
+			for _, item := range tree.hookDeprecations() {
+				fmt.Fprintln(stderr, "warning: "+item.Path+": "+item.Message)
+			}
+		}
 	}
 	text, err := jsonText(result, false)
 	if err != nil {

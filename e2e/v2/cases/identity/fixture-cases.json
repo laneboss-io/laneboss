@@ -1,0 +1,1374 @@
+{
+  "schema": "laneboss.identity-fixtures.v1",
+  "scope": "package-fixture",
+  "contract_revision": "v2.0-draft.4",
+  "cases": [
+    {
+      "id": "confirm-generation",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestConfirmGenerationFixture"
+      ],
+      "excludes": [
+        "durable store CAS",
+        "installed service acceptance"
+      ]
+    },
+    {
+      "id": "g1-event-origin",
+      "rule": "G1",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanEventSource"
+      ],
+      "excludes": [
+        "installed event journal"
+      ]
+    },
+    {
+      "id": "g4-cli-prelude",
+      "rule": "G4",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSpawnPrelude"
+      ],
+      "excludes": [
+        "installed service and actual root launch"
+      ]
+    },
+    {
+      "id": "g4-cli-session-option",
+      "rule": "G4",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestSessionOption"
+      ],
+      "excludes": [
+        "installed endpoint"
+      ]
+    },
+    {
+      "id": "g1-session-finalize",
+      "rule": "G1",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionFinalize"
+      ],
+      "excludes": [
+        "installed durable private read-back adapter"
+      ]
+    },
+    {
+      "id": "g1-session-replay",
+      "rule": "G1",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReplay"
+      ],
+      "excludes": [
+        "installed dispatch replay hook"
+      ]
+    },
+    {
+      "id": "g4-root-prelude",
+      "rule": "G4",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRootPrelude"
+      ],
+      "excludes": [
+        "common CLI session-proof option",
+        "lifecycle ticket redemption"
+      ]
+    },
+    {
+      "id": "g1-native-session",
+      "rule": "G1",
+      "kind": "kernel",
+      "package": "native",
+      "test": [
+        "TestNativeSession"
+      ],
+      "excludes": [
+        "installed durable store and dispatcher",
+        "hardware presence"
+      ]
+    },
+    {
+      "id": "attestation-direct",
+      "rule": "R131",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestation"
+      ],
+      "excludes": [
+        "manufacturer root provisioning",
+        "real hardware possession"
+      ]
+    },
+    {
+      "id": "attestation-policy",
+      "rule": "R131",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAttestationPolicy"
+      ],
+      "excludes": [
+        "protected install manifest wiring"
+      ]
+    },
+    {
+      "id": "attestation-production",
+      "rule": "R131",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestProdAttestation"
+      ],
+      "excludes": [
+        "owner final hardware enrollment"
+      ]
+    },
+    {
+      "id": "f12-projection-auth",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjAuth"
+      ],
+      "excludes": [
+        "native executable/channel producer",
+        "actual broker descriptors"
+      ]
+    },
+    {
+      "id": "f12-projection-gate",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjGate"
+      ],
+      "excludes": [
+        "native held objects",
+        "actual gate/exec lock"
+      ]
+    },
+    {
+      "id": "f12-projection-permit",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjPermit"
+      ],
+      "excludes": [
+        "installed helper open"
+      ]
+    },
+    {
+      "id": "f12-projection-worker",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjWorker"
+      ],
+      "excludes": [
+        "actual enrolled worker credential producer"
+      ]
+    },
+    {
+      "id": "f12-projection-record",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjRecord"
+      ],
+      "excludes": [
+        "native pin measurement"
+      ]
+    },
+    {
+      "id": "f12-projection-state",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestProjState"
+      ],
+      "excludes": [
+        "atomic store/native races"
+      ]
+    },
+    {
+      "id": "f12-plan-fence",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestPlanFence"
+      ],
+      "excludes": [
+        "complete installed permit flow"
+      ]
+    },
+    {
+      "id": "f12-registration-id",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRegistrationID"
+      ],
+      "excludes": [
+        "real registration signatures",
+        "production build approval"
+      ]
+    },
+    {
+      "id": "f12-turn-envelope",
+      "rule": "FIX12",
+      "kind": "projection",
+      "package": "api",
+      "test": [
+        "TestTurnEvent"
+      ],
+      "excludes": [
+        "actual lifecycle/open/mail producers",
+        "vendor session correlation"
+      ]
+    },
+    {
+      "id": "f14-lane-policy-advance",
+      "rule": "FIX11/current-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLanePolicyAdvanceFixture"
+      ],
+      "excludes": [
+        "actual D6 approval and policy-store CAS",
+        "installed service reload"
+      ]
+    },
+    {
+      "id": "f14-lane-policy-bounds",
+      "rule": "FIX11/current-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLanePolicyBoundsFixture"
+      ],
+      "excludes": [
+        "durable policy and grant revocation races"
+      ]
+    },
+    {
+      "id": "f14-issued-grant-policy",
+      "rule": "FIX11/historical-grants",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIssuedGrantPolicyFixture"
+      ],
+      "excludes": [
+        "capability ceiling resolution owned by grants and policy"
+      ]
+    },
+    {
+      "id": "f14-scope-policy-change",
+      "rule": "FIX11/policy-conflict",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopePolicyChangeFixture"
+      ],
+      "excludes": [
+        "installed client conflict recovery"
+      ]
+    },
+    {
+      "id": "f14-sealed-plan-policy",
+      "rule": "FIX11/new-launch-policy",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSealedPlanPolicyChangeFixture"
+      ],
+      "excludes": [
+        "native gate opening",
+        "actual retained-plan reconciliation"
+      ]
+    },
+    {
+      "id": "f11-enrollment-consumer",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentConsumerFixture"
+      ],
+      "excludes": [
+        "installed administrator channel",
+        "atomic baseline consumption",
+        "hardware presence"
+      ]
+    },
+    {
+      "id": "f11-enrollment-algorithms",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentAlgorithmsFixture"
+      ],
+      "excludes": [
+        "manufacturer attestation trust",
+        "hardware presence"
+      ]
+    },
+    {
+      "id": "f11-enrollment-begin",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentBeginFixture"
+      ],
+      "excludes": [
+        "protected endpoint creation",
+        "durable nonce reservation"
+      ]
+    },
+    {
+      "id": "f11-enrollment-markers",
+      "rule": "FIX11",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestEnrollmentMarkersFixture"
+      ],
+      "excludes": [
+        "actual installed test authenticator"
+      ]
+    },
+    {
+      "id": "f11-credential-consumer",
+      "rule": "FIX11",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestCredentialConsumerFixture"
+      ],
+      "excludes": [
+        "installed startup/listener acceptance"
+      ]
+    },
+    {
+      "id": "f11-proof-presence",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredPresenceFixture"
+      ],
+      "excludes": [
+        "durable proof use"
+      ]
+    },
+    {
+      "id": "f11-confirm-receipt",
+      "rule": "FIX11",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestConfirmationPresenceReceiptFixture"
+      ],
+      "excludes": [
+        "durable receipt provenance"
+      ]
+    },
+    {
+      "id": "f11-session-preflight",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionPreflightFixture"
+      ],
+      "excludes": [
+        "atomic refresh",
+        "native transport"
+      ]
+    },
+    {
+      "id": "f11-session-refresh",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadRefreshFixture"
+      ],
+      "excludes": [
+        "durable store races",
+        "installed connection refresh"
+      ]
+    },
+    {
+      "id": "f11-revocation-consumer",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRevocationConsumerFixture"
+      ],
+      "excludes": [
+        "actual live connections/deliveries",
+        "helper quiescence"
+      ]
+    },
+    {
+      "id": "f11-invalidator-binding",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestInvalidatorBindingFixture"
+      ],
+      "excludes": [
+        "implemented transport invalidation"
+      ]
+    },
+    {
+      "id": "f11-worker-consumer",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerConsumerFixture"
+      ],
+      "excludes": [
+        "native kernel verification",
+        "pre-gate worker binding"
+      ]
+    },
+    {
+      "id": "f11-worker-operations",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestWorkerOperationFixture"
+      ],
+      "excludes": [
+        "installed private worker routing",
+        "sealed job data validation"
+      ]
+    },
+    {
+      "id": "f11-enrollment-inventory",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "api",
+      "test": [
+        "TestEnrollmentInventory"
+      ],
+      "excludes": [
+        "installed complete protected inventory"
+      ]
+    },
+    {
+      "id": "f11-enrollment-baseline",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "api",
+      "test": [
+        "TestEnrollmentBaseline"
+      ],
+      "excludes": [
+        "atomic configuration-wide baseline lock"
+      ]
+    },
+    {
+      "id": "f11-proof-use-policy",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "api",
+      "test": [
+        "TestProofMark"
+      ],
+      "excludes": [
+        "actual one-use receipt"
+      ]
+    },
+    {
+      "id": "f11-authority-contract",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "api",
+      "test": [
+        "TestSessionAuthority"
+      ],
+      "excludes": [
+        "actual transport serialization"
+      ]
+    },
+    {
+      "id": "f11-worker-input-contract",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "api",
+      "test": [
+        "TestWorkerInput"
+      ],
+      "excludes": [
+        "actual sealed input producer"
+      ]
+    },
+    {
+      "id": "f11-worker-result-contract",
+      "rule": "FIX11",
+      "kind": "projection",
+      "package": "api",
+      "test": [
+        "TestWorkerResult"
+      ],
+      "excludes": [
+        "actual confined output producer"
+      ]
+    },
+    {
+      "id": "worker-request-preflight",
+      "rule": "PEER",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestWorkerRequestRefusalFixture"
+      ],
+      "excludes": [
+        "implemented worker authentication",
+        "native worker job authority"
+      ]
+    },
+    {
+      "id": "reservation-pins-authority",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReservedPinsFixture"
+      ],
+      "excludes": [
+        "atomic ticket/proof consumption",
+        "protected starter lookup",
+        "parent grant ceilings"
+      ]
+    },
+    {
+      "id": "ready-reserved-driver",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadyDriverFixture"
+      ],
+      "excludes": [
+        "actual runtime enrollment",
+        "helper release"
+      ]
+    },
+    {
+      "id": "current-capture-policy",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCurrentCaptureFixture"
+      ],
+      "excludes": [
+        "D6 approval consumption",
+        "real stream capture",
+        "atomic release fence"
+      ]
+    },
+    {
+      "id": "grant-projection-equality",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestGrantProjectionFixture"
+      ],
+      "excludes": [
+        "grant issuance",
+        "protected store serialization"
+      ]
+    },
+    {
+      "id": "binding-agent-kind",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestBindingKindsFixture"
+      ],
+      "excludes": [
+        "helper_prepare transaction commit",
+        "implemented worker binding"
+      ]
+    },
+    {
+      "id": "worker-permit-dependency",
+      "rule": "PEER",
+      "kind": "closed-gap",
+      "package": "identity",
+      "test": [
+        "TestWorkerPermitGapFixture"
+      ],
+      "excludes": [
+        "implemented worker launch permit",
+        "native worker job authority"
+      ]
+    },
+    {
+      "id": "launch-plan-consumer",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanReadFixture"
+      ],
+      "excludes": [
+        "protected source selection",
+        "helper allocation",
+        "durable launch/store recovery",
+        "installed serve acceptance"
+      ]
+    },
+    {
+      "id": "launch-recovery-tuple",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchRecoveryFixture"
+      ],
+      "excludes": [
+        "real helper gate replay",
+        "installed launched lane"
+      ]
+    },
+    {
+      "id": "launch-current-authority",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchPlanGuardsFixture"
+      ],
+      "excludes": [
+        "atomic service fences",
+        "actual containment enrollment"
+      ]
+    },
+    {
+      "id": "launch-identity-event",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestIdentityEventFixture"
+      ],
+      "excludes": [
+        "durable event stamping",
+        "installed service restart"
+      ]
+    },
+    {
+      "id": "launch-grant-expiry",
+      "rule": "LAUNCH-PLAN",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaunchGrantExpiryFixture"
+      ],
+      "excludes": [
+        "actual grant publication",
+        "helper release authorization"
+      ]
+    },
+    {
+      "id": "actual-caller-endpoint",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCurrentCallerFixture"
+      ],
+      "excludes": [
+        "authenticated worker mapping",
+        "installed transport"
+      ]
+    },
+    {
+      "id": "worker-binding-refusal",
+      "rule": "PEER",
+      "kind": "closed-gap",
+      "package": "identity",
+      "test": [
+        "TestWorkerBindingGapFixture"
+      ],
+      "excludes": [
+        "implemented worker authentication",
+        "capture ingestion"
+      ]
+    },
+    {
+      "id": "launch-revocation-refusal",
+      "rule": "PEER",
+      "kind": "closed-gap",
+      "package": "identity",
+      "test": [
+        "TestLaunchRevocationGapFixture"
+      ],
+      "excludes": [
+        "implemented revocation",
+        "transport connection invalidation"
+      ]
+    },
+    {
+      "id": "browser-client-data",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestClientDataFixture"
+      ],
+      "excludes": [
+        "browser ceremony",
+        "hardware presence",
+        "durable proof use"
+      ]
+    },
+    {
+      "id": "descriptor-flags",
+      "rule": "PEER",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorFlagsFixture"
+      ],
+      "excludes": [
+        "installed transport authentication"
+      ]
+    },
+    {
+      "id": "descriptor-rejections",
+      "rule": "PEER",
+      "kind": "fixture-helper",
+      "package": "linux",
+      "test": [
+        "TestDescriptorRejectFixture"
+      ],
+      "excludes": [
+        "installed transport authentication"
+      ]
+    },
+    {
+      "id": "human-signatures",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionAlgorithms"
+      ],
+      "excludes": [
+        "hardware enrollment",
+        "human operation commit"
+      ]
+    },
+    {
+      "id": "human-assertions",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestAssertionControls"
+      ],
+      "excludes": [
+        "installed dashboard origin",
+        "hardware presence"
+      ]
+    },
+    {
+      "id": "human-replay",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestHumanReplayFixture"
+      ],
+      "excludes": [
+        "atomic proof nonce consumption",
+        "durable replay after restart"
+      ]
+    },
+    {
+      "id": "human-signed-json",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestSignedJSONFixture"
+      ],
+      "excludes": [
+        "installed socket frame decoder"
+      ]
+    },
+    {
+      "id": "human-proof-guards",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestHumanProofFixture"
+      ],
+      "excludes": [
+        "proof issuance",
+        "successful atomic consumption"
+      ]
+    },
+    {
+      "id": "human-no-proof",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestHumanNoProofFixture"
+      ],
+      "excludes": [
+        "human UID authentication",
+        "committed ticket, grant or approval effect"
+      ]
+    },
+    {
+      "id": "peer-native-checks",
+      "rule": "PEER",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestPeerChecksFixture"
+      ],
+      "excludes": [
+        "inside namespace client",
+        "actual PID reuse",
+        "actual UID transition"
+      ]
+    },
+    {
+      "id": "peer-passed-socket",
+      "rule": "PEER",
+      "kind": "kernel-limit",
+      "package": "linux",
+      "test": [
+        "TestPassedSocketFixture"
+      ],
+      "excludes": [
+        "per-message writer authentication",
+        "installed socket mutation refusal"
+      ]
+    },
+    {
+      "id": "peer-self-projection",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfDerivesLaunch"
+      ],
+      "excludes": [
+        "authenticated connection handoff"
+      ]
+    },
+    {
+      "id": "peer-stale-projection",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSelfRefusesDrift"
+      ],
+      "excludes": [
+        "live service revocation"
+      ]
+    },
+    {
+      "id": "peer-forged-labels",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLabelScopeFixture"
+      ],
+      "excludes": [
+        "installed endpoint mutation"
+      ]
+    },
+    {
+      "id": "ticket-issue-guards",
+      "rule": "TICKET-ONCE",
+      "kind": "refusal",
+      "package": "identity",
+      "test": [
+        "TestTicketGuardsFixture"
+      ],
+      "excludes": [
+        "ticket issuance",
+        "single redemption",
+        "fixed role or level redemption"
+      ]
+    },
+    {
+      "id": "committed-launch",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestCommittedLaunchFixture"
+      ],
+      "excludes": [
+        "real store commit and helper gate opening"
+      ]
+    },
+    {
+      "id": "borrowed-connection",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestBorrowedConnectionFixture"
+      ],
+      "excludes": [
+        "installed transport peer ownership"
+      ]
+    },
+    {
+      "id": "stored-human-proof",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestStoredProofFixture"
+      ],
+      "excludes": [
+        "durable atomic proof consumption"
+      ]
+    },
+    {
+      "id": "scoped-frame",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestScopedFrameFixture"
+      ],
+      "excludes": [
+        "native per-fragment writer verification"
+      ]
+    },
+    {
+      "id": "human-write-handoff",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanWritesFixture"
+      ],
+      "excludes": [
+        "durable database commit",
+        "hardware enrollment",
+        "root ticket redemption"
+      ]
+    },
+    {
+      "id": "read-session-binding",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestReadSessionFixture"
+      ],
+      "excludes": [
+        "installed transport activation",
+        "idle refresh persistence"
+      ]
+    },
+    {
+      "id": "containment-registry",
+      "rule": "PEER",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryBindingFixture"
+      ],
+      "excludes": [
+        "helper allocation registration",
+        "inside namespace acceptance"
+      ]
+    },
+    {
+      "id": "lane-connection",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneConnectionFixture"
+      ],
+      "excludes": [
+        "real native peer",
+        "installed launch/store integration"
+      ]
+    },
+    {
+      "id": "retained-human-reply",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestHumanReceiptFixture"
+      ],
+      "excludes": [
+        "durable store receipt replay",
+        "dispatcher replay ordering"
+      ]
+    },
+    {
+      "id": "authentication-order",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestAuthenticateOrderFixture"
+      ],
+      "excludes": [
+        "native kernel verification",
+        "installed transport"
+      ]
+    },
+    {
+      "id": "authentication-cleanup",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestAuthenticationCleanupFixture"
+      ],
+      "excludes": [
+        "installed connection ownership"
+      ]
+    },
+    {
+      "id": "own-life-claims",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneClaimsFixture"
+      ],
+      "excludes": [
+        "real template rendering",
+        "committed grants"
+      ]
+    },
+    {
+      "id": "human-root-endpoint",
+      "rule": "TICKET-ONCE",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestTicketEndpointFixture"
+      ],
+      "excludes": [
+        "durable ticket lookup",
+        "actual root launch"
+      ]
+    },
+    {
+      "id": "spawn-claims",
+      "rule": "TICKET-ONCE",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSpawnClaimsFixture"
+      ],
+      "excludes": [
+        "authenticated worker lease",
+        "actual helper launch"
+      ]
+    },
+    {
+      "id": "root-lineage",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestRootLineageFixture"
+      ],
+      "excludes": [
+        "durable root life creation"
+      ]
+    },
+    {
+      "id": "ticket-provenance",
+      "rule": "TICKET-ONCE",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestTicketReceiptProvenanceFixture"
+      ],
+      "excludes": [
+        "durable issue/redemption",
+        "real enrolled principal"
+      ]
+    },
+    {
+      "id": "session-activation",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "transaction",
+      "package": "identity",
+      "test": [
+        "TestSessionReceiptBindingFixture"
+      ],
+      "excludes": [
+        "durable proof use",
+        "live transport implementation"
+      ]
+    },
+    {
+      "id": "human-self-session",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanSelfSessionFixture"
+      ],
+      "excludes": [
+        "common CLI shared socket",
+        "persisted idle refresh"
+      ]
+    },
+    {
+      "id": "registry-lock-boundary",
+      "rule": "PEER",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestResolveLockFixture"
+      ],
+      "excludes": [
+        "helper allocation",
+        "installed service dispatcher"
+      ]
+    },
+    {
+      "id": "registration-rejections",
+      "rule": "PEER",
+      "kind": "kernel",
+      "package": "linux",
+      "test": [
+        "TestRegistryRegistrationFixture"
+      ],
+      "excludes": [
+        "successful dedicated cgroup enrollment",
+        "real helper journaling"
+      ]
+    },
+    {
+      "id": "registry-revocation-lifetime",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "linux",
+      "test": [
+        "TestRegistryRevocationFixture"
+      ],
+      "excludes": [
+        "kernel containment enrollment",
+        "measured helper quiescence"
+      ]
+    },
+    {
+      "id": "native-identity-composition",
+      "rule": "PEER",
+      "kind": "kernel",
+      "package": "native",
+      "test": [
+        "TestNativeAuthentication"
+      ],
+      "excludes": [
+        "protected enrollment persistence",
+        "real lane launch",
+        "installed CLI/socket serve acceptance"
+      ]
+    },
+    {
+      "id": "cli-shared-preparation",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIRequiresRetainedKey"
+      ],
+      "excludes": [
+        "installed client binary",
+        "socket session establishment",
+        "serve acceptance"
+      ]
+    },
+    {
+      "id": "human-read-staging",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanReadStageFixture"
+      ],
+      "excludes": [
+        "ciphertext verification",
+        "protected broker persistence",
+        "installed session flow"
+      ]
+    },
+    {
+      "id": "cli-input-validators",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "client",
+      "package": "cli",
+      "test": [
+        "TestCLIFileValidationFixture"
+      ],
+      "excludes": [
+        "installed RPC success",
+        "actual signature verification"
+      ]
+    },
+    {
+      "id": "human-session-methods",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestSessionMethodsFixture"
+      ],
+      "excludes": [
+        "module input validation",
+        "durable staging or preview effects"
+      ]
+    },
+    {
+      "id": "human-envelope-proof",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanEnvelopeProofFixture"
+      ],
+      "excludes": [
+        "durable proof consumption",
+        "ticket redemption"
+      ]
+    },
+    {
+      "id": "l6-authority",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestL6AuthorityFixture"
+      ],
+      "excludes": [
+        "actual approval apply",
+        "durable organization publication"
+      ]
+    },
+    {
+      "id": "lane-proof-order",
+      "rule": "PEER",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestLaneProofOrderFixture"
+      ],
+      "excludes": [
+        "real helper launch",
+        "installed mutation"
+      ]
+    },
+    {
+      "id": "human-self-policy",
+      "rule": "HUMAN-IDENTITY",
+      "kind": "projection",
+      "package": "identity",
+      "test": [
+        "TestHumanSelfPolicyFixture"
+      ],
+      "excludes": [
+        "installed policy publication"
+      ]
+    },
+    {
+      "id": "g6-worker-bind",
+      "rule": "G6",
+      "kind": "kernel",
+      "package": "identity",
+      "test": [
+        "TestWorkerBind"
+      ],
+      "excludes": [
+        "actual installed helper handoff and worker process"
+      ]
+    },
+    {
+      "id": "confirm-revision",
+      "rule": "G1",
+      "kind": "crypto",
+      "package": "identity",
+      "test": [
+        "TestConfirmRevision"
+      ],
+      "excludes": [
+        "durable store CAS execution"
+      ]
+    }
+  ],
+  "remaining_acceptance": [
+    {
+      "rule": "HUMAN-IDENTITY",
+      "needs": "implemented protected enrollment, transport, atomic store, browser and hardware evidence"
+    },
+    {
+      "rule": "PEER",
+      "needs": "installed namespaces, every-message credentials and real committed launch handoff"
+    },
+    {
+      "rule": "TICKET-ONCE",
+      "needs": "durable ticket issue and atomic TicketUse during root start or adopt"
+    },
+    {
+      "rule": "SERVE",
+      "needs": "installed serve base failure and composed candidate pass; no package fixture is this round's acceptance"
+    }
+  ]
+}

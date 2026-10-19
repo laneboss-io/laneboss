@@ -521,7 +521,7 @@ func (s *session) refusalListing(lane string) (object, error) {
 	if err != nil {
 		return nil, err
 	}
-	refusals, suspicions, verdicts := []any{}, []any{}, []any{}
+	refusals, suspicions, observations, verdicts := []any{}, []any{}, []any{}, []any{}
 	for _, e := range events {
 		p := clone(obj(e["payload"]))
 		p["seq"] = e["seq"]
@@ -529,7 +529,11 @@ func (s *session) refusalListing(lane string) (object, error) {
 		case "lane.refusal":
 			refusals = append(refusals, p)
 		case "lane.workaround_suspected":
-			suspicions = append(suspicions, p)
+			if p["refusal"] == nil {
+				observations = append(observations, p)
+			} else {
+				suspicions = append(suspicions, p)
+			}
 		case "lane.refusal_reviewed":
 			p["actor"] = e["actor"]
 			p["occurred_at"] = e["occurred_at"]
@@ -586,7 +590,7 @@ func (s *session) refusalListing(lane string) (object, error) {
 	if err != nil {
 		return nil, err
 	}
-	return object{"lane": lane, "guards": len(list(s.c.data["guards"])), "refusals": refusals, "suspicions": suspicions, "verdicts": verdicts, "unreviewed": found["unreviewed"], "coverage": coverages, "not_covered": flattenCoverage(coverages), "pending_events": pending}, nil
+	return object{"lane": lane, "guards": len(list(s.c.data["guards"])), "refusals": refusals, "suspicions": suspicions, "observations": observations, "observation_count": len(observations), "verdicts": verdicts, "unreviewed": found["unreviewed"], "coverage": coverages, "not_covered": flattenCoverage(coverages), "pending_events": pending}, nil
 }
 func (s *session) refusals(a arguments) (any, error) {
 	if a.get("lane") != "" {

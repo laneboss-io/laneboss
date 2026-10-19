@@ -121,21 +121,33 @@ func BeforeJudgeStart() {
 
 // Inject one wrapped kernel error at the actual read boundary, never a product
 // result. The marker proves the read was reached; subsequent reads are real.
-func ProcStat(path string) ([]byte, error) {
+func ProcStat(path string, site ...string) ([]byte, error) {
 	o := Get("")
-	if (o.Point == "proc-esrch" || o.Point == "proc-denied") && o.PID > 0 && path == fmt.Sprintf("/proc/%d/stat", o.PID) {
-		if _, err := os.Stat(o.Marker); os.IsNotExist(err) {
-			if err := Reach(o.Point); err != nil {
-				return nil, err
-			}
-			failure := syscall.ESRCH
-			if o.Point == "proc-denied" {
-				failure = syscall.EACCES
-			}
-			return nil, &os.PathError{Op: "read", Path: path, Err: failure}
-		} else if err != nil {
+	if len(site) == 1 && site[0] == "lane.linuxInfo" && (o.Point == "proc-esrch" || o.Point == "proc-denied") && o.PID > 0 && path == fmt.Sprintf("/proc/%d/stat", o.PID) {
+		if !filepath.IsAbs(o.Marker) {
+			return nil, fmt.Errorf("fault marker must be an absolute path")
+		}
+		// Exclusive creation claims the one-shot error for this exact reader.
+		marker, err := os.OpenFile(o.Marker, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+		if os.IsExist(err) {
+			return os.ReadFile(path)
+		}
+		if err != nil {
 			return nil, err
 		}
+		_, writeErr := marker.WriteString(site[0] + "\n")
+		closeErr := marker.Close()
+		if writeErr != nil {
+			return nil, writeErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+		failure := syscall.ESRCH
+		if o.Point == "proc-denied" {
+			failure = syscall.EACCES
+		}
+		return nil, &os.PathError{Op: "read", Path: path, Err: failure}
 	}
 	return os.ReadFile(path)
 }

@@ -1,0 +1,30 @@
+{
+  "contract_revision": "v2.0-draft.4",
+  "scope": "ladder public transaction observations",
+  "rows": {
+    "blob.begin": {"fields": "UploadBegins", "events": "", "effects": ""},
+    "blob.chunk": {"fields": "UploadChunks", "events": "", "effects": ""},
+    "blob.commit": {"fields": "UploadCommits Objects", "events": "blob.committed", "effects": ""},
+    "human.session": {"fields": "ReadSessions", "events": "human.session", "effects": ""},
+    "ticket.issue": {"fields": "Tickets", "events": "ticket.issued", "effects": ""},
+    "secret.stage": {"fields": "", "events": "", "effects": ""},
+    "policy.evaluate": {"fields": "", "events": "policy.evaluated", "effects": ""},
+    "guidance.select": {"fields": "", "events": "", "effects": ""},
+    "judge.ask": {"fields": "", "events": "", "effects": ""},
+    "lane.start": {"fields": "Lanes Grants Turns WorkerLeases", "events": "lane.created grants.issued", "effects": "PlanLaunch HelperAllocate Worker Launch"},
+    "lane.adopt": {"fields": "Lanes Grants Turns WorkerLeases", "events": "lane.adopted grants.issued", "effects": "PlanLaunch HelperAllocate Worker Launch"},
+    "lane.resume": {"fields": "Lanes Turns Continuations WorkerLeases", "events": "lane.turn watchdog.cancelled", "effects": "PlanLaunch HelperAllocate Worker Launch"},
+    "lane.turn": {"fields": "Lanes Turns Continuations WorkerLeases", "events": "lane.turn watchdog.cancelled", "effects": "PlanLaunch HelperAllocate Worker Launch Deliver"},
+    "lane.stop": {"fields": "Lanes Continuations", "events": "lane.stopping watchdog.cancelled", "effects": "Stop"},
+    "lane.mark": {"fields": "Lanes Continuations", "events": "lane.state watchdog.cancelled", "effects": "Stop"},
+    "lane.review": {"fields": "", "events": "lane.reviewed", "effects": ""},
+    "lane.archive": {"fields": "WorkerLeases", "events": "", "effects": "Worker"},
+    "lane.clean": {"fields": "Lanes Continuations", "events": "watchdog.cancelled", "effects": "Clean"},
+    "lane.loop": {"fields": "Lanes", "events": "lane.loop", "effects": ""},
+    "grants.test-child": {"fields": "WorkerLeases", "events": "", "effects": "Worker"},
+    "grants.revoke": {"fields": "Grants Lanes Continuations Endpoints", "events": "grants.revoked lane.stopping watchdog.cancelled identity.revoked", "effects": "Stop"},
+    "mail.send": {"fields": "Mail WorkerLeases", "events": "mail.queued", "effects": "Deliver Channel"},
+    "report.submit": {"fields": "Mail WorkerLeases", "events": "report.submitted mail.queued", "effects": "Deliver Channel"},
+    "records.append": {"fields": "", "events": "record.appended", "effects": ""}
+  }
+}

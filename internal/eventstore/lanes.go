@@ -105,7 +105,7 @@ func projectionValues(p Object) error {
 		seq := whole(1, maximumCount)
 		checks["refusals"] = fields(map[string]validator{
 			"recorded":   mapOf(grammar(`rf-[0-9a-f]{24}`), fields(map[string]validator{"run": runCheck, "seq": seq, "guard": grammar(`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`), "tool": nullable(grammar(`[A-Za-z0-9][A-Za-z0-9._:-]{0,63}`))})),
-			"suspected":  mapOf(grammar(`ws-[0-9a-f]{24}`), fields(map[string]validator{"refusal": grammar(`rf-[0-9a-f]{24}`), "run": runCheck, "seq": seq, "how": sortedList(oneOf("reworded", "shell-write"), 1, 2), "paths": sortedList(suspectedPath, 1, 1024)})),
+			"suspected":  mapOf(grammar(`ws-[0-9a-f]{24}`), fields(map[string]validator{"refusal": nullable(grammar(`rf-[0-9a-f]{24}`)), "run": runCheck, "seq": seq, "how": sortedList(oneOf("reworded", "shell-write", "shell-substitution-in-text"), 1, 2), "paths": sortedList(suspectedPath, 1, 1024)})),
 			"verdicts":   array(fields(map[string]validator{"refusal": grammar(`rf-[0-9a-f]{24}`), "path": suspectedPath, "verdict": oneOf("clean", "workaround"), "suspicions": sortedList(grammar(`ws-[0-9a-f]{24}`), 1, 4096), "seq": seq}), int(^uint(0)>>1)),
 			"unreviewed": array(fields(map[string]validator{"refusal": grammar(`rf-[0-9a-f]{24}`), "path": suspectedPath, "suspicions": sortedList(grammar(`ws-[0-9a-f]{24}`), 1, int(^uint(0)>>1))}), int(^uint(0)>>1)),
 		})
@@ -284,7 +284,7 @@ func checkRefusal(current, e Object) error {
 	if kind == "lane.refusal" && recorded[text(p["refusal"])] != nil {
 		return Refuse("lane.refusal: this refusal is recorded already")
 	}
-	if kind == "lane.workaround_suspected" || kind == "lane.refusal_reviewed" {
+	if kind == "lane.workaround_suspected" && p["refusal"] != nil || kind == "lane.refusal_reviewed" {
 		if recorded[text(p["refusal"])] == nil {
 			return Refuse("%s: lane %s has no recorded refusal", kind, lane)
 		}
@@ -293,7 +293,7 @@ func checkRefusal(current, e Object) error {
 		if suspected[text(p["suspicion"])] != nil {
 			return Refuse("lane.workaround_suspected: this suspicion is recorded already")
 		}
-		if num(p["run"]) < num(object(recorded[text(p["refusal"])])["run"]) {
+		if p["refusal"] != nil && num(p["run"]) < num(object(recorded[text(p["refusal"])])["run"]) {
 			return Refuse("lane.workaround_suspected: a suspected workaround comes after its refusal, in its run or a later one")
 		}
 	}
@@ -323,6 +323,10 @@ func unreviewed(found Object) []any {
 	paths := map[pair][]string{}
 	for suspicion, v := range object(found["suspected"]) {
 		item := object(v)
+		// Independent command observations do not hold the acceptance gate.
+		if item["refusal"] == nil {
+			continue
+		}
 		for _, path := range list(item["paths"]) {
 			if !reviewed[pair{suspicion, text(path)}] {
 				key := pair{text(item["refusal"]), text(path)}

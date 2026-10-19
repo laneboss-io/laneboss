@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "migration",
+  "owner": "lb-v2-migration",
+  "platforms": ["linux"],
+  "requires": ["service", "identity", "grants", "lifecycle", "integrate"],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": ["MIGRATE-ROLLBACK"]
+}

@@ -7,13 +7,15 @@ import (
 )
 
 // Revet runs in the executing supervisor, using the exact command environment.
-func Revet(argv []string, cwd string, environment []string) error {
+func Revet(argv []string, cwd string, environment []string, laneSandbox ...bool) error {
+	replaced := len(laneSandbox) == 1 && laneSandbox[0]
 	effective := map[string]string{}
 	for _, entry := range environment {
 		if key, value, ok := strings.Cut(entry, "="); ok {
 			effective[key] = value
 		}
 	}
+	scope := launcherScope(effective)
 	index := 0
 	for index < len(argv) && filepath.Base(argv[index]) == "env" {
 		index++
@@ -74,8 +76,16 @@ func Revet(argv []string, cwd string, environment []string) error {
 	if err := vetEnvironment(effective); err != nil {
 		return err
 	}
-	if err := vetConfigArgs(argv[index+1:]); err != nil {
+	if err := vetLauncherScope(scope, effective); err != nil {
 		return err
+	}
+	if err := vetConfigArgs(argv[index+1:], replaced); err != nil {
+		return err
+	}
+	if replaced {
+		if err := verifyCodexReplacement(argv[index+1:]); err != nil {
+			return err
+		}
 	}
 	pluginsOff := false
 	for i := index + 1; i < len(argv) && argv[i] != "--"; i++ {
@@ -86,8 +96,11 @@ func Revet(argv []string, cwd string, environment []string) error {
 	if !pluginsOff {
 		return errors.New("Codex supervisor requires --disable plugins with hook trust")
 	}
-	if _, err := writableRoots(filepath.Join(effective["CODEX_HOME"], "config.toml"), cwd, argv[index+1:]); err != nil {
+	if _, err := writableRootsIn(filepath.Join(effective["CODEX_HOME"], "config.toml"), cwd, replaced, effective, argv[index+1:]); err != nil {
 		return err
 	}
-	return VetCodex(effective["CODEX_HOME"], cwd, effective["HOME"])
+	if err := vetLanePath(effective["CODEX_HOME"], cwd, effective); err != nil {
+		return err
+	}
+	return vetCodexIn(effective["CODEX_HOME"], cwd, effective, effective["HOME"])
 }

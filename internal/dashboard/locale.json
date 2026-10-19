@@ -1,0 +1,1786 @@
+{
+  "Legacy relationship": {
+    "en": "Legacy relationship",
+    "zh-TW": "舊版關係"
+  },
+  "Brief delivered": {
+    "en": "Brief delivered",
+    "zh-TW": "工作簡報已送達"
+  },
+  "Follow-up delivered": {
+    "en": "Follow-up delivered",
+    "zh-TW": "後續指示已送達"
+  },
+  "Mail delivered": {
+    "en": "Mail delivered",
+    "zh-TW": "郵件已送達"
+  },
+  "{count} payload fields recorded": {
+    "en": "{count} payload fields recorded",
+    "zh-TW": "已記錄 {count} 個承載資料欄位"
+  },
+  "Supervisor: {supervisor} · Reports to {target}": {
+    "en": "Supervisor: {supervisor} · Reports to {target}",
+    "zh-TW": "主管：{supervisor} · 向 {target} 回報"
+  },
+  "No recorded supervisor · Reports go to human": {
+    "en": "No recorded supervisor · Reports go to human",
+    "zh-TW": "未記錄主管 · 向使用者回報"
+  },
+  "Human": {
+    "en": "Human",
+    "zh-TW": "使用者"
+  },
+  "The human may message any lane at any level.": {
+    "en": "The human may message any lane at any level.",
+    "zh-TW": "使用者可傳送訊息給任何層級的泳道。"
+  },
+  "Unrecorded supervisor": {
+    "en": "Unrecorded supervisor",
+    "zh-TW": "未記錄主管"
+  },
+  "Reports to {supervisor}": {
+    "en": "Reports to {supervisor}",
+    "zh-TW": "向 {supervisor} 回報"
+  },
+  "No recorded supervisor": {
+    "en": "No recorded supervisor",
+    "zh-TW": "未記錄主管"
+  },
+  "Level source: {source}": {
+    "en": "Level source: {source}",
+    "zh-TW": "層級來源：{source}"
+  },
+  "Level source not recorded": {
+    "en": "Level source not recorded",
+    "zh-TW": "未記錄層級來源"
+  },
+  "Lifecycle timeline": {
+    "en": "Lifecycle timeline",
+    "zh-TW": "生命週期時間軸"
+  },
+  "Newest 1000 recorded events": {
+    "en": "Newest 1000 recorded events",
+    "zh-TW": "最近 1000 筆已記錄事件"
+  },
+  "Loading recorded lifecycle…": {
+    "en": "Loading recorded lifecycle…",
+    "zh-TW": "正在載入已記錄的生命週期…"
+  },
+  "Launcher": {
+    "en": "Launcher",
+    "zh-TW": "啟動器"
+  },
+  "Actor not recorded": {
+    "en": "Actor not recorded",
+    "zh-TW": "未記錄操作者"
+  },
+  "Step": {
+    "en": "Step",
+    "zh-TW": "步驟"
+  },
+  "Who": {
+    "en": "Who",
+    "zh-TW": "操作者"
+  },
+  "Recorded details": {
+    "en": "Recorded details",
+    "zh-TW": "已記錄的詳細資料"
+  },
+  "No lifecycle events recorded for this agent.": {
+    "en": "No lifecycle events recorded for this agent.",
+    "zh-TW": "此代理尚未記錄生命週期事件。"
+  },
+  "Adopted": {
+    "en": "Adopted",
+    "zh-TW": "已接管"
+  },
+  "Resumed": {
+    "en": "Resumed",
+    "zh-TW": "已繼續執行"
+  },
+  "Turn": {
+    "en": "Turn",
+    "zh-TW": "回合"
+  },
+  "Accepted": {
+    "en": "Accepted",
+    "zh-TW": "已接受"
+  },
+  "Merged": {
+    "en": "Merged",
+    "zh-TW": "已合併"
+  },
+  "Abandoned": {
+    "en": "Abandoned",
+    "zh-TW": "已放棄"
+  },
+  "Cleaned": {
+    "en": "Cleaned",
+    "zh-TW": "已清理"
+  },
+  "Lost": {
+    "en": "Lost",
+    "zh-TW": "已失聯"
+  },
+  "State changed": {
+    "en": "State changed",
+    "zh-TW": "狀態已變更"
+  },
+  "Answered": {
+    "en": "Answered",
+    "zh-TW": "已回覆"
+  },
+  "Timed out": {
+    "en": "Timed out",
+    "zh-TW": "逾時"
+  },
+  "Program exited": {
+    "en": "Program exited",
+    "zh-TW": "程式已結束"
+  },
+  "Invalid answer": {
+    "en": "Invalid answer",
+    "zh-TW": "答案格式無效"
+  },
+  "Program unavailable": {
+    "en": "Program unavailable",
+    "zh-TW": "找不到程式"
+  },
+  "the installed manifest cannot be read": {
+    "en": "the installed manifest cannot be read",
+    "zh-TW": "無法讀取已安裝的資訊清單"
+  },
+  "the installed manifest is not a bounded JSON object": {
+    "en": "the installed manifest is not a bounded JSON object",
+    "zh-TW": "已安裝的資訊清單必須是大小符合限制的 JSON 物件"
+  },
+  "the installed manifest needs a name and version": {
+    "en": "the installed manifest needs a name and version",
+    "zh-TW": "已安裝的資訊清單缺少名稱或版本"
+  },
+  "Plugin metadata unavailable.": {
+    "en": "Plugin metadata unavailable.",
+    "zh-TW": "無法取得外掛資訊。"
+  },
+  "L{level}": {
+    "en": "L{level}",
+    "zh-TW": "L{level}"
+  },
+  "{level} · {name}": {
+    "en": "{level} · {name}",
+    "zh-TW": "{level} · {name}"
+  },
+  "{left} / {right}": {
+    "en": "{left} / {right}",
+    "zh-TW": "{left} / {right}"
+  },
+  "{left} · {right}": {
+    "en": "{left} · {right}",
+    "zh-TW": "{left} · {right}"
+  },
+  "{first} / {second} / {third}": {
+    "en": "{first} / {second} / {third}",
+    "zh-TW": "{first} / {second} / {third}"
+  },
+  "{input} / {output} / {cached} · {cost}": {
+    "en": "{input} / {output} / {cached} · {cost}",
+    "zh-TW": "{input} / {output} / {cached} · {cost}"
+  },
+  "{when} · {kind} · {count}": {
+    "en": "{when} · {kind} · {count}",
+    "zh-TW": "{when} · {kind} · {count}"
+  },
+  "{outcome}{confidence}": {
+    "en": "{outcome}{confidence}",
+    "zh-TW": "{outcome}{confidence}"
+  },
+  "{outcome}: {count}": {
+    "en": "{outcome}: {count}",
+    "zh-TW": "{outcome}：{count}"
+  },
+  "List separator": {
+    "en": ", ",
+    "zh-TW": "、"
+  },
+  "Decision changes": {
+    "en": "Decision changes",
+    "zh-TW": "決策變更"
+  },
+  "Laneboss · Org overview": {
+    "en": "Laneboss · Org overview",
+    "zh-TW": "Laneboss · 組織總覽"
+  },
+  "Laneboss / Live workspace": {
+    "en": "Laneboss / Live workspace",
+    "zh-TW": "Laneboss / 即時工作區"
+  },
+  "Org overview": {
+    "en": "Org overview",
+    "zh-TW": "組織總覽"
+  },
+  "The people, lanes and work moving your org forward.": {
+    "en": "The people, lanes and work moving your org forward.",
+    "zh-TW": "掌握組織成員、泳道與工作進度。"
+  },
+  "Dashboard panels": {
+    "en": "Dashboard panels",
+    "zh-TW": "儀表板面板"
+  },
+  "Analytics": {
+    "en": "Analytics",
+    "zh-TW": "分析"
+  },
+  "Decisions": {
+    "en": "Decisions",
+    "zh-TW": "決策"
+  },
+  "Org graph": {
+    "en": "Org graph",
+    "zh-TW": "組織圖"
+  },
+  "Org list": {
+    "en": "Org list",
+    "zh-TW": "組織清單"
+  },
+  "Org": {
+    "en": "Org",
+    "zh-TW": "組織"
+  },
+  "Lanes": {
+    "en": "Lanes",
+    "zh-TW": "泳道"
+  },
+  "Lane": {
+    "en": "Lane",
+    "zh-TW": "泳道"
+  },
+  "Logs": {
+    "en": "Logs",
+    "zh-TW": "輸出紀錄"
+  },
+  "Messages": {
+    "en": "Messages",
+    "zh-TW": "訊息"
+  },
+  "Event board": {
+    "en": "Event board",
+    "zh-TW": "事件看板"
+  },
+  "TypeSafe / judge": {
+    "en": "TypeSafe / judge",
+    "zh-TW": "TypeSafe / 判斷"
+  },
+  "Plugins": {
+    "en": "Plugins",
+    "zh-TW": "外掛"
+  },
+  "Refusals": {
+    "en": "Refusals",
+    "zh-TW": "拒絕"
+  },
+  "Refusal": {
+    "en": "Refusal",
+    "zh-TW": "拒絕"
+  },
+  "Board": {
+    "en": "Board",
+    "zh-TW": "工作看板"
+  },
+  "Health": {
+    "en": "Health",
+    "zh-TW": "系統狀況"
+  },
+  "Proposals": {
+    "en": "Proposals",
+    "zh-TW": "提案"
+  },
+  "Tool submissions": {
+    "en": "Tool submissions",
+    "zh-TW": "工具提交"
+  },
+  "Authenticated · Local": {
+    "en": "Authenticated · Local",
+    "zh-TW": "已驗證 · 本機"
+  },
+  "Connecting…": {
+    "en": "Connecting…",
+    "zh-TW": "連線中…"
+  },
+  "Window": {
+    "en": "Window",
+    "zh-TW": "範圍"
+  },
+  "Last hour": {
+    "en": "Last hour",
+    "zh-TW": "最近一小時"
+  },
+  "Last 24 hours": {
+    "en": "Last 24 hours",
+    "zh-TW": "最近 24 小時"
+  },
+  "Last 7 days": {
+    "en": "Last 7 days",
+    "zh-TW": "最近 7 天"
+  },
+  "Search": {
+    "en": "Search",
+    "zh-TW": "搜尋"
+  },
+  "Search the decision store": {
+    "en": "Search the decision store",
+    "zh-TW": "搜尋決策紀錄"
+  },
+  "Instances & supervisors": {
+    "en": "Instances & supervisors",
+    "zh-TW": "執行個體與主管"
+  },
+  "Loading levels…": {
+    "en": "Loading levels…",
+    "zh-TW": "載入層級…"
+  },
+  "Loading recorded data…": {
+    "en": "Loading recorded data…",
+    "zh-TW": "載入已記錄資料…"
+  },
+  "Loading recorded measurements…": {
+    "en": "Loading recorded measurements…",
+    "zh-TW": "載入已記錄的統計…"
+  },
+  "Loading decision records…": {
+    "en": "Loading decision records…",
+    "zh-TW": "載入決策紀錄…"
+  },
+  "Loading lanes…": {
+    "en": "Loading lanes…",
+    "zh-TW": "載入泳道…"
+  },
+  "All states": {
+    "en": "All states",
+    "zh-TW": "所有狀態"
+  },
+  "Running": {
+    "en": "Running",
+    "zh-TW": "執行中"
+  },
+  "Verifying": {
+    "en": "Verifying",
+    "zh-TW": "驗證中"
+  },
+  "Idle": {
+    "en": "Idle",
+    "zh-TW": "閒置"
+  },
+  "Failed": {
+    "en": "Failed",
+    "zh-TW": "失敗"
+  },
+  "Ended": {
+    "en": "Ended",
+    "zh-TW": "已結束"
+  },
+  "Success": {
+    "en": "Success",
+    "zh-TW": "成功"
+  },
+  "Stopped": {
+    "en": "Stopped",
+    "zh-TW": "已停止"
+  },
+  "Refused": {
+    "en": "Refused",
+    "zh-TW": "已拒絕"
+  },
+  "Stopped at budget": {
+    "en": "Stopped at budget",
+    "zh-TW": "已達時間上限"
+  },
+  "Hook configuration failure": {
+    "en": "Hook configuration failure",
+    "zh-TW": "掛鉤設定失敗"
+  },
+  "Pending": {
+    "en": "Pending",
+    "zh-TW": "待處理"
+  },
+  "OK": {
+    "en": "OK",
+    "zh-TW": "正常"
+  },
+  "Warning": {
+    "en": "Warning",
+    "zh-TW": "警告"
+  },
+  "Error": {
+    "en": "Error",
+    "zh-TW": "錯誤"
+  },
+  "Recorded agent timeline": {
+    "en": "Recorded agent timeline",
+    "zh-TW": "代理的紀錄時間軸"
+  },
+  "Recorded conversations": {
+    "en": "Recorded conversations",
+    "zh-TW": "已記錄的對話"
+  },
+  "Choose an agent": {
+    "en": "Choose an agent",
+    "zh-TW": "選擇代理"
+  },
+  "Choose a target": {
+    "en": "Choose a target",
+    "zh-TW": "選擇收件對象"
+  },
+  "Choose an agent to view its recorded output.": {
+    "en": "Choose an agent to view its recorded output.",
+    "zh-TW": "選擇代理以查看已記錄的輸出。"
+  },
+  "Tail": {
+    "en": "Tail",
+    "zh-TW": "末端行數"
+  },
+  "Follow": {
+    "en": "Follow",
+    "zh-TW": "跟隨更新"
+  },
+  "Message · up to 4000 characters": {
+    "en": "Message · up to 4000 characters",
+    "zh-TW": "訊息 · 最多 4000 字元"
+  },
+  "Write a message…": {
+    "en": "Write a message…",
+    "zh-TW": "輸入訊息…"
+  },
+  "Send message": {
+    "en": "Send message",
+    "zh-TW": "傳送訊息"
+  },
+  "Message conversations": {
+    "en": "Message conversations",
+    "zh-TW": "訊息對話"
+  },
+  "Human ↔ agent": {
+    "en": "Human ↔ agent",
+    "zh-TW": "人員 ↔ 代理"
+  },
+  "Agent ↔ agent": {
+    "en": "Agent ↔ agent",
+    "zh-TW": "代理 ↔ 代理"
+  },
+  "Loading messages…": {
+    "en": "Loading messages…",
+    "zh-TW": "載入訊息…"
+  },
+  "Newest 100 matching events": {
+    "en": "Newest 100 matching events",
+    "zh-TW": "最近 100 筆符合條件的事件"
+  },
+  "All lanes": {
+    "en": "All lanes",
+    "zh-TW": "所有泳道"
+  },
+  "All kinds": {
+    "en": "All kinds",
+    "zh-TW": "所有類型"
+  },
+  "All levels": {
+    "en": "All levels",
+    "zh-TW": "所有層級"
+  },
+  "Per-kind counts in the last hour": {
+    "en": "Per-kind counts in the last hour",
+    "zh-TW": "最近一小時各類型的筆數"
+  },
+  "Loading activity…": {
+    "en": "Loading activity…",
+    "zh-TW": "載入活動…"
+  },
+  "Recorded decisions": {
+    "en": "Recorded decisions",
+    "zh-TW": "已記錄的決策"
+  },
+  "Loading decisions…": {
+    "en": "Loading decisions…",
+    "zh-TW": "載入決策…"
+  },
+  "Installed with this launcher": {
+    "en": "Installed with this launcher",
+    "zh-TW": "此啟動器已安裝的項目"
+  },
+  "Loading plugins…": {
+    "en": "Loading plugins…",
+    "zh-TW": "載入外掛…"
+  },
+  "Hooks & guards": {
+    "en": "Hooks & guards",
+    "zh-TW": "掛鉤與防護"
+  },
+  "Loading refusals…": {
+    "en": "Loading refusals…",
+    "zh-TW": "載入拒絕紀錄…"
+  },
+  "Queued, active & completed work": {
+    "en": "Queued, active & completed work",
+    "zh-TW": "待執行、進行中與已完成的工作"
+  },
+  "Loading board…": {
+    "en": "Loading board…",
+    "zh-TW": "載入工作看板…"
+  },
+  "Disk & supervisor heartbeats": {
+    "en": "Disk & supervisor heartbeats",
+    "zh-TW": "磁碟與主管心跳"
+  },
+  "Loading health…": {
+    "en": "Loading health…",
+    "zh-TW": "載入系統狀況…"
+  },
+  "Live view · Refreshes every 5 seconds": {
+    "en": "Live view · Refreshes every 5 seconds",
+    "zh-TW": "即時檢視 · 每 5 秒更新"
+  },
+  "Times shown in your local timezone": {
+    "en": "Times shown in your local timezone",
+    "zh-TW": "時間使用您的本地時區"
+  },
+  "JavaScript is required to refresh this dashboard. The read-only JSON endpoints remain available.": {
+    "en": "JavaScript is required to refresh this dashboard. The read-only JSON endpoints remain available.",
+    "zh-TW": "需啟用 JavaScript 才能更新儀表板。唯讀 JSON 端點仍可使用。"
+  },
+  "Skip to live org": {
+    "en": "Skip to live org",
+    "zh-TW": "跳至即時組織"
+  },
+  "Find an agent": {
+    "en": "Find an agent",
+    "zh-TW": "尋找代理"
+  },
+  "Name, model or state…": {
+    "en": "Name, model or state…",
+    "zh-TW": "名稱、模型或狀態…"
+  },
+  "Pause live": {
+    "en": "Pause live",
+    "zh-TW": "暫停即時更新"
+  },
+  "Resume live": {
+    "en": "Resume live",
+    "zh-TW": "恢復即時更新"
+  },
+  "Live refresh paused": {
+    "en": "Live refresh paused",
+    "zh-TW": "即時更新已暫停"
+  },
+  "Now": {
+    "en": "Now",
+    "zh-TW": "目前概況"
+  },
+  "Reading the current org signals…": {
+    "en": "Reading the current org signals…",
+    "zh-TW": "讀取目前的組織指標…"
+  },
+  "Live org / Recorded activity": {
+    "en": "Live org / Recorded activity",
+    "zh-TW": "即時組織 / 已記錄活動"
+  },
+  "Org in motion": {
+    "en": "Org in motion",
+    "zh-TW": "組織動態"
+  },
+  "Open an agent to see its thinking, messages and guard refusals.": {
+    "en": "Open an agent to see its thinking, messages and guard refusals.",
+    "zh-TW": "開啟代理以查看思考紀錄、訊息與防護拒絕。"
+  },
+  "Reading configured instances and recorded lanes…": {
+    "en": "Reading configured instances and recorded lanes…",
+    "zh-TW": "讀取已設定的執行個體與已記錄的泳道…"
+  },
+  "Waiting for records": {
+    "en": "Waiting for records",
+    "zh-TW": "等待紀錄"
+  },
+  "Grouped by level · Sparklines cover the last hour": {
+    "en": "Grouped by level · Sparklines cover the last hour",
+    "zh-TW": "依已記錄層級分組 · 迷你圖涵蓋最近一小時"
+  },
+  "Lanes · level not recorded": {
+    "en": "Lanes · level not recorded",
+    "zh-TW": "泳道 · 未記錄層級"
+  },
+  "Level not recorded": {
+    "en": "Level not recorded",
+    "zh-TW": "未記錄層級"
+  },
+  "Started by {starter}": {
+    "en": "Started by {starter}",
+    "zh-TW": "啟動者：{starter}"
+  },
+  "Starter not recorded": {
+    "en": "Starter not recorded",
+    "zh-TW": "未記錄啟動者"
+  },
+  "Agent": {
+    "en": "Agent",
+    "zh-TW": "代理"
+  },
+  "Recorded agent": {
+    "en": "Recorded agent",
+    "zh-TW": "已記錄的代理"
+  },
+  "Close": {
+    "en": "Close",
+    "zh-TW": "關閉"
+  },
+  "Close agent drawer": {
+    "en": "Close agent drawer",
+    "zh-TW": "關閉代理面板"
+  },
+  "Thinking timeline": {
+    "en": "Thinking timeline",
+    "zh-TW": "思考時間軸"
+  },
+  "Loading recorded output…": {
+    "en": "Loading recorded output…",
+    "zh-TW": "載入已記錄的輸出…"
+  },
+  "Message this agent": {
+    "en": "Message this agent",
+    "zh-TW": "傳送訊息給此代理"
+  },
+  "Close records": {
+    "en": "Close records",
+    "zh-TW": "關閉紀錄"
+  },
+  "Theme": {
+    "en": "Theme",
+    "zh-TW": "主題"
+  },
+  "System": {
+    "en": "System",
+    "zh-TW": "依系統"
+  },
+  "Light": {
+    "en": "Light",
+    "zh-TW": "淺色"
+  },
+  "Dark": {
+    "en": "Dark",
+    "zh-TW": "深色"
+  },
+  "Language": {
+    "en": "Language",
+    "zh-TW": "語言"
+  },
+  "EN": {
+    "en": "EN",
+    "zh-TW": "EN"
+  },
+  "中文": {
+    "en": "中文",
+    "zh-TW": "中文"
+  },
+  "/": {
+    "en": "/",
+    "zh-TW": "/"
+  },
+  "g o": {
+    "en": "g o",
+    "zh-TW": "g o"
+  },
+  "g a": {
+    "en": "g a",
+    "zh-TW": "g a"
+  },
+  "g d": {
+    "en": "g d",
+    "zh-TW": "g d"
+  },
+  "?": {
+    "en": "?",
+    "zh-TW": "?"
+  },
+  "Esc": {
+    "en": "Esc",
+    "zh-TW": "Esc"
+  },
+  "Keyboard shortcuts": {
+    "en": "Keyboard shortcuts",
+    "zh-TW": "鍵盤快速鍵"
+  },
+  "Go to the live org": {
+    "en": "Go to the live org",
+    "zh-TW": "前往即時組織"
+  },
+  "Go to analytics": {
+    "en": "Go to analytics",
+    "zh-TW": "前往分析"
+  },
+  "Go to decisions": {
+    "en": "Go to decisions",
+    "zh-TW": "前往決策"
+  },
+  "Show this list": {
+    "en": "Show this list",
+    "zh-TW": "顯示此清單"
+  },
+  "Close this list": {
+    "en": "Close this list",
+    "zh-TW": "關閉此清單"
+  },
+  "Shortcuts are inactive while you type in a field.": {
+    "en": "Shortcuts are inactive while you type in a field.",
+    "zh-TW": "在輸入欄位中輸入時，快速鍵不會啟用。"
+  },
+  "decisions": {
+    "en": "decisions",
+    "zh-TW": "決策"
+  },
+  "L3": {
+    "en": "L3",
+    "zh-TW": "L3"
+  },
+  "L4": {
+    "en": "L4",
+    "zh-TW": "L4"
+  },
+  "L5": {
+    "en": "L5",
+    "zh-TW": "L5"
+  },
+  "L6": {
+    "en": "L6",
+    "zh-TW": "L6"
+  },
+  "Time": {
+    "en": "Time",
+    "zh-TW": "時間"
+  },
+  "Instance": {
+    "en": "Instance",
+    "zh-TW": "執行個體"
+  },
+  "Level": {
+    "en": "Level",
+    "zh-TW": "層級"
+  },
+  "Levels": {
+    "en": "Levels",
+    "zh-TW": "層級"
+  },
+  "Runner": {
+    "en": "Runner",
+    "zh-TW": "執行器"
+  },
+  "Model": {
+    "en": "Model",
+    "zh-TW": "模型"
+  },
+  "State": {
+    "en": "State",
+    "zh-TW": "狀態"
+  },
+  "Started": {
+    "en": "Started",
+    "zh-TW": "開始時間"
+  },
+  "Budget left": {
+    "en": "Budget left",
+    "zh-TW": "剩餘時間"
+  },
+  "Last event": {
+    "en": "Last event",
+    "zh-TW": "最近事件"
+  },
+  "Last exit": {
+    "en": "Last exit",
+    "zh-TW": "最近結束碼"
+  },
+  "Kind": {
+    "en": "Kind",
+    "zh-TW": "類型"
+  },
+  "Summary": {
+    "en": "Summary",
+    "zh-TW": "摘要"
+  },
+  "Last hour:": {
+    "en": "Last hour:",
+    "zh-TW": "最近一小時："
+  },
+  "Direction": {
+    "en": "Direction",
+    "zh-TW": "方向"
+  },
+  "Sender role": {
+    "en": "Sender role",
+    "zh-TW": "來源身分"
+  },
+  "From": {
+    "en": "From",
+    "zh-TW": "寄件者"
+  },
+  "To": {
+    "en": "To",
+    "zh-TW": "收件者"
+  },
+  "Text": {
+    "en": "Text",
+    "zh-TW": "內容"
+  },
+  "More": {
+    "en": "More",
+    "zh-TW": "展開"
+  },
+  "Text not recorded": {
+    "en": "Text not recorded",
+    "zh-TW": "未記錄內容"
+  },
+  "Showing the first 500 characters.": {
+    "en": "Showing the first 500 characters.",
+    "zh-TW": "顯示前 500 字元。"
+  },
+  "Question": {
+    "en": "Question",
+    "zh-TW": "問題"
+  },
+  "Typed answer": {
+    "en": "Typed answer",
+    "zh-TW": "具型別的答案"
+  },
+  "Outcome": {
+    "en": "Outcome",
+    "zh-TW": "結果"
+  },
+  "Name": {
+    "en": "Name",
+    "zh-TW": "名稱"
+  },
+  "Version": {
+    "en": "Version",
+    "zh-TW": "版本"
+  },
+  "Enabled": {
+    "en": "Enabled",
+    "zh-TW": "已啟用"
+  },
+  "Last error": {
+    "en": "Last error",
+    "zh-TW": "最近錯誤"
+  },
+  "Unknown": {
+    "en": "Unknown",
+    "zh-TW": "未知"
+  },
+  "Yes": {
+    "en": "Yes",
+    "zh-TW": "是"
+  },
+  "No": {
+    "en": "No",
+    "zh-TW": "否"
+  },
+  "Line": {
+    "en": "Line",
+    "zh-TW": "行"
+  },
+  "Event": {
+    "en": "Event",
+    "zh-TW": "事件"
+  },
+  "Recorded content": {
+    "en": "Recorded content",
+    "zh-TW": "已記錄內容"
+  },
+  "No data": {
+    "en": "No data",
+    "zh-TW": "無資料"
+  },
+  "no data": {
+    "en": "no data",
+    "zh-TW": "無資料"
+  },
+  "Records": {
+    "en": "Records",
+    "zh-TW": "紀錄"
+  },
+  "Hour": {
+    "en": "Hour",
+    "zh-TW": "小時"
+  },
+  "Runner / model": {
+    "en": "Runner / model",
+    "zh-TW": "執行器 / 模型"
+  },
+  "Outcomes": {
+    "en": "Outcomes",
+    "zh-TW": "結果"
+  },
+  "Source": {
+    "en": "Source",
+    "zh-TW": "來源"
+  },
+  "Lane p50 / p90 / max": {
+    "en": "Lane p50 / p90 / max",
+    "zh-TW": "泳道 p50 / p90 / 最大值"
+  },
+  "Turn p50 / p90 / max": {
+    "en": "Turn p50 / p90 / max",
+    "zh-TW": "回合 p50 / p90 / 最大值"
+  },
+  "First commit / report": {
+    "en": "First commit / report",
+    "zh-TW": "首次提交 / 回報"
+  },
+  "Lane / model / account": {
+    "en": "Lane / model / account",
+    "zh-TW": "泳道 / 模型 / 帳號"
+  },
+  "In": {
+    "en": "In",
+    "zh-TW": "輸入"
+  },
+  "Out": {
+    "en": "Out",
+    "zh-TW": "輸出"
+  },
+  "Cached": {
+    "en": "Cached",
+    "zh-TW": "快取"
+  },
+  "USD": {
+    "en": "USD",
+    "zh-TW": "USD"
+  },
+  "Total": {
+    "en": "Total",
+    "zh-TW": "合計"
+  },
+  "Partial": {
+    "en": "Partial",
+    "zh-TW": "部分資料"
+  },
+  "Rule": {
+    "en": "Rule",
+    "zh-TW": "規則"
+  },
+  "Count": {
+    "en": "Count",
+    "zh-TW": "筆數"
+  },
+  "Signal": {
+    "en": "Signal",
+    "zh-TW": "訊號"
+  },
+  "Count / seconds": {
+    "en": "Count / seconds",
+    "zh-TW": "筆數 / 秒"
+  },
+  "Account": {
+    "en": "Account",
+    "zh-TW": "帳號"
+  },
+  "Turns": {
+    "en": "Turns",
+    "zh-TW": "回合"
+  },
+  "ID": {
+    "en": "ID",
+    "zh-TW": "ID"
+  },
+  "Status": {
+    "en": "Status",
+    "zh-TW": "狀態"
+  },
+  "Date": {
+    "en": "Date",
+    "zh-TW": "日期"
+  },
+  "Decision": {
+    "en": "Decision",
+    "zh-TW": "決策"
+  },
+  "Lane / source": {
+    "en": "Lane / source",
+    "zh-TW": "泳道 / 來源"
+  },
+  "Due": {
+    "en": "Due",
+    "zh-TW": "到期"
+  },
+  "Title": {
+    "en": "Title",
+    "zh-TW": "標題"
+  },
+  "LATE": {
+    "en": "LATE",
+    "zh-TW": "已逾期"
+  },
+  "Disk free": {
+    "en": "Disk free",
+    "zh-TW": "磁碟可用空間"
+  },
+  "Disk used": {
+    "en": "Disk used",
+    "zh-TW": "磁碟已用空間"
+  },
+  "GiB": {
+    "en": "GiB",
+    "zh-TW": "GiB"
+  },
+  "Supervisor": {
+    "en": "Supervisor",
+    "zh-TW": "主管"
+  },
+  "Last heartbeat": {
+    "en": "Last heartbeat",
+    "zh-TW": "最近心跳"
+  },
+  "Event volume per hour": {
+    "en": "Event volume per hour",
+    "zh-TW": "每小時事件量"
+  },
+  "Refusals over time": {
+    "en": "Refusals over time",
+    "zh-TW": "拒絕次數趨勢"
+  },
+  "Lanes by runner and model": {
+    "en": "Lanes by runner and model",
+    "zh-TW": "依執行器與模型統計泳道"
+  },
+  "Duration percentiles (seconds)": {
+    "en": "Duration percentiles (seconds)",
+    "zh-TW": "執行時間百分位數（秒）"
+  },
+  "Usage totals and top 10": {
+    "en": "Usage totals and top 10",
+    "zh-TW": "用量合計與前 10 名"
+  },
+  "Usage by {field}": {
+    "en": "Usage by {field}",
+    "zh-TW": "依{field}統計用量"
+  },
+  "model": {
+    "en": "model",
+    "zh-TW": "模型"
+  },
+  "account": {
+    "en": "account",
+    "zh-TW": "帳號"
+  },
+  "Top refusal rules": {
+    "en": "Top refusal rules",
+    "zh-TW": "常見拒絕規則"
+  },
+  "Stuck and repeating failures": {
+    "en": "Stuck and repeating failures",
+    "zh-TW": "停滯與重複失敗"
+  },
+  "Turns per account": {
+    "en": "Turns per account",
+    "zh-TW": "各帳號回合數"
+  },
+  "Supersession chains": {
+    "en": "Supersession chains",
+    "zh-TW": "決策取代關係"
+  },
+  "Recorded changes per hour": {
+    "en": "Recorded changes per hour",
+    "zh-TW": "每小時已記錄的變更"
+  },
+  "Recorded citations": {
+    "en": "Recorded citations",
+    "zh-TW": "已記錄的引用"
+  },
+  "Employee / Recorded ledger": {
+    "en": "Employee / Recorded ledger",
+    "zh-TW": "成員 / 已記錄的工作帳"
+  },
+  "Employee ledger": {
+    "en": "Employee ledger",
+    "zh-TW": "成員工作帳"
+  },
+  "All records": {
+    "en": "All records",
+    "zh-TW": "所有紀錄"
+  },
+  "Tasks / turns": {
+    "en": "Tasks / turns",
+    "zh-TW": "任務 / 回合"
+  },
+  "Resumes": {
+    "en": "Resumes",
+    "zh-TW": "恢復執行"
+  },
+  "TypeSafe judgments": {
+    "en": "TypeSafe judgments",
+    "zh-TW": "TypeSafe 判斷"
+  },
+  "Tools": {
+    "en": "Tools",
+    "zh-TW": "工具"
+  },
+  "Since": {
+    "en": "Since",
+    "zh-TW": "起始日期"
+  },
+  "Open an org node, then choose Employee ledger to read its records.": {
+    "en": "Open an org node, then choose Employee ledger to read its records.",
+    "zh-TW": "開啟組織節點，再選擇成員工作帳以查看紀錄。"
+  },
+  "Recorded turns per day": {
+    "en": "Recorded turns per day",
+    "zh-TW": "每日已記錄回合"
+  },
+  "Success rate per day": {
+    "en": "Success rate per day",
+    "zh-TW": "每日成功率"
+  },
+  "Tasks per day": {
+    "en": "Tasks per day",
+    "zh-TW": "每日任務數"
+  },
+  "Success rate (%)": {
+    "en": "Success rate (%)",
+    "zh-TW": "成功率（%）"
+  },
+  "Kind / lane / turn": {
+    "en": "Kind / lane / turn",
+    "zh-TW": "類型 / 泳道 / 回合"
+  },
+  "Brief / event": {
+    "en": "Brief / event",
+    "zh-TW": "工作說明 / 事件"
+  },
+  "Outcome / reason": {
+    "en": "Outcome / reason",
+    "zh-TW": "結果 / 原因"
+  },
+  "Exit / duration": {
+    "en": "Exit / duration",
+    "zh-TW": "結束碼 / 執行時間"
+  },
+  "Model / seat": {
+    "en": "Model / seat",
+    "zh-TW": "模型 / 席位"
+  },
+  "Tokens / USD": {
+    "en": "Tokens / USD",
+    "zh-TW": "Token / USD"
+  },
+  "Reading the employee’s recorded work…": {
+    "en": "Reading the employee’s recorded work…",
+    "zh-TW": "讀取成員已記錄的工作…"
+  },
+  "Rule-change proposals": {
+    "en": "Rule-change proposals",
+    "zh-TW": "規則變更提案"
+  },
+  "Review through the normal org flow": {
+    "en": "Review through the normal org flow",
+    "zh-TW": "依組織既有流程審查"
+  },
+  "Loading recorded proposals…": {
+    "en": "Loading recorded proposals…",
+    "zh-TW": "載入已記錄提案…"
+  },
+  "Employee": {
+    "en": "Employee",
+    "zh-TW": "成員"
+  },
+  "Loading submitted tools…": {
+    "en": "Loading submitted tools…",
+    "zh-TW": "載入已提交工具…"
+  },
+  "Effect labels describe recorded refusal text. Unresolved effects stay opaque.": {
+    "en": "Effect labels describe recorded refusal text. Unresolved effects stay opaque.",
+    "zh-TW": "影響分類描述已記錄的拒絕內容；無法判定時維持不明。"
+  },
+  "Refusals per hour": {
+    "en": "Refusals per hour",
+    "zh-TW": "每小時拒絕次數"
+  },
+  "Recorded refusals per hour": {
+    "en": "Recorded refusals per hour",
+    "zh-TW": "每小時已記錄的拒絕次數"
+  },
+  "File proposal": {
+    "en": "File proposal",
+    "zh-TW": "提交提案"
+  },
+  "Refusal group": {
+    "en": "Refusal group",
+    "zh-TW": "拒絕群組"
+  },
+  "Why this may be a false block": {
+    "en": "Why this may be a false block",
+    "zh-TW": "說明為何可能是誤擋"
+  },
+  "Report a likely false block": {
+    "en": "Report a likely false block",
+    "zh-TW": "回報可能的誤擋"
+  },
+  "Records a proposal for human review. Policy changes follow the org’s normal review and tool-post flow.": {
+    "en": "Records a proposal for human review. Policy changes follow the org’s normal review and tool-post flow.",
+    "zh-TW": "建立提案供人員審查。政策變更仍依組織既有審查與工具提交流程處理。"
+  },
+  "All employees": {
+    "en": "All employees",
+    "zh-TW": "所有成員"
+  },
+  "Choose an effect and rule group": {
+    "en": "Choose an effect and rule group",
+    "zh-TW": "選擇影響與規則群組"
+  },
+  "Effect / rule": {
+    "en": "Effect / rule",
+    "zh-TW": "影響 / 規則"
+  },
+  "Employee / level": {
+    "en": "Employee / level",
+    "zh-TW": "成員 / 層級"
+  },
+  "First / last seen": {
+    "en": "First / last seen",
+    "zh-TW": "首次 / 最近發生"
+  },
+  "Screened examples": {
+    "en": "Screened examples",
+    "zh-TW": "已過濾的範例"
+  },
+  "Time / ID": {
+    "en": "Time / ID",
+    "zh-TW": "時間 / ID"
+  },
+  "Employees": {
+    "en": "Employees",
+    "zh-TW": "成員"
+  },
+  "Human note": {
+    "en": "Human note",
+    "zh-TW": "回報說明"
+  },
+  "Path / SHA-256": {
+    "en": "Path / SHA-256",
+    "zh-TW": "路徑 / SHA-256"
+  },
+  "Purpose": {
+    "en": "Purpose",
+    "zh-TW": "用途"
+  },
+  "Screened preview": {
+    "en": "Screened preview",
+    "zh-TW": "已過濾的預覽"
+  },
+  "Recorded": {
+    "en": "Recorded",
+    "zh-TW": "記錄時間"
+  },
+  "Employee / question": {
+    "en": "Employee / question",
+    "zh-TW": "成員 / 問題"
+  },
+  "Typed answer / probability": {
+    "en": "Typed answer / probability",
+    "zh-TW": "具型別的答案 / 機率"
+  },
+  "Rule / allow or refuse": {
+    "en": "Rule / allow or refuse",
+    "zh-TW": "規則 / 允許或拒絕"
+  },
+  "Latency (ms)": {
+    "en": "Latency (ms)",
+    "zh-TW": "耗時（毫秒）"
+  },
+  "Outcome / confidence": {
+    "en": "Outcome / confidence",
+    "zh-TW": "結果 / 信心程度"
+  },
+  "No lanes match this state.": {
+    "en": "No lanes match this state.",
+    "zh-TW": "沒有符合此狀態的泳道。"
+  },
+  "No instances or supervisors are configured.": {
+    "en": "No instances or supervisors are configured.",
+    "zh-TW": "尚未設定執行個體或主管。"
+  },
+  "No matching events": {
+    "en": "No matching events",
+    "zh-TW": "沒有符合條件的事件"
+  },
+  "No events match these filters.": {
+    "en": "No events match these filters.",
+    "zh-TW": "沒有符合這些篩選條件的事件。"
+  },
+  "No human ↔ agent messages have been recorded.": {
+    "en": "No human ↔ agent messages have been recorded.",
+    "zh-TW": "尚未記錄人員與代理之間的訊息。"
+  },
+  "No agent ↔ agent messages have been recorded.": {
+    "en": "No agent ↔ agent messages have been recorded.",
+    "zh-TW": "尚未記錄代理之間的訊息。"
+  },
+  "No judge decisions have been recorded.": {
+    "en": "No judge decisions have been recorded.",
+    "zh-TW": "尚未記錄判斷結果。"
+  },
+  "No launcher plugins are installed.": {
+    "en": "No launcher plugins are installed.",
+    "zh-TW": "尚未安裝啟動器外掛。"
+  },
+  "No events in this tail.": {
+    "en": "No events in this tail.",
+    "zh-TW": "這段末端紀錄沒有事件。"
+  },
+  "No output has been recorded for this target.": {
+    "en": "No output has been recorded for this target.",
+    "zh-TW": "此對象尚未記錄輸出。"
+  },
+  "No data recorded for this window.": {
+    "en": "No data recorded for this window.",
+    "zh-TW": "此範圍尚未記錄資料。"
+  },
+  "No data recorded.": {
+    "en": "No data recorded.",
+    "zh-TW": "尚未記錄資料。"
+  },
+  "No decision store recorded.": {
+    "en": "No decision store recorded.",
+    "zh-TW": "尚未記錄決策資料庫。"
+  },
+  "No supersession chains recorded.": {
+    "en": "No supersession chains recorded.",
+    "zh-TW": "尚未記錄決策取代關係。"
+  },
+  "No recorded refusals.": {
+    "en": "No recorded refusals.",
+    "zh-TW": "尚未記錄拒絕。"
+  },
+  "No board items are available.": {
+    "en": "No board items are available.",
+    "zh-TW": "沒有可顯示的工作項目。"
+  },
+  "No supervisor heartbeat has been recorded.": {
+    "en": "No supervisor heartbeat has been recorded.",
+    "zh-TW": "尚未記錄主管心跳。"
+  },
+  "No records for this employee in the selected period. Tasks, turns and messages appear when the launcher records them.": {
+    "en": "No records for this employee in the selected period. Tasks, turns and messages appear when the launcher records them.",
+    "zh-TW": "所選期間沒有此成員的紀錄。啟動器記錄任務、回合與訊息後便會顯示。"
+  },
+  "No records match this kind filter.": {
+    "en": "No records match this kind filter.",
+    "zh-TW": "沒有符合此類型篩選的紀錄。"
+  },
+  "No recorded refusal groups match these filters.": {
+    "en": "No recorded refusal groups match these filters.",
+    "zh-TW": "沒有符合篩選條件的拒絕群組。"
+  },
+  "No rule-change proposals have been recorded.": {
+    "en": "No rule-change proposals have been recorded.",
+    "zh-TW": "尚未記錄規則變更提案。"
+  },
+  "No submitted tools match this employee.": {
+    "en": "No submitted tools match this employee.",
+    "zh-TW": "沒有此成員的工具提交紀錄。"
+  },
+  "Org records are unavailable. Check the panel error.": {
+    "en": "Org records are unavailable. Check the panel error.",
+    "zh-TW": "無法取得組織紀錄，請查看面板錯誤訊息。"
+  },
+  "Unavailable": {
+    "en": "Unavailable",
+    "zh-TW": "無法取得"
+  },
+  "No instances or lanes have been recorded. Configure the org or start a lane to see it here.": {
+    "en": "No instances or lanes have been recorded. Configure the org or start a lane to see it here.",
+    "zh-TW": "尚未記錄執行個體或泳道。設定組織或啟動泳道後便會顯示。"
+  },
+  "No recorded nodes": {
+    "en": "No recorded nodes",
+    "zh-TW": "尚未記錄節點"
+  },
+  "No model recorded": {
+    "en": "No model recorded",
+    "zh-TW": "未記錄模型"
+  },
+  "No model": {
+    "en": "No model",
+    "zh-TW": "未記錄模型"
+  },
+  "No runner recorded": {
+    "en": "No runner recorded",
+    "zh-TW": "未記錄執行器"
+  },
+  "No state recorded": {
+    "en": "No state recorded",
+    "zh-TW": "未記錄狀態"
+  },
+  "Events in the last hour": {
+    "en": "Events in the last hour",
+    "zh-TW": "最近一小時的事件"
+  },
+  "No events in the last hour": {
+    "en": "No events in the last hour",
+    "zh-TW": "最近一小時沒有事件"
+  },
+  "No agents match this filter. Clear the search or choose another Now signal.": {
+    "en": "No agents match this filter. Clear the search or choose another Now signal.",
+    "zh-TW": "沒有符合篩選條件的代理。清除搜尋或選擇其他目前指標。"
+  },
+  "Recorded turns · partial": {
+    "en": "Recorded turns · partial",
+    "zh-TW": "已記錄回合 · 部分資料"
+  },
+  "24 h recorded history": {
+    "en": "24 h recorded history",
+    "zh-TW": "24 小時的已記錄歷史"
+  },
+  "No recorded history": {
+    "en": "No recorded history",
+    "zh-TW": "尚未記錄歷史"
+  },
+  "Lane outcomes per hour": {
+    "en": "Lane outcomes per hour",
+    "zh-TW": "每小時泳道結果"
+  },
+  "No lane outcomes were recorded in this window. Ended runs and refusal records will appear here.": {
+    "en": "No lane outcomes were recorded in this window. Ended runs and refusal records will appear here.",
+    "zh-TW": "此範圍未記錄泳道結果。結束執行或記錄拒絕後便會顯示。"
+  },
+  "Lane latency · p50 to p90": {
+    "en": "Lane latency · p50 to p90",
+    "zh-TW": "泳道耗時 · p50 至 p90"
+  },
+  "No recorded lane durations yet. Percentiles appear after runs end.": {
+    "en": "No recorded lane durations yet. Percentiles appear after runs end.",
+    "zh-TW": "尚未記錄泳道執行時間。執行結束後會顯示百分位數。"
+  },
+  "Refusal heatmap · rule × hour": {
+    "en": "Refusal heatmap · rule × hour",
+    "zh-TW": "拒絕熱圖 · 規則 × 小時"
+  },
+  "No refusals recorded in this window. Each recorded rule and hour will become a cell.": {
+    "en": "No refusals recorded in this window. Each recorded rule and hour will become a cell.",
+    "zh-TW": "此範圍未記錄拒絕。每個已記錄的規則與小時會形成一格。"
+  },
+  "No rule recorded": {
+    "en": "No rule recorded",
+    "zh-TW": "未記錄規則"
+  },
+  "Token use by model": {
+    "en": "Token use by model",
+    "zh-TW": "各模型 Token 用量"
+  },
+  "No vendor usage receipts were recorded. Token use stays unavailable until a vendor records it.": {
+    "en": "No vendor usage receipts were recorded. Token use stays unavailable until a vendor records it.",
+    "zh-TW": "尚未記錄供應商用量回條。供應商記錄後才會顯示 Token 用量。"
+  },
+  "No decision store recorded. Initialize the selected configuration’s decision store to populate this view.": {
+    "en": "No decision store recorded. Initialize the selected configuration’s decision store to populate this view.",
+    "zh-TW": "尚未記錄決策資料庫。初始化所選設定的決策資料庫後便會顯示。"
+  },
+  "No thinking or tools in this recorded tail.": {
+    "en": "No thinking or tools in this recorded tail.",
+    "zh-TW": "這段末端紀錄沒有思考或工具項目。"
+  },
+  "No output recorded for this agent yet.": {
+    "en": "No output recorded for this agent yet.",
+    "zh-TW": "此代理尚未記錄輸出。"
+  },
+  "No exit recorded": {
+    "en": "No exit recorded",
+    "zh-TW": "未記錄結束碼"
+  },
+  "Input": {
+    "en": "Input",
+    "zh-TW": "輸入"
+  },
+  "Output": {
+    "en": "Output",
+    "zh-TW": "輸出"
+  },
+  "Thinking": {
+    "en": "Thinking",
+    "zh-TW": "思考"
+  },
+  "Assistant": {
+    "en": "Assistant",
+    "zh-TW": "助理"
+  },
+  "Reasoning": {
+    "en": "Reasoning",
+    "zh-TW": "推理"
+  },
+  "Tool use": {
+    "en": "Tool use",
+    "zh-TW": "使用工具"
+  },
+  "Tool result": {
+    "en": "Tool result",
+    "zh-TW": "工具結果"
+  },
+  "Command execution": {
+    "en": "Command execution",
+    "zh-TW": "執行命令"
+  },
+  "Recorded data unavailable": {
+    "en": "Recorded data unavailable",
+    "zh-TW": "無法取得已記錄資料"
+  },
+  "Recorded data unavailable.": {
+    "en": "Recorded data unavailable.",
+    "zh-TW": "無法取得已記錄資料。"
+  },
+  "No messages recorded for this agent.": {
+    "en": "No messages recorded for this agent.",
+    "zh-TW": "此代理尚未記錄訊息。"
+  },
+  "No recent refusals recorded for this agent.": {
+    "en": "No recent refusals recorded for this agent.",
+    "zh-TW": "此代理近期沒有拒絕紀錄。"
+  },
+  "Message text not recorded": {
+    "en": "Message text not recorded",
+    "zh-TW": "未記錄訊息內容"
+  },
+  "Refusal text not recorded": {
+    "en": "Refusal text not recorded",
+    "zh-TW": "未記錄拒絕內容"
+  },
+  "Could not refresh this agent’s records.": {
+    "en": "Could not refresh this agent’s records.",
+    "zh-TW": "無法更新此代理的紀錄。"
+  },
+  "Sending…": {
+    "en": "Sending…",
+    "zh-TW": "傳送中…"
+  },
+  "Delivery refused.": {
+    "en": "Delivery refused.",
+    "zh-TW": "訊息傳送遭拒。"
+  },
+  "Open the latest dashboard URL.": {
+    "en": "Open the latest dashboard URL.",
+    "zh-TW": "請開啟最新的儀表板網址。"
+  },
+  "Access denied. Open the latest dashboard URL.": {
+    "en": "Access denied. Open the latest dashboard URL.",
+    "zh-TW": "存取遭拒，請開啟最新的儀表板網址。"
+  },
+  "Could not refresh this panel. Any displayed data is from its last successful refresh.": {
+    "en": "Could not refresh this panel. Any displayed data is from its last successful refresh.",
+    "zh-TW": "無法更新此面板。目前顯示的是上次成功更新的資料。"
+  },
+  "Measurements unavailable.": {
+    "en": "Measurements unavailable.",
+    "zh-TW": "無法取得統計。"
+  },
+  "Current signals unavailable.": {
+    "en": "Current signals unavailable.",
+    "zh-TW": "無法取得目前指標。"
+  },
+  "Reading recorded source…": {
+    "en": "Reading recorded source…",
+    "zh-TW": "讀取已記錄來源…"
+  },
+  "Recorded source unavailable. Open the latest dashboard URL.": {
+    "en": "Recorded source unavailable. Open the latest dashboard URL.",
+    "zh-TW": "無法取得已記錄來源，請開啟最新的儀表板網址。"
+  },
+  "Recording proposal…": {
+    "en": "Recording proposal…",
+    "zh-TW": "記錄提案中…"
+  },
+  "Report refused.": {
+    "en": "Report refused.",
+    "zh-TW": "回報遭拒。"
+  },
+  "Proposal recorded. Policy unchanged.": {
+    "en": "Proposal recorded. Policy unchanged.",
+    "zh-TW": "提案已記錄。政策未變更。"
+  },
+  "Request refused. Check the records for details.": {
+    "en": "Request refused. Check the records for details.",
+    "zh-TW": "請求遭拒，請查看紀錄以了解詳情。"
+  },
+  "{name} / Overview": {
+    "en": "{name} / Overview",
+    "zh-TW": "{name} / 總覽"
+  },
+  "{name} / Ledger": {
+    "en": "{name} / Ledger",
+    "zh-TW": "{name} / 工作帳"
+  },
+  "{shown} / {total} recorded nodes": {
+    "en": "{shown} / {total} recorded nodes",
+    "zh-TW": "已顯示 {shown} / {total} 個已記錄節點"
+  },
+  "{human} human / {agent} agent": {
+    "en": "{human} human / {agent} agent",
+    "zh-TW": "人員訊息 {human} / 代理訊息 {agent}"
+  },
+  "{value} min": {
+    "en": "{value} min",
+    "zh-TW": "{value} 分鐘"
+  },
+  "{value} ms": {
+    "en": "{value} ms",
+    "zh-TW": "{value} 毫秒"
+  },
+  "{value} GiB": {
+    "en": "{value} GiB",
+    "zh-TW": "{value} GiB"
+  },
+  "{kind} · {runner}": {
+    "en": "{kind} · {runner}",
+    "zh-TW": "{kind} · {runner}"
+  },
+  "{label} · last 24 hours": {
+    "en": "{label} · last 24 hours",
+    "zh-TW": "{label} · 最近 24 小時"
+  },
+  "{when} · {value}": {
+    "en": "{when} · {value}",
+    "zh-TW": "{when} · {value}"
+  },
+  "{when} · {kind}: {count}": {
+    "en": "{when} · {kind}: {count}",
+    "zh-TW": "{when} · {kind}：{count}"
+  },
+  "{rule} · {when} · {count} refusals": {
+    "en": "{rule} · {when} · {count} refusals",
+    "zh-TW": "{rule} · {when} · {count} 次拒絕"
+  },
+  "{model} · p50 {p50} s · p90 {p90} s · max {max} s": {
+    "en": "{model} · p50 {p50} s · p90 {p90} s · max {max} s",
+    "zh-TW": "{model} · p50 {p50} 秒 · p90 {p90} 秒 · 最大 {max} 秒"
+  },
+  "p50 {p50} s / p90 {p90} s": {
+    "en": "p50 {p50} s / p90 {p90} s",
+    "zh-TW": "p50 {p50} 秒 / p90 {p90} 秒"
+  },
+  "{model} · input {input} · output {output} · cached {cached} · USD {cost}{partial}": {
+    "en": "{model} · input {input} · output {output} · cached {cached} · USD {cost}{partial}",
+    "zh-TW": "{model} · 輸入 {input} · 輸出 {output} · 快取 {cached} · USD {cost}{partial}"
+  },
+  "in {input} / out {output}{partial}": {
+    "en": "in {input} / out {output}{partial}",
+    "zh-TW": "輸入 {input} / 輸出 {output}{partial}"
+  },
+  " · partial": {
+    "en": " · partial",
+    "zh-TW": " · 部分資料"
+  },
+  " · Low confidence": {
+    "en": " · Low confidence",
+    "zh-TW": " · 低信心"
+  },
+  "exit {code}": {
+    "en": "exit {code}",
+    "zh-TW": "結束碼 {code}"
+  },
+  "{kind} / {level}": {
+    "en": "{kind} / {level}",
+    "zh-TW": "{kind} / {level}"
+  },
+  "{when} · {rule}": {
+    "en": "{when} · {rule}",
+    "zh-TW": "{when} · {rule}"
+  },
+  "Recorded events: {count} · {usage}": {
+    "en": "Recorded events: {count} · {usage}",
+    "zh-TW": "已記錄事件：{count} · {usage}"
+  },
+  "Usage is partial": {
+    "en": "Usage is partial",
+    "zh-TW": "用量為部分資料"
+  },
+  "Usage from recorded receipts": {
+    "en": "Usage from recorded receipts",
+    "zh-TW": "用量來自已記錄回條"
+  },
+  "Integrity: OK": {
+    "en": "Integrity: OK",
+    "zh-TW": "完整性：正常"
+  },
+  "Integrity: {problem}": {
+    "en": "Integrity: {problem}",
+    "zh-TW": "完整性：{problem}"
+  },
+  "{count} panel(s) unavailable": {
+    "en": "{count} panel(s) unavailable",
+    "zh-TW": "有 {count} 個面板無法取得資料"
+  },
+  "Updated {time}": {
+    "en": "Updated {time}",
+    "zh-TW": "更新時間：{time}"
+  },
+  "Message recorded for {target}.": {
+    "en": "Message recorded for {target}.",
+    "zh-TW": "已記錄傳送給 {target} 的訊息。"
+  },
+  "{effect} / {rule} · {count} refusals across employees": {
+    "en": "{effect} / {rule} · {count} refusals across employees",
+    "zh-TW": "{effect} / {rule} · 所有成員共 {count} 次拒絕"
+  },
+  "Judged share: {share} · {judged} / {total} explicit guard/refusal decisions. Low confidence: 0.25 < probability < 0.75.": {
+    "en": "Judged share: {share} · {judged} / {total} explicit guard/refusal decisions. Low confidence: 0.25 < probability < 0.75.",
+    "zh-TW": "經判斷比例：{share} · {judged} / {total} 筆明確防護／拒絕決策。低信心範圍：0.25 < 機率 < 0.75。"
+  },
+  "Done {done} · Failed {failed} · Running {running} · Success {success} · Median {median} s · Tokens in/out/cached {input} / {output} / {cached} · USD {cost} · Resumes {resumes} · Refusals {refusals} · Messages sent/received {sent} / {received}{partial}": {
+    "en": "Done {done} · Failed {failed} · Running {running} · Success {success} · Median {median} s · Tokens in/out/cached {input} / {output} / {cached} · USD {cost} · Resumes {resumes} · Refusals {refusals} · Messages sent/received {sent} / {received}{partial}",
+    "zh-TW": "完成 {done} · 失敗 {failed} · 執行中 {running} · 成功率 {success} · 中位數 {median} 秒 · Token 輸入／輸出／快取 {input} / {output} / {cached} · USD {cost} · 恢復執行 {resumes} · 拒絕 {refusals} · 訊息寄出／收到 {sent} / {received}{partial}"
+  },
+  " · Usage partial": {
+    "en": " · Usage partial",
+    "zh-TW": " · 用量為部分資料"
+  },
+  "Running lanes": {
+    "en": "Running lanes",
+    "zh-TW": "執行中的泳道"
+  },
+  "Turns in last 5 minutes": {
+    "en": "Turns in last 5 minutes",
+    "zh-TW": "最近 5 分鐘的回合"
+  },
+  "Refusals in last hour": {
+    "en": "Refusals in last hour",
+    "zh-TW": "最近一小時的拒絕"
+  },
+  "New decisions today": {
+    "en": "New decisions today",
+    "zh-TW": "今日新增決策"
+  },
+  "Stuck lanes": {
+    "en": "Stuck lanes",
+    "zh-TW": "停滯泳道"
+  },
+  "Seconds": {
+    "en": "Seconds",
+    "zh-TW": "秒"
+  },
+  "No level recorded": {
+    "en": "No level recorded",
+    "zh-TW": "未記錄層級"
+  },
+  "Turns · last 5 min": {
+    "en": "Turns · last 5 min",
+    "zh-TW": "回合 · 最近 5 分鐘"
+  },
+  "Refusals · last hour": {
+    "en": "Refusals · last hour",
+    "zh-TW": "拒絕 · 最近一小時"
+  },
+  "Stuck · 15 min idle": {
+    "en": "Stuck · 15 min idle",
+    "zh-TW": "停滯 · 閒置 15 分鐘"
+  },
+  "Decisions changed · UTC today": {
+    "en": "Decisions changed · UTC today",
+    "zh-TW": "決策變更 · 今日 UTC"
+  },
+  " → ": {
+    "en": " → ",
+    "zh-TW": " → "
+  }
+}

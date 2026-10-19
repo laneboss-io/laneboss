@@ -1,0 +1,751 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:laneboss:e2e-control:v2",
+  "title": "Harness-only control protocol; never a product endpoint",
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "case_id",
+        "config",
+        "socket",
+        "generation",
+        "controller_uid",
+        "case_uid",
+        "binary_sha256",
+        "source_sha256",
+        "live_auth",
+        "service_ids",
+        "canary_ids",
+        "fixture_clock_ids"
+      ],
+      "properties": {
+        "schema": {
+          "const": "laneboss.e2e-control-binding.v2"
+        },
+        "case_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "config": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "socket": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "controller_uid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "case_uid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "binary_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "live_auth": {
+          "const": false
+        },
+        "service_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        },
+        "canary_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        },
+        "fixture_clock_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      }
+    },
+    "request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "case_id",
+            "phase",
+            "mutation_id",
+            "binary_sha256",
+            "request_id",
+            "nonce",
+            "action",
+            "params"
+          ],
+          "properties": {
+            "schema": {
+              "const": "laneboss.e2e-control.v2"
+            },
+            "case_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "phase": {
+              "enum": [
+                "red",
+                "candidate"
+              ]
+            },
+            "mutation_id": {
+              "type": "string"
+            },
+            "binary_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,128}$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,128}$"
+            },
+            "action": {
+              "const": "restart_service"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "service_id",
+                "expected_generation"
+              ],
+              "properties": {
+                "service_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "expected_generation": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "case_id",
+            "phase",
+            "mutation_id",
+            "binary_sha256",
+            "request_id",
+            "nonce",
+            "action",
+            "params"
+          ],
+          "properties": {
+            "schema": {
+              "const": "laneboss.e2e-control.v2"
+            },
+            "case_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "phase": {
+              "enum": [
+                "red",
+                "candidate"
+              ]
+            },
+            "mutation_id": {
+              "type": "string"
+            },
+            "binary_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,128}$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,128}$"
+            },
+            "action": {
+              "const": "run_confined_canary"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "target",
+                "canary_id",
+                "input"
+              ],
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "life_id",
+                    "run"
+                  ],
+                  "properties": {
+                    "life_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "run": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                },
+                "canary_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "input": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "sha256",
+                    "bytes",
+                    "class"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 67108864
+                    },
+                    "class": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "case_id",
+            "phase",
+            "mutation_id",
+            "binary_sha256",
+            "request_id",
+            "nonce",
+            "action",
+            "params"
+          ],
+          "properties": {
+            "schema": {
+              "const": "laneboss.e2e-control.v2"
+            },
+            "case_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "phase": {
+              "enum": [
+                "red",
+                "candidate"
+              ]
+            },
+            "mutation_id": {
+              "type": "string"
+            },
+            "binary_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,128}$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,128}$"
+            },
+            "action": {
+              "const": "advance_fixture_clock"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "clock_id",
+                "expected_generation",
+                "from",
+                "to"
+              ],
+              "properties": {
+                "clock_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "expected_generation": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "from": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "to": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "case_id",
+            "request_id",
+            "nonce",
+            "binary_sha256",
+            "action",
+            "result"
+          ],
+          "properties": {
+            "schema": {
+              "const": "laneboss.e2e-control-reply.v2"
+            },
+            "case_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "binary_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action": {
+              "const": "restart_service"
+            },
+            "result": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "service_id",
+                "previous_generation",
+                "current_generation",
+                "old_pid",
+                "new_pid",
+                "old_exited",
+                "evidence"
+              ],
+              "properties": {
+                "service_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "previous_generation": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "current_generation": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "old_pid": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "new_pid": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "old_exited": {
+                  "type": "boolean"
+                },
+                "evidence": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "sha256",
+                      "bytes"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "bytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "case_id",
+            "request_id",
+            "nonce",
+            "binary_sha256",
+            "action",
+            "result"
+          ],
+          "properties": {
+            "schema": {
+              "const": "laneboss.e2e-control-reply.v2"
+            },
+            "case_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "binary_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action": {
+              "const": "run_confined_canary"
+            },
+            "result": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "job_id",
+                "target",
+                "observed_exit",
+                "containment_state",
+                "survivors",
+                "input_sha256",
+                "evidence"
+              ],
+              "properties": {
+                "job_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "life_id",
+                    "run"
+                  ],
+                  "properties": {
+                    "life_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "run": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                },
+                "observed_exit": {
+                  "type": "integer"
+                },
+                "containment_state": {
+                  "const": "exited"
+                },
+                "survivors": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "input_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "evidence": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "sha256",
+                      "bytes"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "bytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "case_id",
+            "request_id",
+            "nonce",
+            "binary_sha256",
+            "action",
+            "result"
+          ],
+          "properties": {
+            "schema": {
+              "const": "laneboss.e2e-control-reply.v2"
+            },
+            "case_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "binary_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action": {
+              "const": "advance_fixture_clock"
+            },
+            "result": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "clock_id",
+                "generation",
+                "from",
+                "to",
+                "evidence"
+              ],
+              "properties": {
+                "clock_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "generation": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "from": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "to": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "evidence": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "sha256",
+                      "bytes"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "bytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "case_id",
+            "request_id",
+            "nonce",
+            "binary_sha256",
+            "error"
+          ],
+          "properties": {
+            "schema": {
+              "const": "laneboss.e2e-control-reply.v2"
+            },
+            "case_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "binary_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "error": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "code",
+                "message",
+                "instead",
+                "evidence"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "instead": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "sha256",
+                      "bytes"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "bytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/binding"
+    },
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    }
+  ]
+}

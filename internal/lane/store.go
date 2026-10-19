@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	_ "modernc.org/sqlite"
+
+	"laneboss.io/laneboss/internal/eventstore"
 )
 
 var storeSchema = []string{
@@ -30,6 +32,10 @@ type session struct {
 	root *os.Root
 	dir  *os.File
 	db   *sql.DB
+
+	// Destructive and launch operations read launcher records. Append/replay
+	// and display readers still use the complete observation projection.
+	authority bool
 }
 
 func openSession(c *configuration, create bool) (*session, error) {
@@ -268,6 +274,12 @@ func decodeProjection(text string) (object, error) {
 	return obj(v), nil
 }
 func (s *session) row(lane string) (object, error) {
+	if s.authority {
+		return s.recordedRow(lane)
+	}
+	return s.observedRow(lane)
+}
+func (s *session) observedRow(lane string) (object, error) {
 	if s.db == nil {
 		return nil, nil
 	}
@@ -374,6 +386,16 @@ func readEvent(row scanner) (object, error) {
 	return e, nil
 }
 func (s *session) last(lane, kind string) (object, error) {
+	if s.authority {
+		events, err := s.launcherEvents(lane, kind)
+		if err != nil || len(events) == 0 {
+			return nil, err
+		}
+		return events[len(events)-1], nil
+	}
+	return s.lastObservation(lane, kind)
+}
+func (s *session) lastObservation(lane, kind string) (object, error) {
 	if s.db == nil {
 		return nil, nil
 	}
@@ -384,6 +406,12 @@ func (s *session) last(lane, kind string) (object, error) {
 	return e, err
 }
 func (s *session) laneEvents(lane string, kinds ...string) ([]object, error) {
+	if s.authority {
+		return s.launcherEvents(lane, kinds...)
+	}
+	return s.observedLaneEvents(lane, kinds...)
+}
+func (s *session) observedLaneEvents(lane string, kinds ...string) ([]object, error) {
 	found := []object{}
 	if s.db == nil {
 		return found, nil
@@ -432,7 +460,7 @@ func normalizeEnvelope(e object) (object, error) {
 	if e["id"] == nil || e["id"] == "" {
 		e["id"] = "ev-" + newID()
 	}
-	if !match(`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`, str(e["id"])) || !match(`[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}`, str(e["kind"])) || !match(`[A-Za-z0-9][A-Za-z0-9._:@/+-]{0,127}`, str(e["actor"])) || !match(`[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}`, str(e["protocol_version"])) {
+	if !match(`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`, str(e["id"])) || !match(`[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}`, str(e["kind"])) || !match(`[A-Za-z0-9][A-Za-z0-9._:@/+() -]{0,127}`, str(e["actor"])) || !match(`[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}`, str(e["protocol_version"])) {
 		return nil, refuse("an event has an invalid envelope field")
 	}
 	if e["lane"] != nil && !match(`[a-z0-9][a-z0-9._-]{0,63}`, str(e["lane"])) {
@@ -440,6 +468,11 @@ func normalizeEnvelope(e object) (object, error) {
 	}
 	if obj(e["payload"]) == nil || len(canonical(e["payload"])) > 1024*1024 {
 		return nil, refuse("payload must be a JSON object of at most 1 MiB")
+	}
+	if e["kind"] == "store.record" {
+		if err := eventstore.ValidateRecord(obj(e["payload"])); err != nil {
+			return nil, refuse("%s", err)
+		}
 	}
 	if e["occurred_at"] != nil && !validTimestamp(e["occurred_at"]) {
 		return nil, refuse("occurred_at must be a valid timestamp")

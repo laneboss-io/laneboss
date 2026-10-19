@@ -30,3 +30,23 @@ func TestTurnScannerDELAndC1PathTraversal(t *testing.T) {
 		}
 	}
 }
+
+func TestTurnScannerBacktickPaths(t *testing.T) {
+	directory := t.TempDir()
+	for _, row := range []struct {
+		command string
+		files   []string
+	}{
+		{"echo `printf '\\`'` > first.txt; rm second.txt", []string{"first.txt", "second.txt"}},
+		{"echo \"a`b\" > inner.txt; echo \"c`d\" > outer.txt", []string{"outer.txt"}},
+	} {
+		want := []string{}
+		for _, file := range row.files {
+			want = append(want, filepath.Join(directory, file))
+		}
+		writes, named := analyseShell(row.command, directory)
+		if !reflect.DeepEqual(writes, want) || !reflect.DeepEqual(named, want) {
+			t.Fatal("turn scanner lost the shared backtick file-effect rules")
+		}
+	}
+}

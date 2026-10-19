@@ -1,0 +1,1170 @@
+{
+  "schema": "laneboss.linux-mutations.v2",
+  "contract_revision": "v2.0-draft.4",
+  "mutations": [
+    {
+      "id": "linux-backend-label",
+      "scope": "installed backend metadata validation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "if spec.Backend != backendName {",
+      "after": "if false && spec.Backend != backendName {",
+      "test": "TestBackendRejectsOldLabel",
+      "failure_contains": "expected typed unsupported, got <nil>"
+    },
+    {
+      "id": "linux-worker-schema",
+      "scope": "draft.3 worker schema metadata validation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "spec.Worker.Schema != \"laneboss.worker-plan.v2\"",
+      "after": "false && spec.Worker.Schema != \"laneboss.worker-plan.v2\"",
+      "test": "TestDraftThreeWorkerPlans",
+      "failure_contains": "expected typed invalid_request, got <nil>"
+    },
+    {
+      "id": "linux-worker-kind",
+      "scope": "frozen worker protocol discriminant validation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "!workerKind(spec.Worker.Kind)",
+      "after": "false && !workerKind(spec.Worker.Kind)",
+      "test": "TestDraftThreeWorkerPlans",
+      "failure_contains": "expected typed invalid_request, got <nil>"
+    },
+    {
+      "id": "linux-session-history",
+      "scope": "runner session and private-history metadata binding",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "runner.Session.HistoryID != runner.Home.HistoryID",
+      "after": "false && runner.Session.HistoryID != runner.Home.HistoryID",
+      "test": "TestAgentPlansUseTwoDrivers",
+      "failure_contains": "expected typed invalid_request, got <nil>"
+    },
+    {
+      "id": "linux-egress-lease",
+      "scope": "networked production preparation remains unavailable without a lease",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "service.go"
+      ],
+      "before": "if len(spec.Grants.Network) != 0 && s.deps.Controls == nil {",
+      "after": "if false && len(spec.Grants.Network) != 0 && s.deps.Controls == nil {",
+      "test": "TestPrepareRejectsNetworkNoLease",
+      "failure_contains": "networked prepare did not require controlled egress"
+    },
+    {
+      "id": "linux-network-argument",
+      "scope": "unconditional namespace construction argument; not a public network proof",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "layout_linux.go"
+      ],
+      "before": "\"--unshare-ipc\", \"--unshare-uts\", \"--unshare-net\",",
+      "after": "\"--unshare-ipc\", \"--unshare-uts\",",
+      "test": "TestNoHostNetworkFallback",
+      "failure_contains": "network namespace was shared"
+    },
+    {
+      "id": "linux-helper-overlap",
+      "scope": "helper versus export overlap component",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "layout_linux.go"
+      ],
+      "before": "if overlaps(item.source, plan.helper.source) {",
+      "after": "if false && overlaps(item.source, plan.helper.source) {",
+      "test": "TestExportsCannotOverlapRuntime",
+      "failure_contains": "runtime/helper overlap or export name lost"
+    },
+    {
+      "id": "linux-runtime-overlap",
+      "scope": "runtime versus export overlap component",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "layout_linux.go"
+      ],
+      "before": "if overlaps(item.source, runtime.source) {",
+      "after": "if false && overlaps(item.source, runtime.source) {",
+      "test": "TestExportsCannotOverlapRuntime",
+      "failure_contains": "runtime/helper overlap or export name lost"
+    },
+    {
+      "id": "linux-file-stream",
+      "scope": "real regular-file descriptor admission component",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "start_linux.go"
+      ],
+      "before": "if mode&os.ModeNamedPipe == 0 && mode&os.ModeSocket == 0 && mode&os.ModeCharDevice == 0 {",
+      "after": "if false && mode&os.ModeNamedPipe == 0 && mode&os.ModeSocket == 0 && mode&os.ModeCharDevice == 0 {",
+      "test": "TestStreamAndTailBoundaries",
+      "failure_contains": "file-backed state stream accepted"
+    },
+    {
+      "id": "linux-truncate-mask",
+      "scope": "independent Landlock ABI mask component; not the full kernel boundary",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "rules.go"
+      ],
+      "before": "makeSym | refer | truncate",
+      "after": "makeSym | refer",
+      "test": "TestRulesMasksAndFutureABI",
+      "failure_contains": "wrong independent mask at ABI"
+    },
+    {
+      "id": "linux-cloexec-live",
+      "scope": "real event descriptor remains live before exec and marked CLOEXEC",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "bootstrap_linux.go"
+      ],
+      "before": "return unix.CloseRange(3, ^uint(0), unix.CLOSE_RANGE_CLOEXEC)",
+      "after": "return unix.CloseRange(3, ^uint(0), 0)",
+      "test": "TestCloexecLeavesRuntimeFDsLive",
+      "failure_contains": "descriptor sweep closed a live FD or lost CLOEXEC"
+    },
+    {
+      "id": "linux-probe-before-runner",
+      "scope": "actual failed option probe must prevent proposed runner execution",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "start_linux.go"
+      ],
+      "before": "if err := probe(ctx, plan); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestBwrapFailureStopsRunner",
+      "failure_contains": "runner started after failed option probe"
+    },
+    {
+      "id": "linux-helper-cause",
+      "scope": "causal helper request validation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "cause.CauseOperationID == \"\"",
+      "after": "false && cause.CauseOperationID == \"\"",
+      "test": "TestCausalHelperRequests",
+      "failure_contains": "incomplete or changed cause accepted"
+    },
+    {
+      "id": "linux-spec-digest",
+      "scope": "actual retained original and JCS digest binding",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "handoff.SpecSHA256 != digestBytes(canonical)",
+      "after": "false && handoff.SpecSHA256 != digestBytes(canonical)",
+      "test": "TestHandoffDigestAndCause",
+      "failure_contains": "changed digest, original or cause accepted"
+    },
+    {
+      "id": "linux-measured-release",
+      "scope": "malformed helper reply cannot be promoted to a reported release",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "service.go"
+      ],
+      "before": "if err := validateReleased(request, receipt); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestCollectRejectsUnmeasured",
+      "failure_contains": "unmeasured helper reply became a reported release"
+    },
+    {
+      "id": "linux-release-binding",
+      "scope": "helper-measured receipt remains bound to causal operation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "receipt.OperationID != request.Cause.CauseOperationID",
+      "after": "false && receipt.OperationID != request.Cause.CauseOperationID",
+      "test": "TestMeasuredReleaseReceipt",
+      "failure_contains": "unknown, nonzero or mismatched measured release accepted"
+    },
+    {
+      "id": "linux-commit-sequence",
+      "scope": "committed identity tuple verification before helper contact",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "binding.Identity.CommittedSeq != permit.CommittedSeq",
+      "after": "false && binding.Identity.CommittedSeq != permit.CommittedSeq",
+      "test": "TestLaunchReconcilesBeforeOpen",
+      "failure_contains": "expected typed integrity"
+    },
+    {
+      "id": "linux-stop-terminal",
+      "scope": "running observation cannot establish terminal stop",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "terminal && (observed.State != \"exited\" || *observed.Survivors != 0)",
+      "after": "false && terminal && (observed.State != \"exited\" || *observed.Survivors != 0)",
+      "test": "TestObservationKeepsUnknown",
+      "failure_contains": "running process became a successful stop"
+    },
+    {
+      "id": "linux-network-lease",
+      "scope": "private network namespace lease binding",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "lease.NamespaceID == \"\"",
+      "after": "false && lease.NamespaceID == \"\"",
+      "test": "TestNetworkLeaseBinding",
+      "failure_contains": "missing private namespace or mismatched lease accepted"
+    },
+    {
+      "id": "linux-mount-identity",
+      "scope": "actual tmpfs mount IDs from independently pinned descriptors",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "export_linux.go"
+      ],
+      "before": "if mountID == 0 || containing.id != mountID {",
+      "after": "if false && (mountID == 0 || containing.id != mountID) {",
+      "test": "TestKernelMountAdmission",
+      "failure_contains": "actual mount alias or descriptor mount mismatch was admitted"
+    },
+    {
+      "id": "linux-mount-alias",
+      "scope": "actual same-target bind overmount and shared data/runtime alias admission",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "export_linux.go"
+      ],
+      "before": "if containing.target == \"\" || containing.root != \"/\" {",
+      "after": "if false && (containing.target == \"\" || containing.root != \"/\") {",
+      "test": "TestKernelMountAdmission",
+      "failure_contains": "actual mount alias or descriptor mount mismatch was admitted"
+    },
+    {
+      "id": "linux-source-symlink",
+      "scope": "real final and ancestor source symlinks, including read-only grants",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "export_linux.go"
+      ],
+      "before": "\tfd, err := fdpath.Open(unix.AT_FDCWD, source, &unix.OpenHow{",
+      "after": "\tresolved, resolveErr := filepath.EvalSymlinks(source)\n\tif resolveErr != nil {\n\t\treturn nil, resolveErr\n\t}\n\tfd, err := fdpath.Open(unix.AT_FDCWD, resolved, &unix.OpenHow{",
+      "test": "TestPinRejectsSourceLinks",
+      "failure_contains": "source symlink or symlink ancestor was followed"
+    },
+    {
+      "id": "linux-git-commondir",
+      "scope": "real Git common-directory indirection in a descriptor-pinned workspace",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "export_linux.go"
+      ],
+      "before": "strings.HasSuffix(gitPath, \"/commondir\")",
+      "after": "false && strings.HasSuffix(gitPath, \"/commondir\")",
+      "test": "TestGitAdminIndirections",
+      "failure_contains": "Git indirection was not refused at its named gate"
+    },
+    {
+      "id": "linux-injection-ready",
+      "scope": "ready injection correlated to exact ordered secret grants and slots",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "injection.Outcome != \"ready\"",
+      "after": "false && injection.Outcome != \"ready\"",
+      "test": "TestInjectionGrantCorrelation",
+      "failure_contains": "unready, stale, ungranted or unsafe injection was admitted"
+    },
+    {
+      "id": "linux-observation-exit",
+      "scope": "terminal process observation must identify one known exit or signal",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "observed.State == \"exited\" && (observed.ExitCode == nil) == (observed.Signal == nil)",
+      "after": "false && observed.State == \"exited\" && (observed.ExitCode == nil) == (observed.Signal == nil)",
+      "test": "TestProcessObservationContract",
+      "failure_contains": "exit/signal exclusivity or signed range was not checked"
+    },
+    {
+      "id": "linux-observation-running",
+      "scope": "running process observation cannot carry a fabricated termination",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "observed.State == \"running\" && (observed.ExitCode != nil || observed.Signal != nil)",
+      "after": "false && observed.State == \"running\" && (observed.ExitCode != nil || observed.Signal != nil)",
+      "test": "TestProcessObservationContract",
+      "failure_contains": "running observation carried a false exit or prompt enum"
+    },
+    {
+      "id": "linux-abort-generation",
+      "scope": "nonexecuting abort is bound to the original prepared process generation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "service.go"
+      ],
+      "before": "receipt.Quiescence.Handle.Generation != prepared.ProcessGeneration",
+      "after": "false && receipt.Quiescence.Handle.Generation != prepared.ProcessGeneration",
+      "test": "TestAbortRequiresUnopenedGate",
+      "failure_contains": "abort admitted an executed, exited or different process generation"
+    },
+    {
+      "id": "linux-offline-lease",
+      "scope": "offline launch requires every network lease field to be zero",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "lease.NamespaceID != \"\"",
+      "after": "false && lease.NamespaceID != \"\"",
+      "test": "TestOfflineNetworkLeaseFields",
+      "failure_contains": "offline launch retained hidden network lease fields"
+    },
+    {
+      "id": "linux-host-probe",
+      "scope": "current host prerequisite checks survive installed-helper evidence composition",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "service.go"
+      ],
+      "before": "if !check.Available && !installedBoundary(check.Name) {",
+      "after": "if false && !check.Available && !installedBoundary(check.Name) {",
+      "test": "TestInstalledProbeKeepsHost",
+      "failure_contains": "installed helper evidence overrode a failed host prerequisite"
+    },
+    {
+      "id": "linux-budget-disk",
+      "scope": "launch requires a positive disk bound",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "spec.Budget.DiskBytes == 0",
+      "after": "false && spec.Budget.DiskBytes == 0",
+      "test": "TestLaunchBudgetsAndNetworkModes",
+      "failure_contains": "invalid launch budget or network grant was admitted"
+    },
+    {
+      "id": "linux-budget-spend",
+      "scope": "launch spend cannot be negative",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "spec.Budget.SpendMicros < 0",
+      "after": "false && spec.Budget.SpendMicros < 0",
+      "test": "TestLaunchBudgetsAndNetworkModes",
+      "failure_contains": "invalid launch budget or network grant was admitted"
+    },
+    {
+      "id": "linux-network-mode",
+      "scope": "network grants use the frozen closed mode enum",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "grant.Mode != \"internet\" && grant.Mode != \"service\" && grant.Mode != \"publish\"",
+      "after": "false && grant.Mode != \"internet\" && grant.Mode != \"service\" && grant.Mode != \"publish\"",
+      "test": "TestLaunchBudgetsAndNetworkModes",
+      "failure_contains": "invalid launch budget or network grant was admitted"
+    },
+    {
+      "id": "linux-plan-lookup",
+      "scope": "retained reservation selector comparison, without a simulated plan read",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "if record.Reservation.ID != id {",
+      "after": "if false && record.Reservation.ID != id {",
+      "test": "TestAgentPlanLookup",
+      "failure_contains": "foreign reservation escaped the plan lookup"
+    },
+    {
+      "id": "linux-plan-gate",
+      "scope": "agent preparation reads its retained plan before root registration",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "service.go"
+      ],
+      "before": "var plan api.LaunchPlanRecord\n\tif spec.Kind == \"agent\" {",
+      "after": "var plan api.LaunchPlanRecord\n\tif false && spec.Kind == \"agent\" {",
+      "test": "TestAgentPreparePlanGate",
+      "failure_contains": "agent prepare did not consume the retained plan before registration"
+    },
+    {
+      "id": "linux-plan-phase",
+      "scope": "bound or opened plan cannot prepare another gate",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "if plan.Phase != \"spec_retained\" {",
+      "after": "if false && plan.Phase != \"spec_retained\" {",
+      "test": "TestPreparePhase",
+      "failure_contains": "agent phase allowed another prepared gate"
+    },
+    {
+      "id": "linux-runtime-home",
+      "scope": "post-spec home must match reserved private storage",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "runtime.Home != plan.Data.Home.Home",
+      "after": "false && runtime.Home != plan.Data.Home.Home",
+      "test": "TestAgentRuntimePins",
+      "failure_contains": "foreign runtime executable or private storage was admitted"
+    },
+    {
+      "id": "linux-runtime-work",
+      "scope": "post-spec workspace must match reserved private storage",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "runtime.Workspace != plan.Data.Workspace",
+      "after": "false && runtime.Workspace != plan.Data.Workspace",
+      "test": "TestAgentRuntimePins",
+      "failure_contains": "foreign runtime executable or private storage was admitted"
+    },
+    {
+      "id": "linux-runtime-executable",
+      "scope": "runtime object must identify the enrolled executable",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "object.ID == executable.ID",
+      "after": "(true || object.ID == executable.ID)",
+      "test": "TestAgentRuntimePins",
+      "failure_contains": "foreign runtime executable or private storage was admitted"
+    },
+    {
+      "id": "linux-runtime-bytes",
+      "scope": "runtime executable must retain its enrolled content digest",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "object.Content.SHA256 == executable.SHA256",
+      "after": "(true || object.Content.SHA256 == executable.SHA256)",
+      "test": "TestAgentRuntimePins",
+      "failure_contains": "foreign runtime executable or private storage was admitted"
+    },
+    {
+      "id": "linux-runtime-mode",
+      "scope": "enrolled executable object must remain executable",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "object.Mode&0111 != 0",
+      "after": "(true || object.Mode&0111 != 0)",
+      "test": "TestAgentRuntimePins",
+      "failure_contains": "foreign runtime executable or private storage was admitted"
+    },
+    {
+      "id": "linux-runtime-path",
+      "scope": "post-spec runtime object cannot use a caller host path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "path.IsAbs(object.RelativePath)",
+      "after": "false && path.IsAbs(object.RelativePath)",
+      "test": "TestAgentRuntimePins",
+      "failure_contains": "caller runtime path was admitted"
+    },
+    {
+      "id": "linux-stage-requester",
+      "scope": "distinct helper stage retains the original requester",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "cause.RequestedBy != original.RequestedBy",
+      "after": "false && cause.RequestedBy != original.RequestedBy",
+      "test": "TestAgentStageCause",
+      "failure_contains": "helper stage changed requester, claim or cancellation fence"
+    },
+    {
+      "id": "linux-stage-epoch",
+      "scope": "distinct helper stage retains the original cancellation fence",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "cause.CancellationEpoch != original.CancellationEpoch",
+      "after": "false && cause.CancellationEpoch != original.CancellationEpoch",
+      "test": "TestAgentStageCause",
+      "failure_contains": "helper stage changed requester, claim or cancellation fence"
+    },
+    {
+      "id": "linux-stage-effect",
+      "scope": "helper prepare cannot reuse the register effect",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "cause.EffectID == original.EffectID",
+      "after": "false && cause.EffectID == original.EffectID",
+      "test": "TestAgentStageCause",
+      "failure_contains": "helper stage changed requester, claim or cancellation fence"
+    },
+    {
+      "id": "linux-bound-plan",
+      "scope": "agent recovery must pass shared binding-plan correlation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "if err := api.ValidateLaunchBindingPlan(binding, *record.Plan); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestAgentBindingMetadata",
+      "failure_contains": "agent recovery changed retained request, home, capture or phase"
+    },
+    {
+      "id": "linux-bound-handoff",
+      "scope": "recovery must retain the exact original handoff cause",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "if !reflect.DeepEqual(recovery.Handoff, *record.Handoff) {",
+      "after": "if false && !reflect.DeepEqual(recovery.Handoff, *record.Handoff) {",
+      "test": "TestAgentBindingMetadata",
+      "failure_contains": "agent recovery changed retained request, home, capture or phase"
+    },
+    {
+      "id": "linux-bound-phase",
+      "scope": "launch requires bound or opened retained state",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "if record.Phase != \"bound\" && record.Phase != \"opened\" ||",
+      "after": "if false && record.Phase != \"bound\" && record.Phase != \"opened\" ||",
+      "test": "TestAgentBindingMetadata",
+      "failure_contains": "agent recovery changed retained request, home, capture or phase"
+    },
+    {
+      "id": "linux-agent-recovery",
+      "scope": "missing agent recovery cannot become a legacy gate open",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "service.go"
+      ],
+      "before": "if binding.Record.Kind == \"agent\" {",
+      "after": "if false && binding.Record.Kind == \"agent\" {",
+      "test": "TestAgentLostRecovery",
+      "failure_contains": "missing agent recovery reached a helper gate"
+    },
+    {
+      "id": "linux-record-digest",
+      "scope": "committed identity must hash its actual launch record",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "digest != binding.Identity.RecordSHA256",
+      "after": "false && digest != binding.Identity.RecordSHA256",
+      "test": "TestLaunchRecordDigest",
+      "failure_contains": "changed committed record escaped its JCS digest"
+    },
+    {
+      "id": "linux-agent-expiry",
+      "scope": "agent current-grant metadata refuses expired authority",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "validate.go"
+      ],
+      "before": "!notExpired(grants.ExpiresAt, now)",
+      "after": "false && !notExpired(grants.ExpiresAt, now)",
+      "test": "TestAgentGrantExpiry",
+      "failure_contains": "expired agent grants were admitted"
+    },
+    {
+      "id": "linux-service-actor",
+      "scope": "helper causes require the authentic service execution actor",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "cause.Actor.Kind != \"service\"",
+      "after": "false && cause.Actor.Kind != \"service\"",
+      "test": "TestCausalHelperRequests",
+      "failure_contains": "incomplete or changed cause accepted"
+    },
+    {
+      "id": "linux-reserved-level",
+      "scope": "bound actor retains the stored child level",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "record.Actor.Level != reservation.Level",
+      "after": "false && record.Actor.Level != reservation.Level",
+      "test": "TestReservedActorPins",
+      "failure_contains": "bound actor bypassed its stored reservation pins"
+    },
+    {
+      "id": "linux-reserved-role",
+      "scope": "bound actor retains the stored child role",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "record.Actor.Role != reservation.Role",
+      "after": "false && record.Actor.Role != reservation.Role",
+      "test": "TestReservedActorPins",
+      "failure_contains": "bound actor bypassed its stored reservation pins"
+    },
+    {
+      "id": "linux-reserved-driver",
+      "scope": "runtime driver retains the stored reservation pin",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "plan.Runner.Driver != plan.Reservation.Driver",
+      "after": "false && plan.Runner.Driver != plan.Reservation.Driver",
+      "test": "TestReservedDriverPin",
+      "failure_contains": "runtime ignored the stored reservation driver"
+    },
+    {
+      "id": "linux-capture-policy",
+      "scope": "refused capture calls the protected D6 policy validator",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "if err := api.ValidateCapturePolicy(plan.Capture, *policy); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestPlanCapturePolicy",
+      "failure_contains": "capture refusal bypassed its reserved D6 policy"
+    },
+    {
+      "id": "linux-capture-generation",
+      "scope": "capture policy snapshot matches reserved policy generation",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "policy.Generation != plan.Reservation.PolicyGeneration",
+      "after": "false && policy.Generation != plan.Reservation.PolicyGeneration",
+      "test": "TestPlanCapturePolicy",
+      "failure_contains": "capture refusal bypassed its reserved D6 policy"
+    },
+    {
+      "id": "linux-record-kind",
+      "scope": "new live records require explicit agent or worker kind",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "record.Kind != \"agent\" && record.Kind != \"worker\"",
+      "after": "false && record.Kind != \"agent\" && record.Kind != \"worker\"",
+      "test": "TestExplicitRecordKinds",
+      "failure_contains": "legacy or unknown record kind was admitted"
+    },
+    {
+      "id": "linux-agent-kind",
+      "scope": "agent records require their lane execution actor",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "record.Kind == \"agent\" && record.Actor.Kind != \"lane\"",
+      "after": "false && record.Kind == \"agent\" && record.Actor.Kind != \"lane\"",
+      "test": "TestExplicitRecordKinds",
+      "failure_contains": "record kind admitted a foreign actor kind"
+    },
+    {
+      "id": "linux-worker-actor",
+      "scope": "worker records require their separate worker actor",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "record.Kind == \"worker\" && (record.Actor.Kind != \"worker\" || binding.Recovery != nil)",
+      "after": "record.Kind == \"worker\" && (false && record.Actor.Kind != \"worker\" || binding.Recovery != nil)",
+      "test": "TestExplicitRecordKinds",
+      "failure_contains": "record kind admitted a foreign actor kind"
+    },
+    {
+      "id": "linux-worker-recovery",
+      "scope": "workers cannot acquire agent recovery authority",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "binding.Recovery != nil",
+      "after": "false && binding.Recovery != nil",
+      "test": "TestExplicitRecordKinds",
+      "failure_contains": "worker acquired an agent recovery record"
+    },
+    {
+      "id": "linux-channel-command",
+      "scope": "channel argv uses only the fixed worker program",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "argv[0] != \"laneboss\"",
+      "after": "false && argv[0] != \"laneboss\"",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-binding",
+      "scope": "channel binding path is fixed in the worker view",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "argv[4] != \"/runtime/laneboss-worker.json\"",
+      "after": "false && argv[4] != \"/runtime/laneboss-worker.json\"",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-lease",
+      "scope": "channel lease is an ID and never a path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "!workerID.MatchString(argv[6])",
+      "after": "false && !workerID.MatchString(argv[6])",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-argc",
+      "scope": "channel entry rejects extra argv",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "len(argv) != 7",
+      "after": "false && len(argv) != 7",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-input-class",
+      "scope": "channel worker requires its sealed input object class",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "input.Class != \"channel_input\"",
+      "after": "false && input.Class != \"channel_input\"",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-input-id",
+      "scope": "channel input cannot select a caller path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "!workerID.MatchString(inputID)",
+      "after": "false && !workerID.MatchString(inputID)",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-executable-id",
+      "scope": "channel executable selector cannot be a caller path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "!workerID.MatchString(executableID)",
+      "after": "false && !workerID.MatchString(executableID)",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-input-empty",
+      "scope": "channel sealed input cannot be empty",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "input.Bytes <= 0",
+      "after": "false && input.Bytes <= 0",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-input-max",
+      "scope": "channel sealed input remains bounded",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "input.Bytes > api.MaxFrameBytes",
+      "after": "false && input.Bytes > api.MaxFrameBytes",
+      "test": "TestChannelSpecGrammar",
+      "failure_contains": "channel worker escaped its fixed grammar or input"
+    },
+    {
+      "id": "linux-channel-endpoint",
+      "scope": "channel endpoint retains the exact worker lease",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "bindings[0].WorkerLeaseID != lease",
+      "after": "false && bindings[0].WorkerLeaseID != lease",
+      "test": "TestChannelRuntimeBinding",
+      "failure_contains": "channel runtime admitted a foreign lease or executable"
+    },
+    {
+      "id": "linux-channel-endpoint-class",
+      "scope": "channel runtime exposes only a worker endpoint",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "channel.go"
+      ],
+      "before": "bindings[0].Class != api.EndpointWorker",
+      "after": "false && bindings[0].Class != api.EndpointWorker",
+      "test": "TestChannelRuntimeBinding",
+      "failure_contains": "channel runtime admitted a foreign lease or executable"
+    },
+    {
+      "id": "linux-plan-port",
+      "scope": "read invokes the actual shared source and selector",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "return api.ReadLaunchPlan(ctx, source, id)",
+      "after": "return api.ReadLaunchPlan(ctx, nil, id)",
+      "test": "TestPlanSourceRead",
+      "failure_contains": "shared plan port was not consumed with the retained selector"
+    },
+    {
+      "id": "linux-plan-foreign",
+      "scope": "consumer keeps the shared foreign-selector check",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "return api.ReadLaunchPlan(ctx, source, id)",
+      "after": "return source.Plan(ctx, id)",
+      "test": "TestPlanSourceForeign",
+      "failure_contains": "foreign retained plan escaped the shared reader"
+    },
+    {
+      "id": "linux-plan-record",
+      "scope": "consumer validates the retained record through the shared reader",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "return api.ReadLaunchPlan(ctx, source, id)",
+      "after": "return source.Plan(ctx, id)",
+      "test": "TestPlanSourceRecord",
+      "failure_contains": "malformed retained plan escaped the shared reader"
+    },
+    {
+      "id": "linux-plan-error-data",
+      "scope": "source error cannot expose partial fallback plan data",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "plan.go"
+      ],
+      "before": "return api.ReadLaunchPlan(ctx, source, id)",
+      "after": "return source.Plan(ctx, id)",
+      "test": "TestPlanSourceError",
+      "failure_contains": "source plan error leaked fallback data"
+    },
+    {
+      "id": "linux-worker-zero-level",
+      "scope": "worker principal has no inherited agent level",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "record.Actor.Level != 0",
+      "after": "false && record.Actor.Level != 0",
+      "test": "TestWorkerActorBoundary",
+      "failure_contains": "worker actor inherited agent or requester authority"
+    },
+    {
+      "id": "linux-worker-zero-role",
+      "scope": "worker principal has no inherited agent role",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "control.go"
+      ],
+      "before": "record.Actor.Role != \"\"",
+      "after": "false && record.Actor.Role != \"\"",
+      "test": "TestWorkerActorBoundary",
+      "failure_contains": "worker actor inherited agent or requester authority"
+    },
+    {
+      "id": "linux-data-agent-plan",
+      "scope": "materialization cannot select an agent plan",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "spec.PlanID != \"\"",
+      "after": "false && spec.PlanID != \"\"",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-entry",
+      "scope": "materialization invokes only its fixed worker entry",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "argv[2] != \"worker\"",
+      "after": "false && argv[2] != \"worker\"",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-binding",
+      "scope": "materialization cannot choose a host binding path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "argv[4] != \"/runtime/laneboss-worker.json\"",
+      "after": "false && argv[4] != \"/runtime/laneboss-worker.json\"",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-lease",
+      "scope": "materialization selects an opaque worker lease",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "!workerID.MatchString(argv[6])",
+      "after": "false && !workerID.MatchString(argv[6])",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-argc",
+      "scope": "materialization rejects extra argv",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "len(argv) != 7",
+      "after": "false && len(argv) != 7",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-input",
+      "scope": "materialization uses only its sealed input class",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "input.Class != \"materialize_input\"",
+      "after": "false && input.Class != \"materialize_input\"",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-input-id",
+      "scope": "materialization input cannot select a caller path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "!workerID.MatchString(inputID)",
+      "after": "false && !workerID.MatchString(inputID)",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-exe-id",
+      "scope": "materialization executable selector cannot be a caller path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "!workerID.MatchString(executableID)",
+      "after": "false && !workerID.MatchString(executableID)",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-empty",
+      "scope": "materialization input cannot be empty",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "input.Bytes <= 0",
+      "after": "false && input.Bytes <= 0",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-max",
+      "scope": "materialization input remains bounded",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "input.Bytes > api.MaxFrameBytes",
+      "after": "false && input.Bytes > api.MaxFrameBytes",
+      "test": "TestMaterializeSpec",
+      "failure_contains": "materialization escaped its fixed worker grammar or input"
+    },
+    {
+      "id": "linux-data-capabilities",
+      "scope": "materialization cannot inherit agent capabilities",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "capabilities != 0",
+      "after": "false && capabilities != 0",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-source-count",
+      "scope": "materialization has exactly one read-only source",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "len(grants.Data) != 1",
+      "after": "false && len(grants.Data) != 1",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-parent",
+      "scope": "materialization source retains its parent grant selector",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "!workerID.MatchString(parent)",
+      "after": "false && !workerID.MatchString(parent)",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-destination",
+      "scope": "materialization source projects only at its fixed job path",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "source.Destination != \"/job/source\"",
+      "after": "false && source.Destination != \"/job/source\"",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-readonly",
+      "scope": "materialization cannot write its project source",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "source.Access != \"ro\"",
+      "after": "false && source.Access != \"ro\"",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-relative",
+      "scope": "materialization cannot select another source subtree",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "source.RelativePath != \".\"",
+      "after": "false && source.RelativePath != \".\"",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-delivery",
+      "scope": "materialization source remains a read-only held projection",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "source.Delivery != \"bind_ro\"",
+      "after": "false && source.Delivery != \"bind_ro\"",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-history",
+      "scope": "materialization history uses the closed source scope",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "source.HistoryScope != \"tree\" && source.HistoryScope != \"reachable\"",
+      "after": "false && source.HistoryScope != \"tree\" && source.HistoryScope != \"reachable\"",
+      "test": "TestMaterializeGrants",
+      "failure_contains": "materialization admitted a widened job capability or source"
+    },
+    {
+      "id": "linux-data-endpoint",
+      "scope": "materialization runtime retains its exact child worker lease",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "bindings[0].WorkerLeaseID != lease",
+      "after": "false && bindings[0].WorkerLeaseID != lease",
+      "test": "TestMaterializeRuntime",
+      "failure_contains": "materialization admitted another worker endpoint or executable"
+    },
+    {
+      "id": "linux-data-endpoint-class",
+      "scope": "materialization runtime is a worker endpoint",
+      "path_parts": [
+        "internal/v2/isolation/linux",
+        "materialize.go"
+      ],
+      "before": "bindings[0].Class != api.EndpointWorker",
+      "after": "false && bindings[0].Class != api.EndpointWorker",
+      "test": "TestMaterializeRuntime",
+      "failure_contains": "materialization admitted another worker endpoint or executable"
+    }
+  ]
+}

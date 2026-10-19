@@ -1,0 +1,989 @@
+{
+  "schema": "laneboss.migration-review-controls.v1",
+  "baseline": "f75dfa0d",
+  "controls": [
+    {
+      "id": "mut-r2-legacy-session_id",
+      "test": "TestReviewLegacy/session_id",
+      "pattern": "^TestReviewLegacy$/^session_id$",
+      "diagnostic": "legacy argument escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.session_id is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-legacy-branch",
+      "test": "TestReviewLegacy/branch",
+      "pattern": "^TestReviewLegacy$/^branch$",
+      "diagnostic": "legacy argument escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.branch is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-legacy-base",
+      "test": "TestReviewLegacy/base",
+      "pattern": "^TestReviewLegacy$/^base$",
+      "diagnostic": "legacy argument escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.base is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-legacy-model",
+      "test": "TestReviewLegacy/model",
+      "pattern": "^TestReviewLegacy$/^model$",
+      "diagnostic": "legacy argument escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.model is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-legacy-effort",
+      "test": "TestReviewLegacy/effort",
+      "pattern": "^TestReviewLegacy$/^effort$",
+      "diagnostic": "legacy argument escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.effort is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-legacy-lane",
+      "test": "TestReviewLegacy/lane",
+      "pattern": "^TestReviewLegacy$/^lane$",
+      "diagnostic": "legacy argument escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/relaunch.go",
+          "before": "if !ValidID(api.ID(opts.Lane)) || !legacyArgument(opts.Lane) {",
+          "after": "if false && (!ValidID(api.ID(opts.Lane)) || !legacyArgument(opts.Lane)) {"
+        },
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.lane is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-branch-part",
+      "test": "TestReviewBranchComponent",
+      "pattern": "^TestReviewBranchComponent$",
+      "diagnostic": "unsafe branch component was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.branch component is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-legacy-type",
+      "test": "TestReviewLegacyTypes/branch",
+      "pattern": "^TestReviewLegacyTypes$/^branch$",
+      "diagnostic": "legacy non-string argument was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "return invalidErr(fmt.Sprintf(\"lane %q: legacy.%s is invalid\", laneName, field))",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-credential-path",
+      "test": "TestReviewCredentials/.netrc",
+      "pattern": "^TestReviewCredentials$/^.netrc$",
+      "diagnostic": "credential material entered legacy history",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "rel := strings.TrimPrefix(p, sessPrefix)\n\t\t\t\tif isForbiddenAuthPath(rel) || credentialtext.HasCredential(string(data)) {",
+          "after": "rel := strings.TrimPrefix(p, sessPrefix)\n\t\t\t\tif credentialtext.HasCredential(string(data)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-credential-shape",
+      "test": "TestReviewCredentials/notes.txt",
+      "pattern": "^TestReviewCredentials$/^notes.txt$",
+      "diagnostic": "credential material entered legacy history",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "rel := strings.TrimPrefix(p, sessPrefix)\n\t\t\t\tif isForbiddenAuthPath(rel) || credentialtext.HasCredential(string(data)) {",
+          "after": "rel := strings.TrimPrefix(p, sessPrefix)\n\t\t\t\tif isForbiddenAuthPath(rel) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-worktree-secret",
+      "test": "TestReviewCredentials/worktree",
+      "pattern": "^TestReviewCredentials$/^worktree$",
+      "diagnostic": "worktree credentials were silently accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "rel := strings.TrimPrefix(p, wtPrefix)\n\t\t\t\tif isForbiddenAuthPath(rel) || credentialtext.HasCredential(string(data)) {",
+          "after": "rel := strings.TrimPrefix(p, wtPrefix)\n\t\t\t\tif false {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-history-order",
+      "test": "TestReviewHistoryOrder",
+      "pattern": "^TestReviewHistoryOrder$",
+      "diagnostic": "legacy history order is not deterministic",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "sort.Strings(fileNames)\n\t\tfor _, p := range fileNames {",
+          "after": "sort.Sort(sort.Reverse(sort.StringSlice(fileNames)))\n\t\tfor _, p := range fileNames {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-backup-required",
+      "test": "TestReviewRollback/verification",
+      "pattern": "^TestReviewRollback$/^verification$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if len(backupFiles[required]) == 0 {",
+          "after": "if false && (len(backupFiles[required]) == 0) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-backup-version",
+      "test": "TestReviewRollback/version",
+      "pattern": "^TestReviewRollback$/^version$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "frozen.SourceVersion != req.TargetVersion",
+          "after": "false"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-digest-required",
+      "test": "TestReviewRollback/digest",
+      "pattern": "^TestReviewRollback$/^digest$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if !ValidDigest(req.ExpectedBinarySHA256) {",
+          "after": "if false && (!ValidDigest(req.ExpectedBinarySHA256)) {"
+        },
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if binSHA != req.ExpectedBinarySHA256 {",
+          "after": "if req.ExpectedBinarySHA256 != \"\" && binSHA != req.ExpectedBinarySHA256 {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-digest-match",
+      "test": "TestReviewRollback/digest-mismatch",
+      "pattern": "^TestReviewRollback$/^digest-mismatch$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if binSHA != req.ExpectedBinarySHA256 {",
+          "after": "if false && (binSHA != req.ExpectedBinarySHA256) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-active-required",
+      "test": "TestReviewRollback/active-empty",
+      "pattern": "^TestReviewRollback$/^active-empty$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "\t\t{req.ActiveV2StateDir, \"active_v2_state\", false},\n",
+          "after": ""
+        },
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if pathsOverlap(req.RestoreTargetDir, req.ActiveV2StateDir) {",
+          "after": "if req.ActiveV2StateDir != \"\" && pathsOverlap(req.RestoreTargetDir, req.ActiveV2StateDir) {"
+        },
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "pathsOverlap(req.RetainedWorkDir, req.ActiveV2StateDir) ||",
+          "after": "(req.ActiveV2StateDir != \"\" && pathsOverlap(req.RetainedWorkDir, req.ActiveV2StateDir)) ||"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-restore-overlap",
+      "test": "TestReviewRollback/active-overlap",
+      "pattern": "^TestReviewRollback$/^active-overlap$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if pathsOverlap(req.RestoreTargetDir, req.ActiveV2StateDir) {",
+          "after": "if false && (pathsOverlap(req.RestoreTargetDir, req.ActiveV2StateDir)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-backup-overlap",
+      "test": "TestReviewRollback/backup-overlap",
+      "pattern": "^TestReviewRollback$/^backup-overlap$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if pathsOverlap(req.RestoreTargetDir, req.FrozenBackupDir) {",
+          "after": "if false && (pathsOverlap(req.RestoreTargetDir, req.FrozenBackupDir)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-retain-overlap",
+      "test": "TestReviewRollback/retained-overlap",
+      "pattern": "^TestReviewRollback$/^retained-overlap$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if pathsOverlap(req.RetainedWorkDir, req.ActiveV2StateDir) || pathsOverlap(req.RetainedWorkDir, req.FrozenBackupDir) || pathsOverlap(req.RetainedWorkDir, req.RestoreTargetDir) {",
+          "after": "if false && (pathsOverlap(req.RetainedWorkDir, req.ActiveV2StateDir) || pathsOverlap(req.RetainedWorkDir, req.FrozenBackupDir) || pathsOverlap(req.RetainedWorkDir, req.RestoreTargetDir)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-resolve-error",
+      "test": "TestReviewOverlap",
+      "pattern": "^TestReviewOverlap$",
+      "diagnostic": "unresolved rollback path was treated as disjoint",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "if errA != nil || errB != nil {\n\t\treturn true\n\t}",
+          "after": "if errA != nil || errB != nil {\n\t\treturn false\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-backup-ancestor",
+      "test": "TestReviewRollback/backup-parent",
+      "pattern": "^TestReviewRollback$/^backup-parent$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "next, openErr := unix.Openat(fd, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)",
+          "after": "next, openErr := unix.Openat(fd, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-backup-root",
+      "test": "TestReviewRollback/root-link",
+      "pattern": "^TestReviewRollback$/^root-link$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "next, openErr := unix.Openat(fd, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)",
+          "after": "next, openErr := unix.Openat(fd, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)"
+        },
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "err != nil || info.Mode&unix.S_IFMT == unix.S_IFLNK",
+          "after": "err != nil"
+        },
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "if !destination && field != \"old_binary\" && info.Mode&unix.S_IFMT != unix.S_IFDIR {",
+          "after": "if false && !destination && field != \"old_binary\" && info.Mode&unix.S_IFMT != unix.S_IFDIR {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-nonregular",
+      "test": "TestReviewRollback/fifo",
+      "pattern": "^TestReviewRollback$/^fifo$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "if err != nil || !info.Mode().IsRegular() {",
+          "after": "if false && (err != nil || !info.Mode().IsRegular()) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-existing-target",
+      "test": "TestReviewRollback/existing-target",
+      "pattern": "^TestReviewRollback$/^existing-target$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "if destination {",
+          "after": "if false && (destination) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-rollback-store",
+      "test": "TestReviewRollback/nil-store",
+      "pattern": "^TestReviewRollback$/^nil-store$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if s == nil || s.deps.Store == nil {",
+          "after": "if false && (s == nil || s.deps.Store == nil) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-quiescence-port",
+      "test": "TestReviewRollback/no-measurement",
+      "pattern": "^TestReviewRollback$/^no-measurement$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "return nil, api.NotImplemented(\"lb-v2-service\", \"rollback.quiescence\")",
+          "after": "return nil, nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-quiescence-live",
+      "test": "TestReviewRollback/live-process",
+      "pattern": "^TestReviewRollback$/^live-process$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if observation.State != \"exited\" || observation.Survivors == nil || *observation.Survivors != 0 {",
+          "after": "if false && (observation.State != \"exited\" || observation.Survivors == nil || *observation.Survivors != 0) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-phase",
+      "test": "TestReviewReadback/activating",
+      "pattern": "^TestReviewReadback$/^activating$",
+      "diagnostic": "activating migration was advertised as verified",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readback.go",
+          "before": "if deployment.Phase != \"complete\" && !(staging && deployment.Phase == \"activating\") {",
+          "after": "if false && (deployment.Phase != \"complete\" && !(staging && deployment.Phase == \"activating\")) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-readback-before-publish",
+      "test": "TestReviewCompletion/readback",
+      "pattern": "^TestReviewCompletion$/^readback$",
+      "diagnostic": "completion was published before read-back",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "\tif _, err := s.verifyMigratedState(ctx, scope, state.plan.ID, true); err != nil {\n\t\treturn zero, err\n\t}\n",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-early-event",
+      "test": "TestReviewCompletion/readback",
+      "pattern": "^TestReviewCompletion$/^readback$",
+      "diagnostic": "completion was published before read-back",
+      "edits": [
+        {
+          "file": "internal/v2/migration/import.go",
+          "before": "deployment.Phase = \"activating\"\n\ttx.Writes.Deployments = []api.DeploymentPlan{deployment}",
+          "after": "deployment.Phase = \"activating\"\n\tif err := appendEvent(\"migration.completed\", \"service\", api.MigrationEvent{Plan: plan, Manifest: plan.SourceManifest, LegacyEventCount: uint64(len(bundle.Events))}); err != nil { return api.Transaction{}, err }\n\ttx.Writes.Deployments = []api.DeploymentPlan{deployment}"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-completion-problems",
+      "test": "TestReviewCompletion/problems",
+      "pattern": "^TestReviewCompletion$/^problems$",
+      "diagnostic": "completion ignored unresolved or disappearing plan",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "if len(current.plan.Problems) != 0 || len(migrationPlanProblems(current.bundle, s.deps.Store)) != 0 {",
+          "after": "if len(migrationPlanProblems(current.bundle, s.deps.Store)) != 0 {"
+        },
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "!present || current == nil || len(current.plan.Problems) != 0 || len(migrationPlanProblems(current.bundle, s.deps.Store)) != 0",
+          "after": "!present || current == nil || len(migrationPlanProblems(current.bundle, s.deps.Store)) != 0"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-source-problems",
+      "test": "TestReviewCompletion/source-problem",
+      "pattern": "^TestReviewCompletion$/^source-problem$",
+      "diagnostic": "completion ignored unresolved or disappearing plan",
+      "edits": [
+        {
+          "file": "internal/v2/migration/read_ports.go",
+          "before": "bundle == nil || !bundle.Verification.OK",
+          "after": "bundle == nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-plan-disappears",
+      "test": "TestReviewCompletion/deleted",
+      "pattern": "^TestReviewCompletion$/^deleted$",
+      "diagnostic": "completion escaped its final verification gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "if !present || current == nil || len(current.plan.Problems) != 0 || len(migrationPlanProblems(current.bundle, s.deps.Store)) != 0 {",
+          "after": "if false && (!present || current == nil || len(current.plan.Problems) != 0 || len(migrationPlanProblems(current.bundle, s.deps.Store)) != 0) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-plan-problems",
+      "test": "TestReviewPlanProblems",
+      "pattern": "^TestReviewPlanProblems$",
+      "diagnostic": "plan problems were not computed from dependencies",
+      "edits": [
+        {
+          "file": "internal/v2/migration/read_ports.go",
+          "before": "problems = append(problems, \"migration.effects inventory port is unavailable\")",
+          "after": "problems = append(problems, []string{}...)"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-effects-all-states",
+      "test": "TestReviewReadback/completed",
+      "pattern": "^TestReviewReadback$/^completed$",
+      "diagnostic": "all-state read-back missed duplicate delivery",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readback.go",
+          "before": "effects, err := inventory.MigrationEffects(ctx, scope, deployment.OperationID)",
+          "after": "pending, err := s.deps.Store.PendingEffects(ctx, api.CursorRequest{Limit: 200})\n\t_ = inventory\n\teffects := []api.EffectRecord{}\n\tfor _, effect := range pending { effects = append(effects, api.EffectRecord{Effect: effect}) }"
+        },
+        {
+          "file": "internal/v2/migration/readback.go",
+          "before": "if !foundMigrationEffect {",
+          "after": "if false && !foundMigrationEffect {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-effects-port",
+      "test": "TestReviewMissingEffects",
+      "pattern": "^TestReviewMissingEffects$",
+      "diagnostic": "missing complete effect inventory was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readback.go",
+          "before": "return nil, api.NotImplemented(\"lb-v2-service\", \"migration.effects inventory\")",
+          "after": "return nil, nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-returned-mail",
+      "test": "TestReviewReadback/returned",
+      "pattern": "^TestReviewReadback$/^returned$",
+      "diagnostic": "returned mail was counted as pending",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readback.go",
+          "before": "} else if mail.Returned {\n\t\t\treport.MailReturned++",
+          "after": "} else if false && mail.Returned {\n\t\t\treport.MailReturned++"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-proof-required",
+      "test": "TestReviewApply/proof",
+      "pattern": "^TestReviewApply$/^proof$",
+      "diagnostic": "apply input escaped its deciding guard",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "if proof == nil {",
+          "after": "if false && (proof == nil) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-proof-digest",
+      "test": "TestReviewApply/digest",
+      "pattern": "^TestReviewApply$/^digest$",
+      "diagnostic": "apply input escaped its deciding guard",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "if scope.Request.RequestSHA256 != digest || !ValidID(proof.ID) || proof.RequestSHA256 != digest || !ValidTimestamp(proof.ExpiresAt) {",
+          "after": "if false && (scope.Request.RequestSHA256 != digest || !ValidID(proof.ID) || proof.RequestSHA256 != digest || !ValidTimestamp(proof.ExpiresAt)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-proof-expiry",
+      "test": "TestReviewApply/expired",
+      "pattern": "^TestReviewApply$/^expired$",
+      "diagnostic": "apply input escaped its deciding guard",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "if err != nil || !expiry.After(time.Now()) {",
+          "after": "if false && (err != nil || !expiry.After(time.Now())) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-human-only",
+      "test": "TestReviewApply/actor",
+      "pattern": "^TestReviewApply$/^actor$",
+      "diagnostic": "apply input escaped its deciding guard",
+      "edits": [
+        {
+          "file": "internal/v2/migration/stub.go",
+          "before": "if scope.Actor.Kind != \"human\" || !ValidID(scope.Actor.ID) {",
+          "after": "if false && (scope.Actor.Kind != \"human\" || !ValidID(scope.Actor.ID)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-connection",
+      "test": "TestReviewApply/connection",
+      "pattern": "^TestReviewApply$/^connection$",
+      "diagnostic": "apply input escaped its deciding guard",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "if scope.Connection == nil || scope.Connection.Binding().Class != api.EndpointHuman || scope.EndpointGeneration == 0 {",
+          "after": "if false && (scope.Connection == nil || scope.Connection.Binding().Class != api.EndpointHuman || scope.EndpointGeneration == 0) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-stale-binding",
+      "test": "TestReviewApply/stale",
+      "pattern": "^TestReviewApply$/^stale$",
+      "diagnostic": "apply input escaped its deciding guard",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "if binding.Config != scope.Config || binding.EndpointGeneration != scope.EndpointGeneration || binding.InstallationGeneration == 0 {",
+          "after": "if false && (binding.Config != scope.Config || binding.EndpointGeneration != scope.EndpointGeneration || binding.InstallationGeneration == 0) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-proof-facts",
+      "test": "TestReviewProofFacts",
+      "pattern": "^TestReviewProofFacts$",
+      "diagnostic": "apply accepted foreign verified proof facts",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "\tif facts.Config != scope.Config || facts.PrincipalID != scope.Actor.ID || facts.Ref != *proof || facts.Target != target ||\n\t\tfacts.EndpointClass != api.EndpointHuman || facts.EndpointGeneration != scope.EndpointGeneration || !ValidID(facts.CredentialID) || !ValidID(facts.NonceID) || facts.ConsumedBy != \"\" {",
+          "after": "\tif false && (facts.Config != scope.Config || facts.PrincipalID != scope.Actor.ID || facts.Ref != *proof || facts.Target != target ||\n\t\tfacts.EndpointClass != api.EndpointHuman || facts.EndpointGeneration != scope.EndpointGeneration || !ValidID(facts.CredentialID) || !ValidID(facts.NonceID) || facts.ConsumedBy != \"\") {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-proof-consumed",
+      "test": "TestReviewApply/consumed",
+      "pattern": "^TestReviewApply$/^consumed$",
+      "diagnostic": "apply input escaped its deciding guard",
+      "edits": [
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "facts, err := s.deps.Human.CheckProof(ctx, scope, *proof, target)\n\tif err != nil {",
+          "after": "facts, err := s.deps.Human.CheckProof(ctx, scope, *proof, target)\n\tif false && err != nil {"
+        },
+        {
+          "file": "internal/v2/migration/apply.go",
+          "before": "\tif facts.Config != scope.Config || facts.PrincipalID != scope.Actor.ID || facts.Ref != *proof || facts.Target != target ||\n\t\tfacts.EndpointClass != api.EndpointHuman || facts.EndpointGeneration != scope.EndpointGeneration || !ValidID(facts.CredentialID) || !ValidID(facts.NonceID) || facts.ConsumedBy != \"\" {",
+          "after": "\tif false && (facts.Config != scope.Config || facts.PrincipalID != scope.Actor.ID || facts.Ref != *proof || facts.Target != target ||\n\t\tfacts.EndpointClass != api.EndpointHuman || facts.EndpointGeneration != scope.EndpointGeneration || !ValidID(facts.CredentialID) || !ValidID(facts.NonceID) || facts.ConsumedBy != \"\") {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-inventory-path",
+      "test": "TestReviewInventory",
+      "pattern": "^TestReviewInventory$",
+      "diagnostic": "inventory path escaped its refusal",
+      "edits": [
+        {
+          "file": "internal/v2/migration/jcs.go",
+          "before": "\t\tif err := validateRelativePath(e.Path); err != nil {\n\t\t\treturn invalidErr(fmt.Sprintf(\"inventory.entries[%d].path: %v\", i, err))\n\t\t}\n",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-inventory-link",
+      "test": "TestReviewInventory/symlink",
+      "pattern": "^TestReviewInventory$/^symlink$",
+      "diagnostic": "inventory symlink escaped its refusal",
+      "edits": [
+        {
+          "file": "internal/v2/migration/jcs.go",
+          "before": "\t\t\tif err := validateInternalSymlink(e.Path, e.LinkTarget); err != nil {\n\t\t\t\treturn invalidErr(fmt.Sprintf(\"inventory.entries[%d].link_target: %v\", i, err))\n\t\t\t}\n",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-archive-path",
+      "test": "TestReviewArchive/path",
+      "pattern": "^TestReviewArchive$/^path$",
+      "diagnostic": "unsafe archive member was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "validateRelativePath(strings.TrimSuffix(hdr.Name, \"/\")) != nil || ",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-archive-mode",
+      "test": "TestReviewArchive/mode",
+      "pattern": "^TestReviewArchive$/^mode$",
+      "diagnostic": "unsafe archive member was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "hdr.Mode&0o7000 != 0 || expected.Mode&0o7000 != 0 || ",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-archive-link",
+      "test": "TestReviewArchive/link",
+      "pattern": "^TestReviewArchive$/^link$",
+      "diagnostic": "unsafe archive member was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "hdr.Linkname != expected.Link || validateInternalSymlink(hdr.Name, hdr.Linkname) != nil || expected.Type != \"symlink\"",
+          "after": "expected.Type != \"symlink\""
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-archive-type",
+      "test": "TestReviewArchive/type",
+      "pattern": "^TestReviewArchive$/^type$",
+      "diagnostic": "unsafe archive member was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA && hdr.Typeflag != tar.TypeDir",
+          "after": "false"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-projection-missing",
+      "test": "TestReviewProjection/missing",
+      "pattern": "^TestReviewProjection$/^missing$",
+      "diagnostic": "event lane without projection was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "if projections[laneName] == nil {",
+          "after": "if false && (projections[laneName] == nil) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-projection-config",
+      "test": "TestReviewProjection/config",
+      "pattern": "^TestReviewProjection$/^config$",
+      "diagnostic": "source projection metadata mismatch was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "if meta[\"config\"] != bundle.ConfigName {",
+          "after": "if false && (meta[\"config\"] != bundle.ConfigName) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-projection-count",
+      "test": "TestReviewProjection/lanes",
+      "pattern": "^TestReviewProjection$/^lanes$",
+      "diagnostic": "source projection metadata mismatch was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "if bundle.Verification.Lanes != len(bundle.Projections) {",
+          "after": "if false && (bundle.Verification.Lanes != len(bundle.Projections)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-grant-sha",
+      "test": "TestReviewGrant/sha256",
+      "pattern": "^TestReviewGrant$/^sha256$",
+      "diagnostic": "relaunch accepted an invalid supplied grant set",
+      "edits": [
+        {
+          "file": "internal/v2/migration/relaunch.go",
+          "before": "if err != nil || !ValidDigest(grantSet.SHA256) || DigestBytes(encoded) != grantSet.SHA256 {",
+          "after": "if false && (err != nil || !ValidDigest(grantSet.SHA256) || DigestBytes(encoded) != grantSet.SHA256) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-grant-expiry",
+      "test": "TestReviewGrant/expires_at",
+      "pattern": "^TestReviewGrant$/^expires_at$",
+      "diagnostic": "relaunch accepted an invalid supplied grant set",
+      "edits": [
+        {
+          "file": "internal/v2/migration/relaunch.go",
+          "before": "if expiryErr != nil || !ValidTimestamp(grantSet.ExpiresAt) || !expiry.After(time.Now()) {",
+          "after": "if false && (expiryErr != nil || !ValidTimestamp(grantSet.ExpiresAt) || !expiry.After(time.Now())) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-decision-source",
+      "test": "TestReviewDecisionSource",
+      "pattern": "^TestReviewDecisionSource$",
+      "diagnostic": "ambiguous decision sources were accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "\tif _, sqlite := files[\"state/decisions.sqlite\"]; sqlite {\n\t\tif _, jsonl := files[\"state/decisions.jsonl\"]; jsonl {\n\t\t\treturn integrityErr(\"decisions.source is ambiguous: both sqlite and jsonl exist\")\n\t\t}\n\t}\n",
+          "after": ""
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-canonical",
+      "test": "TestReviewCanonical",
+      "pattern": "^TestReviewCanonical$",
+      "diagnostic": "migration canonical JSON diverged from RFC8785",
+      "edits": [
+        {
+          "file": "internal/v2/migration/jcs.go",
+          "before": "return api.CanonicalJSON(raw)",
+          "after": "tree, err := parseNoDupTree(raw)\n\tif err != nil { return nil, err }\n\tvar buf bytes.Buffer\n\tif err := writeJCS(&buf, tree); err != nil { return nil, err }\n\treturn buf.Bytes(), nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-legacy-runner",
+      "test": "TestReviewLegacy/runner",
+      "pattern": "^TestReviewLegacy$/^runner$",
+      "diagnostic": "legacy argument escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "return invalidErr(\"legacy.runner is invalid\")",
+          "after": "return nil"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-role",
+      "test": "TestReviewRole",
+      "pattern": "^TestReviewRole$",
+      "diagnostic": "invalid relaunch role was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/relaunch.go",
+          "before": "if !ValidID(api.ID(opts.Role)) || !legacyArgument(opts.Role) {",
+          "after": "if false && (!ValidID(api.ID(opts.Role)) || !legacyArgument(opts.Role)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-backup-directory",
+      "test": "TestReviewRollback/non-directory",
+      "pattern": "^TestReviewRollback$/^non-directory$",
+      "diagnostic": "unsafe rollback input escaped its field gate",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "if !destination && field != \"old_binary\" && info.Mode&unix.S_IFMT != unix.S_IFDIR {",
+          "after": "if false && !destination && field != \"old_binary\" && info.Mode&unix.S_IFMT != unix.S_IFDIR {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-measurement-shape",
+      "test": "TestReviewQuiescence/config",
+      "pattern": "^TestReviewQuiescence$/^config$",
+      "diagnostic": "unmeasured rollback quiescence was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "\tif measured.Freeze.Config != scope.Config || !ValidID(measured.ID) || !ValidID(measured.Freeze.ID) || measured.Freeze.DispatchEpoch == 0 || measured.Observations == nil || measured.PendingEffectIDs == nil || len(measured.PendingEffectIDs) != 0 || measured.PendingCaptureBytes != 0 || !ValidTimestamp(measured.ObservedAt) {",
+          "after": "\tif false && (measured.Freeze.Config != scope.Config || !ValidID(measured.ID) || !ValidID(measured.Freeze.ID) || measured.Freeze.DispatchEpoch == 0 || measured.Observations == nil || measured.PendingEffectIDs == nil || len(measured.PendingEffectIDs) != 0 || measured.PendingCaptureBytes != 0 || !ValidTimestamp(measured.ObservedAt)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-measurement-age",
+      "test": "TestReviewQuiescence/stale",
+      "pattern": "^TestReviewQuiescence$/^stale$",
+      "diagnostic": "stale rollback measurement was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback.go",
+          "before": "if err != nil || time.Since(observed) < 0 || time.Since(observed) > time.Minute {",
+          "after": "if false && (err != nil || time.Since(observed) < 0 || time.Since(observed) > time.Minute) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r2-effects-causal",
+      "test": "TestReviewEffectInventory",
+      "pattern": "^TestReviewEffectInventory$",
+      "diagnostic": "complete effect inventory omitted its causal migration",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readback.go",
+          "before": "if !foundMigrationEffect {",
+          "after": "if false && !foundMigrationEffect {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r4-lane-plan",
+      "test": "TestReviewLaneArgument/plan",
+      "pattern": "^TestReviewLaneArgument$/^plan$",
+      "diagnostic": "option-shaped legacy lane was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "if !ValidID(api.ID(target.Lane)) || !legacyArgument(target.Lane) {",
+          "after": "if !ValidID(api.ID(target.Lane)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r4-lane-option",
+      "test": "TestReviewLaneArgument/option",
+      "pattern": "^TestReviewLaneArgument$/^option$",
+      "diagnostic": "option-shaped relaunch lane was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/relaunch.go",
+          "before": "if !ValidID(api.ID(opts.Lane)) || !legacyArgument(opts.Lane) {",
+          "after": "if !ValidID(api.ID(opts.Lane)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r4-lane-adopt",
+      "test": "TestReviewLaneArgument/adopt",
+      "pattern": "^TestReviewLaneArgument$/^adopt$",
+      "diagnostic": "option-shaped relaunch lane was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/relaunch.go",
+          "before": "if !ValidID(api.ID(opts.Lane)) || !legacyArgument(opts.Lane) {",
+          "after": "if !ValidID(api.ID(opts.Lane)) {"
+        },
+        {
+          "file": "internal/v2/migration/legacy_inputs.go",
+          "before": "if !ValidID(api.ID(target.Lane)) || !legacyArgument(target.Lane) {",
+          "after": "if !ValidID(api.ID(target.Lane)) {"
+        }
+      ]
+    },
+    {
+      "id": "mut-r4-plan-lane-missing",
+      "test": "TestPlanLaneErr/missing-session_id",
+      "pattern": "^TestPlanLaneErr$/^missing-session_id$",
+      "diagnostic": "legacy validation error omitted lane identity",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "withLane.Message = fmt.Sprintf(\"lane %q: %s\", laneName, detail.Message)",
+          "after": "withLane.Message = detail.Message"
+        }
+      ]
+    },
+    {
+      "id": "mut-r4-plan-lane-type",
+      "test": "TestPlanLaneErr/type-branch",
+      "pattern": "^TestPlanLaneErr$/^type-branch$",
+      "diagnostic": "legacy validation error omitted lane identity",
+      "edits": [
+        {
+          "file": "internal/v2/migration/readers.go",
+          "before": "return invalidErr(fmt.Sprintf(\"lane %q: legacy.%s is invalid\", laneName, field))",
+          "after": "return invalidErr(\"legacy.\" + field + \" is invalid\")"
+        }
+      ]
+    },
+    {
+      "id": "mut-r4-rollback-size",
+      "test": "TestReviewRollbackReadLimit/oversized",
+      "pattern": "^TestReviewRollbackReadLimit$/^oversized$",
+      "diagnostic": "oversized rollback input was accepted",
+      "edits": [
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "if info.Size() > api.MaxObjectBytes {",
+          "after": "if false && info.Size() > api.MaxObjectBytes {"
+        },
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "data, err := io.ReadAll(io.LimitReader(file, int64(api.MaxObjectBytes)+1))",
+          "after": "data, err := io.ReadAll(file)"
+        },
+        {
+          "file": "internal/v2/migration/rollback_files.go",
+          "before": "if len(data) > api.MaxObjectBytes {",
+          "after": "if false && len(data) > api.MaxObjectBytes {"
+        }
+      ]
+    }
+  ]
+}

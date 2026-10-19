@@ -10,6 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"laneboss.io/laneboss/internal/rolepolicy"
 	"laneboss.io/laneboss/internal/runnermodel"
 )
 
@@ -109,7 +110,7 @@ func loadConfiguration(cli string) (*configuration, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = knownKeys(data, "schema_version name description organisation rules organisation_rules secrets owner_channel test_environment state lanes turns disk runners supervisors judges resources routing test_environments owner_channels cost guards", label); err != nil {
+	if err = knownKeys(data, "schema_version name description organisation org_dir archive_command identity_service rules organisation_rules secrets owner_channel test_environment state lanes turns disk dashboard runners supervisors judges resources routing test_environments owner_channels cost guards", label); err != nil {
 		return nil, err
 	}
 	if str(data["name"]) != name {
@@ -119,6 +120,9 @@ func loadConfiguration(cli string) (*configuration, error) {
 		return nil, invalid(label, "runners", "must define at least one entry")
 	}
 	c := &configuration{name: name, home: realPath(home), states: realPath(states), directory: directory, data: data, projects: object{}, rules: map[string][]byte{}}
+	if _, err := rolepolicy.ConfigRoot(home, data); err != nil {
+		return nil, invalid(label, "org_dir", err.Error())
+	}
 	state := str(obj(data["state"])["path"])
 	if state == "" {
 		state = filepath.Join(states, name)
@@ -179,6 +183,18 @@ func loadConfiguration(cli string) (*configuration, error) {
 		}
 	}
 	for k, v := range obj(data["lanes"]) {
+		if k == "sandbox_deny_extra" {
+			if !arrayCheck(absoluteCheck, 0, true)(v) {
+				return nil, invalid(label, "lanes.sandbox_deny_extra", "must be an array of unique absolute paths")
+			}
+			continue
+		}
+		if k == "sandbox" {
+			if !chooseCheck("off laneboss-files")(v) {
+				return nil, invalid(label, "lanes.sandbox", "must be off or laneboss-files")
+			}
+			continue
+		}
 		bounds := map[string][2]float64{"budget_minutes": {0.000001, 10080}, "quiet_seconds": {1, 604800}, "stop_grace_seconds": {1, 600}, "lock_wait_seconds": {1, 3600}, "room_timeout_seconds": {1, 60}}
 		b, ok := bounds[k]
 		if !ok || number(v) < b[0] || number(v) > b[1] {

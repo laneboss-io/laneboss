@@ -4,8 +4,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-
-	"github.com/BurntSushi/toml"
 )
 
 func sandboxKey(key string) bool {
@@ -112,7 +110,8 @@ func VetCodexEnvironment(environment []string) error {
 	return vetEnvironment(keys)
 }
 
-func vetSandboxArgs(args []string) error {
+func vetSandboxArgs(args []string, laneSandbox ...bool) error {
+	replaced := len(laneSandbox) == 1 && laneSandbox[0]
 	role, operands := "", 0
 	options := true
 	for i := 0; i < len(args); i++ {
@@ -152,6 +151,9 @@ func vetSandboxArgs(args []string) error {
 			}
 			if len(spec.allowed) > 0 {
 				found := false
+				if replaced && (flag == "--sandbox" || flag == "-s") && value == "danger-full-access" {
+					found = true
+				}
 				for _, allowed := range spec.allowed {
 					found = found || value == allowed
 				}
@@ -189,24 +191,22 @@ func vetSandboxArgs(args []string) error {
 }
 
 func writableRoots(path, cwd string, launchArgs ...[]string) ([]string, error) {
+	return writableRootsForLane(path, cwd, false, launchArgs...)
+}
+
+func writableRootsForLane(path, cwd string, replaced bool, launchArgs ...[]string) ([]string, error) {
+	return writableRootsIn(path, cwd, replaced, nil, launchArgs...)
+}
+
+func writableRootsIn(path, cwd string, replaced bool, environment map[string]string, launchArgs ...[]string) ([]string, error) {
 	for _, args := range launchArgs {
-		if err := vetSandboxArgs(args); err != nil {
+		if err := vetSandboxArgs(args, replaced); err != nil {
 			return nil, trustError(path, "user config layer cannot be assumed to load: "+err.Error())
 		}
 	}
-	if err := checkConfig(path); err != nil {
-		return nil, err
-	}
-	data, err := regularBytes(path)
+	document, err := instanceDocument(path, environment)
 	if err != nil {
 		return nil, err
-	}
-	document := map[string]any{}
-	if _, err := toml.Decode(string(data), &document); err != nil {
-		return nil, trustError(path, "sandbox configuration is not valid TOML")
-	}
-	if foreignHooks(document, "") {
-		return nil, trustError(path, "unvetted permission source "+blockedKey(document, ""))
 	}
 	if !sandboxSafe(document["sandbox_workspace_write"]) {
 		return nil, trustError(path, "sandbox_workspace_write must exclude_slash_tmp and exclude_tmpdir_env_var; re-render")
@@ -214,7 +214,8 @@ func writableRoots(path, cwd string, launchArgs ...[]string) ([]string, error) {
 	if !agentsSafe(document["agents"]) {
 		return nil, trustError(path, "agents.enabled must be false without role tables; re-render")
 	}
-	// Extra roots and profile changes are rejected; both implicit temp roots are excluded.
+	// The CLI store is independently vetted and hook-protected. Only the cwd is
+	// an ordinary writable workspace; both implicit temp roots remain excluded.
 	return []string{cwd}, nil
 }
 

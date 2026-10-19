@@ -1,14 +1,19 @@
 package start
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/config"
+	"laneboss.io/laneboss/internal/identityd/ticket"
 	"laneboss.io/laneboss/internal/protocol"
 )
 
@@ -33,6 +38,13 @@ func roleSection(c *configuration, selected *string) (map[string]any, error) {
 		return nil, err
 	}
 	v, ok := supervisors[*selected]
+	if !ok {
+		principal, _, roleErr := caller.Role(caller.Configuration(c.name, c.home, c.states, c.directory, c.state, c.data), *selected)
+		if roleErr == nil {
+			v = map[string]any{"level": int64(principal.Level)}
+			ok = true
+		}
+	}
 	if !ok {
 		detail := "this configuration defines no role"
 		if len(defined) > 0 {
@@ -261,7 +273,7 @@ func storeSections(s *storeSnapshot) (map[string]any, map[string]any, error) {
 	events["recent"] = recent
 	return lanes, events, nil
 }
-func briefing(c *configuration, selected *string) (map[string]any, error) {
+func briefing(c *configuration, selected *string, level int, ticketFile *string, registrar ticket.Registrar) (map[string]any, error) {
 	role, err := roleSection(c, selected)
 	if err != nil {
 		return nil, err
@@ -286,6 +298,37 @@ func briefing(c *configuration, selected *string) (map[string]any, error) {
 	protocol, err := protocolSection()
 	if err != nil {
 		return nil, err
+	}
+	if selected != nil {
+		raw := ""
+		if ticketFile != nil {
+			raw, err = ticket.ReadFile(*ticketFile)
+			if err != nil {
+				return nil, refused(err.Error())
+			}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := caller.RegisterRoleWithTicket(ctx, caller.Configuration(c.name, c.home, c.states, c.directory, c.state, c.data), *selected, level, raw, registrar); err != nil {
+			return nil, refused(err.Error())
+		}
+		loaded := caller.Configuration(c.name, c.home, c.states, c.directory, c.state, c.data)
+		_, configured, selectionError := config.IdentityService(loaded)
+		if selectionError != nil {
+			return nil, refused(selectionError.Error())
+		}
+		if configured {
+			identity, err := caller.Resolve(loaded)
+			if err != nil {
+				return nil, refused(err.Error())
+			}
+			if identity.Level < 3 || identity.Level > 6 {
+				return nil, refused((&ticket.Refusal{Reason: ticket.Unavailable}).Error())
+			}
+			entry := object(role["entry"])
+			entry["level"] = int64(identity.Level)
+			entry["level_name"] = map[int]string{3: "executor", 4: "mini-supervisor", 5: "top supervisor", 6: "super top"}[identity.Level]
+		}
 	}
 	var organisation any
 	if name := str(c.data["organisation"]); name != "" {
@@ -430,6 +473,7 @@ func briefingText(doc map[string]any) []string {
 			projects = "none"
 		}
 		lines = append(lines, "- Role: "+str(role["selected"]), fmt.Sprintf("- Level: L%d (%s)", integer(entry["level"]), str(entry["level_name"])), "- Runner: "+str(entry["runner"]), "- Projects: "+projects, "- Owner channel: "+word(entry["owner_channel"]), "- Description: "+word(entry["description"]))
+		lines = append(lines, "- Identity binding: headless commands inherit the recorded parent process identity through ancestry. In a terminal, export LANEBOSS_ROLE="+str(role["selected"])+" in this session to select its terminal ticket. An environment label alone never proves identity.")
 	}
 	lines = append(lines, "", "## Checks", "")
 	checks := object(doc["checks"])

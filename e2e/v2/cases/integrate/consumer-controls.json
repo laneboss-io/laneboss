@@ -1,0 +1,710 @@
+{
+  "status": "active in red-controls.py; Linux reached-red and candidate evidence pending",
+  "controls": [
+    {
+      "id": "unit44-materialization-private-guard",
+      "package": "grants",
+      "test": "TestMatPrivProvenance/audience",
+      "diagnostic": "launch guard failed: expected integrity, got <nil>",
+      "file": "dataworker/materialization_stage.go",
+      "edits": [["metadata.ACL.Audience != \"private\" || ", ""]]
+    },
+    {
+      "id": "unit44-channel-private-guard",
+      "package": "grants",
+      "test": "TestChannelJobPreflight/audience",
+      "diagnostic": "launch guard failed: expected integrity, got not_implemented",
+      "file": "dataworker/job_authority.go",
+      "edits": [["metadata.ACL.Audience != \"private\" || ", ""]]
+    },
+    {
+      "id": "unit44-worker-private-result",
+      "package": "grants",
+      "test": "TestMaterializationWriterProvenance",
+      "diagnostic": "real worker result lost its private operation provenance",
+      "file": "store/worker_bootstrap.go",
+      "edits": [
+        [
+          "saved.Stage, \"worker_result\", \"private\", append([]byte(nil), submission.Result...)",
+          "saved.Stage, \"worker_result\", \"owner\", append([]byte(nil), submission.Result...)"
+        ]
+      ]
+    },
+    {
+      "id": "unit44-offline-runtime-shape",
+      "package": "admin",
+      "test": "TestLaneRuntimeProjection/valid",
+      "diagnostic": "lane runtime producer disagrees with the wire strict reader",
+      "file": "client/wire/json.go",
+      "edits": [
+        [
+          "t == reflect.TypeFor[api.ResolvedRuntime]() && name == \"Network\"",
+          "t == reflect.TypeFor[api.ResolvedRuntime]() && name == \"NoNetwork\""
+        ]
+      ]
+    },
+    {
+      "id": "unit44-offline-runtime-strict",
+      "package": "admin",
+      "test": "TestLaneRuntimeProjection/valid/m-extra",
+      "diagnostic": "offline runtime shape accepted partial network authority",
+      "file": "client/wire/runtime.go",
+      "edits": [
+        [
+          "api.DecodeObject(data, &network)",
+          "json.Unmarshal(data, &network)"
+        ]
+      ]
+    },
+    {
+      "id": "f11-read-expiry",
+      "package": "api",
+      "test": "TestSessionRefresh/expired",
+      "diagnostic": "read session refresh boundary was bypassed",
+      "file": "api/read_session.go",
+      "edits": [
+        [
+          " || !now.Before(idle)",
+          " || idle.Before(idle)"
+        ]
+      ]
+    },
+    {
+      "id": "f11-read-absolute",
+      "package": "api",
+      "test": "TestSessionRefresh/absolute",
+      "diagnostic": "read session refresh boundary was bypassed",
+      "file": "api/read_session.go",
+      "edits": [
+        [
+          "if !reflect.DeepEqual(after, want) {",
+          "if !reflect.DeepEqual(after, want) && after.Generation == 0 {"
+        ]
+      ]
+    },
+    {
+      "id": "f11-read-connection",
+      "package": "api",
+      "test": "TestSessionAuthority/connection",
+      "diagnostic": "same-connection authority refresh was bypassed",
+      "file": "api/read_session.go",
+      "edits": [
+        [
+          "update.After != want || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-credential-prod",
+      "package": "api",
+      "test": "TestCredentialBuild",
+      "diagnostic": "production admitted software credential",
+      "file": "api/human_presence.go",
+      "edits": [
+        [
+          "if marked && !softwareAuthenticatorBuild {",
+          "if marked && softwareAuthenticatorBuild {"
+        ]
+      ]
+    },
+    {
+      "id": "f11-credential-pair",
+      "package": "api",
+      "test": "TestCredentialMarkers/marker",
+      "diagnostic": "partial software registration markers accepted",
+      "file": "api/human_presence.go",
+      "edits": [
+        [
+          "c.AttestationMarker == SoftwareAuthenticatorAttestationMarker && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-proof-use-mark",
+      "package": "api",
+      "test": "TestProofMark",
+      "diagnostic": "proof receipt changed verified presence mark",
+      "file": "api/human_presence.go",
+      "edits": [
+        [
+          " || use.SimulatedPresence != proof.SimulatedPresence",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-confirm-mark",
+      "package": "api",
+      "test": "TestAtomicPresenceMark",
+      "diagnostic": "atomic confirmation lost presence mark",
+      "file": "api/assertion.go",
+      "edits": [
+        [
+          "proof.SimulatedPresence != proof.Ref.SimulatedPresence ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-enrollment-inventory",
+      "package": "api",
+      "test": "TestEnrollmentInventory",
+      "diagnostic": "foreign enrollment inventory accepted",
+      "file": "api/human_presence.go",
+      "edits": [
+        [
+          "enrollment.Config != config || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-enrollment-nonce",
+      "package": "api",
+      "test": "TestEnrollmentCeremony/used",
+      "diagnostic": "administrator enrollment handoff was bypassed",
+      "file": "api/enrollment.go",
+      "edits": [
+        [
+          " || challenge.Consumed",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-enrollment-evidence",
+      "package": "api",
+      "test": "TestEnrollmentCeremony/evidence",
+      "diagnostic": "administrator enrollment handoff was bypassed",
+      "file": "api/enrollment.go",
+      "edits": [
+        [
+          " || c.RegistrationEvidence != install.CeremonyEvidence",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-enrollment-baseline",
+      "package": "api",
+      "test": "TestEnrollmentBaseline",
+      "diagnostic": "administrator ceremony replaced an enrollment",
+      "file": "api/enrollment.go",
+      "edits": [
+        [
+          "if request.Ceremony.ExpectedGeneration != 0 {",
+          "if request.Ceremony.ExpectedGeneration > launchMaxInteger {"
+        ]
+      ]
+    },
+    {
+      "id": "f11-revoke-record",
+      "package": "api",
+      "test": "TestRevocationGate/record",
+      "diagnostic": "causal revocation close gate was bypassed",
+      "file": "api/revocation.go",
+      "edits": [
+        [
+          "!r.Record.Revoked || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-revoke-close",
+      "package": "api",
+      "test": "TestRevocationGate/survivor",
+      "diagnostic": "causal revocation close gate was bypassed",
+      "file": "api/revocation.go",
+      "edits": [
+        [
+          " || *receipt.RemainingConnections != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-revoke-cause",
+      "package": "api",
+      "test": "TestRevocationGate/operation",
+      "diagnostic": "causal revocation close gate was bypassed",
+      "file": "api/revocation.go",
+      "edits": [
+        [
+          "receipt.OperationID != revocation.Cause.CauseOperationID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-worker-lease",
+      "package": "api",
+      "test": "TestWorkerBinding/lease",
+      "diagnostic": "worker principal mapping was bypassed",
+      "file": "api/worker_identity.go",
+      "edits": [
+        [
+          "e.WorkerLeaseID != lease.ID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-worker-peer",
+      "package": "api",
+      "test": "TestWorkerBinding/peer",
+      "diagnostic": "worker principal mapping was bypassed",
+      "file": "api/worker_identity.go",
+      "edits": [
+        [
+          "p.Peer != peer || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-worker-claim",
+      "package": "api",
+      "test": "TestWorkerBinding/claim",
+      "diagnostic": "worker principal mapping was bypassed",
+      "file": "api/worker_identity.go",
+      "edits": [
+        [
+          "p.Claim.Record.ClaimID != p.Claim.ClaimID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-worker-operation",
+      "package": "api",
+      "test": "TestWorkerBinding/permission",
+      "diagnostic": "worker principal mapping was bypassed",
+      "file": "api/worker_identity.go",
+      "edits": [
+        [
+          "if kind == \"capture\" {",
+          "if kind == \"capture\" || operation == WorkerCaptureAppend {"
+        ]
+      ]
+    },
+    {
+      "id": "f11-worker-input",
+      "package": "api",
+      "test": "TestWorkerInput",
+      "diagnostic": "worker input stage was replaced",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          "input.StageID != p.StageID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-worker-result",
+      "package": "api",
+      "test": "TestWorkerResult/bytes",
+      "diagnostic": "worker result correlation was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          "receipt.Result.SHA256 != Digest(hex.EncodeToString(sum[:]))",
+          "receipt.Result.SHA256 != Digest(hex.EncodeToString(sum[:])) && receipt.Result.Bytes == 0"
+        ]
+      ]
+    },
+    {
+      "id": "f11-guidance-win",
+      "package": "api",
+      "test": "TestGuidanceOwner/replay",
+      "diagnostic": "observed claim became a second evaluator",
+      "file": "api/guidance_claim.go",
+      "edits": [
+        [
+          "return r.Acquired && ",
+          "return "
+        ]
+      ]
+    },
+    {
+      "id": "f11-guidance-owner",
+      "package": "api",
+      "test": "TestGuidanceOwner/owner",
+      "diagnostic": "observed claim became a second evaluator",
+      "file": "api/guidance_claim.go",
+      "edits": [
+        [
+          " && r.OwnerAttemptID == request.AttemptID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-guidance-rejudge",
+      "package": "api",
+      "test": "TestGuidanceRecovery/rejudge",
+      "diagnostic": "guidance recovery boundary was bypassed",
+      "file": "api/guidance_claim.go",
+      "edits": [
+        [
+          " || len(selection.Result.JudgmentIDs) != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-guidance-cause",
+      "package": "api",
+      "test": "TestGuidanceRecovery/operation",
+      "diagnostic": "guidance recovery boundary was bypassed",
+      "file": "api/guidance_claim.go",
+      "edits": [
+        [
+          "cause.CauseOperationID != r.OwnerOperationID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-guidance-cas",
+      "package": "api",
+      "test": "TestGuidanceWrite/cas",
+      "diagnostic": "guidance write lost its claim fence",
+      "file": "api/guidance_claim.go",
+      "edits": [
+        [
+          "return cas && epoch",
+          "return epoch"
+        ]
+      ]
+    },
+    {
+      "id": "f11-guidance-epoch",
+      "package": "api",
+      "test": "TestGuidanceWrite/epoch",
+      "diagnostic": "guidance write lost its claim fence",
+      "file": "api/guidance_claim.go",
+      "edits": [
+        [
+          "return cas && epoch",
+          "return cas"
+        ]
+      ]
+    },
+    {
+      "id": "f11-plan-read",
+      "package": "api",
+      "test": "TestPlanReadGate",
+      "diagnostic": "retained lookup returned a foreign plan",
+      "file": "api/plan_read.go",
+      "edits": [
+        [
+          "if record.Reservation.ID != reservationID {",
+          "if record.Reservation.ID == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "f11-usage-percent",
+      "package": "api",
+      "test": "TestUsageWindow/available",
+      "diagnostic": "outside usage authenticity gate was bypassed",
+      "file": "api/usage_window.go",
+      "edits": [
+        [
+          " || e.UsedPercent < 100",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-usage-fresh",
+      "package": "api",
+      "test": "TestUsageWindow/stale",
+      "diagnostic": "outside usage authenticity gate was bypassed",
+      "file": "api/usage_window.go",
+      "edits": [
+        [
+          " || now.Sub(observed) > 30*time.Second",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-usage-profile",
+      "package": "api",
+      "test": "TestUsageWindow/profile",
+      "diagnostic": "outside usage authenticity gate was bypassed",
+      "file": "api/usage_window.go",
+      "edits": [
+        [
+          "e.ProfileID != request.ProfileID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-usage-producer",
+      "package": "api",
+      "test": "TestUsageWindow/producer",
+      "diagnostic": "outside usage authenticity gate was bypassed",
+      "file": "api/usage_window.go",
+      "edits": [
+        [
+          "e.ProducerGeneration != producer.Peer.ProcessGeneration || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-usage-source",
+      "package": "api",
+      "test": "TestUsageSource/percent",
+      "diagnostic": "actual usage source bytes were not enforced",
+      "file": "api/usage_window.go",
+      "edits": [
+        [
+          "used != e.UsedPercent || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-data-input",
+      "package": "api",
+      "test": "TestDataStage/input",
+      "diagnostic": "materialization stage claim was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          "s.Plan.Input != s.Worker.Input || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-data-storage",
+      "package": "api",
+      "test": "TestDataStage/storage",
+      "diagnostic": "materialization stage claim was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          "s.Storage.WorkerLeaseID != s.Worker.ID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-data-parent",
+      "package": "api",
+      "test": "TestDataStage/parent",
+      "diagnostic": "materialization stage claim was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          "s.Claim.Record.Effect.ID == s.ParentEffectID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-data-grants",
+      "package": "api",
+      "test": "TestDataStage/grants",
+      "diagnostic": "materialization stage claim was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          "len(g.Resources)+len(g.Secrets)+len(g.Profiles)+len(g.Network)+len(g.Channels) != 0 || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-data-result",
+      "package": "api",
+      "test": "TestDataResult/exit",
+      "diagnostic": "materialization measured result was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          " || *r.Observation.ExitCode != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-data-readback",
+      "package": "api",
+      "test": "TestDataResult/readback",
+      "diagnostic": "materialization measured result was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          " || r.ReadBackSHA256 != r.Manifest.SHA256",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-data-source",
+      "package": "api",
+      "test": "TestDataResult/source",
+      "diagnostic": "materialization measured result was bypassed",
+      "file": "api/materialization.go",
+      "edits": [
+        [
+          "object.SourceIdentity == s.Storage.SourceIdentity &&",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-eval",
+      "package": "api",
+      "test": "TestPolicyUse/evaluation",
+      "diagnostic": "policy use selected the wrong generation",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "case PolicyNewEvaluation:\n\t\treturn current, nil",
+          "case PolicyNewEvaluation:\n\t\treturn retained, nil"
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-select",
+      "package": "api",
+      "test": "TestPolicyUse/selection",
+      "diagnostic": "policy use selected the wrong generation",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "case PolicyNewSelection:\n\t\treturn current, nil",
+          "case PolicyNewSelection:\n\t\treturn retained, nil"
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-launch",
+      "package": "api",
+      "test": "TestPolicyUse/launch",
+      "diagnostic": "policy use selected the wrong generation",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "case PolicyNewLaunch:\n\t\treturn current, nil",
+          "case PolicyNewLaunch:\n\t\treturn retained, nil"
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-replay",
+      "package": "api",
+      "test": "TestPolicyUse/replay",
+      "diagnostic": "policy use selected the wrong generation",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "return retained, nil",
+          "return current, nil"
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-turn",
+      "package": "api",
+      "test": "TestPolicyUse/retained",
+      "diagnostic": "policy use selected the wrong generation",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "return retained, nil",
+          "return current, nil"
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-replay-key",
+      "package": "api",
+      "test": "TestPolicyReplay",
+      "diagnostic": "policy replay ignored its retained request binding",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "receipt.Key != key || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-plan",
+      "package": "api",
+      "test": "TestLaunchPolicyCurrent",
+      "diagnostic": "stale unopened launch escaped current policy recheck",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          " || reservation.PolicyGeneration != current.Generation || grants.PolicyGeneration != current.Generation",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-pin",
+      "package": "api",
+      "test": "TestPolicyAdvance/pin",
+      "diagnostic": "lane policy advance escaped its narrow CAS update",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "!reflect.DeepEqual(receipt.Lane, want) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-event",
+      "package": "api",
+      "test": "TestPolicyAdvance/event",
+      "diagnostic": "lane policy advance escaped its narrow CAS update",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "receipt.Event != event || ",
+          "receipt.Event != event && receipt.CommittedSeq == 0 || "
+        ]
+      ]
+    },
+    {
+      "id": "f11-policy-cas",
+      "package": "api",
+      "test": "TestPolicyAdvanceWrite",
+      "diagnostic": "policy refresh omitted lane CAS",
+      "file": "api/policy_generation.go",
+      "edits": [
+        [
+          "return cas && epoch",
+          "return epoch"
+        ]
+      ]
+    },
+    {
+      "id": "f11-hook-file",
+      "package": "cli",
+      "test": "TestHookRawFile",
+      "diagnostic": "raw hook file bypassed decision-aware exit handling",
+      "file": "cli/cli.go",
+      "edits": [
+        [
+          "\n\t\tif path == \"org hook\" {\n\t\t\treturn integrateFailure(stderr, &api.Error{Code: api.CodeUnsupported, Owner: \"lb-v2-policy\",\n\t\t\t\tMessage: \"org hook does not support the raw request-file form\",\n\t\t\t\tInstead: \"Use org hook's decision-aware adapter without --request; a deny must produce a nonzero exit.\"})\n\t\t}\n",
+          "\n"
+        ]
+      ]
+    }
+  ]
+}

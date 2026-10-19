@@ -300,6 +300,19 @@ func eventHash(e Object) string {
 type scanner interface{ Scan(...any) error }
 
 func rowEvent(row scanner) (Object, error) {
+	e, err := eventContent(row)
+	if err != nil {
+		return nil, err
+	}
+	if where, rule := credentialValue(e); rule != "" {
+		return nil, Integrity("event seq %d: %s looks like a credential (%s)", num(e["seq"]), where, rule)
+	}
+	return e, nil
+}
+
+// eventContent is the shared integrity reader. Display readers screen values
+// after verification; command readers also reject stored credentials.
+func eventContent(row scanner) (Object, error) {
 	var seq int64
 	var id, kind, actor, payload, protocol, recorded, hash string
 	var lane, occurred sql.NullString
@@ -322,9 +335,6 @@ func rowEvent(row scanner) (Object, error) {
 	}
 	if eventHash(e) != hash {
 		return nil, Integrity("event seq %d: stored hash does not match its content", seq)
-	}
-	if where, rule := credentialValue(e); rule != "" {
-		return nil, Integrity("event seq %d: %s looks like a credential (%s)", seq, where, rule)
 	}
 	return e, nil
 }

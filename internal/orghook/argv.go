@@ -12,18 +12,38 @@ import (
 const maxCommand = 64 * 1024
 const maxTokens = 10000
 
+// nestedInspectionError distinguishes an observation gap inside an already
+// resolved command body from a failure to inspect that command's own argv.
+type nestedInspectionError struct{ error }
+
+func (e *nestedInspectionError) Unwrap() error { return e.error }
+
+func nestedInspection(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &nestedInspectionError{err}
+}
+
 type command struct {
-	argv          []string
-	directory     string
-	writes, reads []string
-	metadata      []string
-	changesState  bool
-	opaque        bool
+	argv               []string
+	directory          string
+	directories        []string
+	writes, reads      []string
+	metadata           []string
+	stateRoot          string
+	stateWrites        []string
+	managedWrites      []string
+	changesState       bool
+	directoryUncertain bool
+	opaque             bool
 }
 type shellToken struct {
 	word     string
 	operator bool
 	quoted   bool
+	ansiC    bool
+	decoded  string
 }
 
 var assignment = regexp.MustCompile(`(?s)^[A-Za-z_][A-Za-z0-9_]*=.*$`)
@@ -144,27 +164,30 @@ func lexShell(text string) ([]shellToken, error) {
 		return nil, invalid("a shell command exceeds the inspection limit or contains NUL")
 	}
 	result := []shellToken{}
-	var word strings.Builder
-	active, quoted := false, false
+	var word, decoded strings.Builder
+	active, quoted, ansiC := false, false, false
 	flush := func() {
 		if active {
-			result = append(result, shellToken{word: word.String(), quoted: quoted})
+			result = append(result, shellToken{word: word.String(), quoted: quoted, ansiC: ansiC, decoded: decoded.String()})
 			word.Reset()
+			decoded.Reset()
 			active = false
 			quoted = false
+			ansiC = false
 		}
 	}
 	for i := 0; i < len(text); {
 		if len(result) >= maxTokens {
-			return nil, invalid("a shell command exceeds the token limit")
+			return result, invalid("a shell command exceeds the token limit")
 		}
 		c := text[i]
 		if c == '\\' {
 			if i+1 >= len(text) {
-				return nil, invalid("a shell command has broken quoting")
+				return result, invalid("a shell command has broken quoting")
 			}
 			if text[i+1] != '\n' {
 				word.WriteByte(text[i+1])
+				decoded.WriteByte(text[i+1])
 				active = true
 				quoted = true
 			}
@@ -172,7 +195,32 @@ func lexShell(text string) ([]shellToken, error) {
 			continue
 		}
 		if c == '$' && i+1 < len(text) && text[i+1] == '\'' {
-			return nil, invalid("ANSI-C shell quoting cannot be inspected")
+			start := i
+			i += 2
+			closed := false
+			for i < len(text) {
+				if text[i] == '\\' && i+1 < len(text) {
+					i += 2
+					continue
+				}
+				if text[i] == '\'' {
+					i++
+					closed = true
+					break
+				}
+				i++
+			}
+			if !closed {
+				return result, invalid("a shell command has broken ANSI-C quoting")
+			}
+			literal, ok := decodeANSICWord(text[start:i])
+			if !ok {
+				return result, invalid("ANSI-C shell quoting cannot be inspected")
+			}
+			word.WriteString(text[start:i])
+			decoded.WriteString(literal)
+			active, quoted, ansiC = true, true, true
+			continue
 		}
 		if c == '\'' || c == '"' {
 			quote := c
@@ -189,15 +237,17 @@ func lexShell(text string) ([]shellToken, error) {
 				if quote == '"' && text[i] == '\\' && i+1 < len(text) && strings.ContainsRune("\"\\$`\n", rune(text[i+1])) {
 					if text[i+1] != '\n' {
 						word.WriteByte(text[i+1])
+						decoded.WriteByte(text[i+1])
 					}
 					i += 2
 					continue
 				}
 				word.WriteByte(text[i])
+				decoded.WriteByte(text[i])
 				i++
 			}
 			if !closed {
-				return nil, invalid("a shell command has broken quoting")
+				return result, invalid("a shell command has broken quoting")
 			}
 			continue
 		}
@@ -223,6 +273,7 @@ func lexShell(text string) ([]shellToken, error) {
 			if (c == '<' || c == '>') && active && !quoted && digits(word.String()) {
 				prefix = word.String()
 				word.Reset()
+				decoded.Reset()
 				active = false
 			}
 			flush()
@@ -238,12 +289,13 @@ func lexShell(text string) ([]shellToken, error) {
 			continue
 		}
 		word.WriteByte(c)
+		decoded.WriteByte(c)
 		active = true
 		i++
 	}
 	flush()
 	if len(result) >= maxTokens {
-		return nil, invalid("a shell command exceeds the token limit")
+		return result, invalid("a shell command exceeds the token limit")
 	}
 	return result, nil
 }
@@ -424,6 +476,9 @@ func standardExecutable(word string) bool {
 
 func inspectLiteralWords(argv []string) error {
 	for _, word := range argv {
+		if strings.Contains(word, "$'") {
+			return invalid("ANSI-C shell quoting cannot be inspected")
+		}
 		if strings.ContainsAny(word, "$`") {
 			return invalid("command substitutions and variables cannot be inspected")
 		}
@@ -433,8 +488,13 @@ func inspectLiteralWords(argv []string) error {
 
 func normalise(argv []string, directory string, depth int) ([]string, string, []command, error) {
 	argv = append([]string(nil), argv...)
-	if len(argv) > 0 && assignment.MatchString(argv[0]) {
-		return nil, "", nil, invalid("command environment assignments cannot be inspected")
+	environmentChanged := false
+	for len(argv) > 0 && assignment.MatchString(argv[0]) {
+		environmentChanged = true
+		if laneIdentityAssignment(argv[0]) {
+			return nil, "", nil, invalid("lane identity environment assignments cannot be inspected")
+		}
+		argv = argv[1:]
 	}
 	for count := 0; count < 8; count++ {
 		if len(argv) == 0 {
@@ -469,9 +529,6 @@ func normalise(argv []string, directory string, depth int) ([]string, string, []
 			return nil, "", nil, invalid("a command wrapper has no executable")
 		}
 		options := argv[1:index]
-		if name == "env" && index < len(argv) && assignment.MatchString(argv[index]) {
-			return nil, "", nil, invalid("command environment assignments cannot be inspected")
-		}
 		for _, option := range options {
 			if contains([]string{"env", "sudo", "doas"}, name) && (contains([]string{"-C", "-D", "-S", "--chdir", "--split-string"}, option) || strings.HasPrefix(option, "--chdir=") || strings.HasPrefix(option, "--split-string=")) {
 				return nil, "", nil, invalid("a command wrapper changes execution context")
@@ -487,12 +544,22 @@ func normalise(argv []string, directory string, depth int) ([]string, string, []
 			return nil, "", nil, invalid("a command wrapper's output files cannot be inspected")
 		}
 		argv = argv[index:]
+		for name == "env" && len(argv) > 0 && assignment.MatchString(argv[0]) {
+			environmentChanged = true
+			if laneIdentityAssignment(argv[0]) {
+				return nil, "", nil, invalid("lane identity environment assignments cannot be inspected")
+			}
+			argv = argv[1:]
+		}
 	}
 	if len(argv) == 0 {
 		return nil, "", nil, invalid("a command has too many wrappers or no executable")
 	}
 	if _, exists := wrappers[filepath.Base(argv[0])]; exists {
 		return nil, "", nil, invalid("a command has too many wrappers")
+	}
+	if filepath.Base(argv[0]) == "laneboss" && environmentChanged {
+		return nil, "", nil, invalid("command environment assignments cannot be inspected")
 	}
 	if !standardExecutable(argv[0]) {
 		return argv, directory, nil, nil
@@ -512,7 +579,7 @@ func normalise(argv []string, directory string, depth int) ([]string, string, []
 			return argv, directory, nil, nil
 		}
 		nested, err := inspectShell(argv[2], directory, depth+1)
-		return argv, directory, nested, err
+		return argv, directory, nested, nestedInspection(err)
 	}
 	if argv[0] == "git" {
 		index := 1
@@ -621,16 +688,24 @@ func inspectArgv(argv []string, directory string, depth int) (commands []command
 	if size > maxCommand {
 		return nil, invalid("a command exceeds the inspection limit")
 	}
+	partial := func(err error) ([]command, error) {
+		resolved, _ := resolveShellCommand(argv)
+		if effect, ok := literalWriteCommand(argv, directory); ok {
+			effect.changesState, effect.opaque = resolved.changesState, true
+			return []command{effect}, err
+		}
+		return []command{{argv: rawEffectiveWords(argv), directory: directory, changesState: resolved.changesState, opaque: true}}, err
+	}
 	// Check every original word before resolution or normalisation can strip
 	// wrapper options, option values or the timeout duration.
 	if faults.Get("orghook-substitution-after-strip").Point == "" {
 		if err := inspectLiteralWords(argv); err != nil {
-			return nil, err
+			return partial(err)
 		}
 	}
 	resolution, err := resolveShellCommand(argv)
 	if err != nil {
-		return nil, err
+		return partial(err)
 	}
 	changesState := resolution.changesState
 	defer func() {
@@ -638,14 +713,42 @@ func inspectArgv(argv []string, directory string, depth int) (commands []command
 			commands[index].changesState = commands[index].changesState || changesState
 		}
 	}()
+	original, originalDirectory := argv, directory
 	argv, directory, nested, err := normalise(argv, directory, depth)
 	if err != nil {
-		return nil, err
+		if len(argv) == 0 {
+			argv, directory = rawEffectiveWords(original), originalDirectory
+		}
+		return append([]command{{argv: argv, directory: directory, changesState: changesState, opaque: true}}, nested...), err
 	}
 	if nested != nil {
 		return append([]command{{argv: argv, directory: directory}}, nested...), nil
 	}
 	name, arguments := argv[0], argv[1:]
+	if effect, ok := literalWriteCommand(argv, directory); ok && effect.opaque {
+		return []command{effect}, nil
+	}
+	if name == "laneboss" {
+		cmd, err := lanebossCommand(argv, directory)
+		return []command{cmd}, err
+	}
+	if inspected, handled, err := naturalCommand(name, arguments, argv, directory, depth); handled {
+		return inspected, err
+	}
+	if name == "eval" {
+		if depth >= maxShellCodeDepth {
+			return partial(errObscuredShellDepth)
+		}
+		if faults.Get("orghook-bl-eval-opaque").Point != "" {
+			_ = faults.Reach("orghook-bl-eval-opaque")
+			return []command{{argv: argv, directory: directory, opaque: true}}, nil
+		}
+		if len(arguments) == 0 {
+			return []command{{argv: argv, directory: directory, opaque: true}}, nil
+		}
+		nested, nestedErr := inspectShell(strings.Join(arguments, " "), directory, depth+1)
+		return append([]command{{argv: argv, directory: directory}}, nested...), nestedInspection(nestedErr)
+	}
 	if name == "test" || name == "[" {
 		if name == "[" {
 			if len(arguments) == 0 || arguments[len(arguments)-1] != "]" {
@@ -826,18 +929,31 @@ func inspectFlatShell(text, directory string, depth int) ([]command, error) {
 	}
 	tokens, err := lexShell(strings.TrimRight(text, " \t\r\n"))
 	if err != nil {
+		if faults.Get("orghook-bl-lexer-head-only").Point != "" {
+			_ = faults.Reach("orghook-bl-lexer-head-only")
+			return nil, nil
+		}
 		return nil, err
 	}
 	commands := []command{}
 	current := []shellToken{}
 	stack := []string{}
 	connectors := []string{}
-	needsCommand, changedDirectory := false, false
-	finish := func() error {
+	possibleDirectories := []string{directory}
+	var firstErr error
+	needsCommand, changedDirectory, directoryUncertain := false, false, false
+	finish := func() (err error) {
 		if len(current) == 0 {
 			return nil
 		}
 		argv, writes, reads := []string{}, []string{}, []string{}
+		var scanErr error
+		before := len(commands)
+		defer func() {
+			if err != nil && len(commands) == before {
+				commands = append(commands, command{argv: rawEffectiveWords(argv), directory: directory, reads: reads, writes: writes, opaque: true})
+			}
+		}()
 		for index := 0; index < len(current); {
 			token := current[index]
 			if !token.operator {
@@ -852,7 +968,23 @@ func inspectFlatShell(text, directory string, depth int) ([]command, error) {
 			target := current[index+1].word
 			if strings.HasPrefix(target, "!") {
 				// zsh reads >!, >>!, &>! and >&! as clobbering redirections to the rest of the word.
-				return invalid("a zsh clobber redirection cannot be inspected")
+				// Retain literal destinations before returning the observation gap,
+				// including the separate operand in >! /path and later redirects.
+				if scanErr == nil {
+					scanErr = invalid("a zsh clobber redirection cannot be inspected")
+				}
+				target = strings.TrimPrefix(target, "!")
+				if target == "" && index+2 < len(current) && !current[index+2].operator {
+					target = current[index+2].word
+					index++
+				}
+			}
+			if target == "" || !literalReadValue(target) {
+				if scanErr == nil {
+					scanErr = invalid("a shell redirection needs a literal target")
+				}
+				index += 2
+				continue
 			}
 			if (contains([]string{">", ">>", ">|", "<>", "&>", "&>>"}, op) || (op == ">&" && !digits(target) && target != "-")) && !standardOutputTarget(target) {
 				writes = append(writes, target)
@@ -865,24 +997,47 @@ func inspectFlatShell(text, directory string, depth int) ([]command, error) {
 			}
 			index += 2
 		}
+		if scanErr != nil {
+			return scanErr
+		}
 		if len(argv) > 0 {
 			inspected, err := inspectArgv(argv, directory, depth)
 			if err != nil {
+				commands = append(commands, command{argv: rawEffectiveWords(argv), directory: directory, writes: writes, reads: reads, opaque: true})
+				commands = append(commands, inspected...)
 				return err
 			}
-			commands = append(commands, command{argv: inspected[0].argv, directory: directory, writes: writes, reads: reads})
+			commandDirectories := uniqueDirectories(directory)
+			if directoryUncertain || len(possibleDirectories) > 1 {
+				commandDirectories = uniqueDirectories(possibleDirectories...)
+			}
+			commands = append(commands, command{argv: inspected[0].argv, directory: directory, directories: commandDirectories, writes: writes, reads: reads, directoryUncertain: directoryUncertain})
 			commands = append(commands, inspected...)
+			if inspected[0].changesState && !contains([]string{"cd", "pushd"}, inspected[0].argv[0]) {
+				directoryUncertain = true
+			}
 			if contains([]string{"cd", "pushd"}, inspected[0].argv[0]) {
 				files := operands(inspected[0].argv[1:], nil)
 				if len(files) != 1 {
+					directoryUncertain = true
 					return invalid("a directory change needs one literal directory")
 				}
-				directory, err = pathAt(files[0], directory)
-				if err != nil {
-					return err
+				candidate, pathErr := pathAt(files[0], directory)
+				if pathErr != nil {
+					directoryUncertain = true
+					changedDirectory = true
+					return pathErr
 				}
-				if !isDirectory(directory) {
-					return invalid("a directory change needs an existing directory")
+				possibleDirectories = uniqueDirectories(append(possibleDirectories, candidate)...)
+				if faults.Get("orghook-bl-cd-unconditional").Point != "" {
+					_ = faults.Reach("orghook-bl-cd-unconditional")
+					possibleDirectories = []string{candidate}
+					directoryUncertain = false
+				}
+				if isDirectory(candidate) {
+					directory = candidate
+				} else {
+					directoryUncertain = true
 				}
 				changedDirectory = true
 			}
@@ -900,18 +1055,21 @@ func inspectFlatShell(text, directory string, depth int) ([]command, error) {
 			}
 			if contains([]string{"&&", "||", "|", "|&", "&", ";"}, value) {
 				if len(current) == 0 {
-					return nil, invalid("a shell operator has no preceding command")
+					return commands, invalid("a shell operator has no preceding command")
 				}
 				connectors = append(connectors, value)
 			}
 			if value == "(" && len(current) > 0 {
-				return nil, invalid("a subshell must start at a command boundary")
+				return commands, invalid("a subshell must start at a command boundary")
 			}
 			if value == ")" && needsCommand {
-				return nil, invalid("a subshell has an incomplete command")
+				return commands, invalid("a subshell has an incomplete command")
 			}
 			if err := finish(); err != nil {
-				return nil, err
+				if firstErr == nil {
+					firstErr = err
+				}
+				current = nil
 			}
 			if value != "\n" {
 				needsCommand = contains([]string{"&&", "||", "|", "|&", "("}, value)
@@ -920,7 +1078,7 @@ func inspectFlatShell(text, directory string, depth int) ([]command, error) {
 				stack = append(stack, directory)
 			} else if value == ")" {
 				if len(stack) == 0 {
-					return nil, invalid("a shell command has unmatched parentheses")
+					return commands, invalid("a shell command has unmatched parentheses")
 				}
 				directory = stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
@@ -931,17 +1089,48 @@ func inspectFlatShell(text, directory string, depth int) ([]command, error) {
 		}
 	}
 	if err := finish(); err != nil {
-		return nil, err
+		firstErr = err
 	}
 	if len(stack) > 0 || len(commands) == 0 || needsCommand {
-		return nil, invalid("a shell command is incomplete")
+		if firstErr == nil {
+			firstErr = invalid("a shell command is incomplete")
+		}
+	}
+	if faults.Get("orghook-bl-stop-failed").Point != "" && firstErr != nil {
+		_ = faults.Reach("orghook-bl-stop-failed")
+		if len(commands) > 1 {
+			commands = commands[:1]
+		}
+		firstErr = nil
+	}
+	if faults.Get("orghook-bl-lexer-head-only").Point != "" && firstErr != nil {
+		_ = faults.Reach("orghook-bl-lexer-head-only")
+		if len(commands) > 1 {
+			commands = commands[:1]
+		}
+		firstErr = nil
+	}
+	if faults.Get("orghook-bl-gap-swallow").Point != "" && firstErr != nil {
+		_ = faults.Reach("orghook-bl-gap-swallow")
+		for index := range commands {
+			commands[index].writes = nil
+			commands[index].reads = nil
+			commands[index].metadata = nil
+			commands[index].opaque = false
+			commands[index].changesState = false
+			commands[index].directoryUncertain = false
+		}
+		firstErr = nil
 	}
 	if changedDirectory {
 		for _, op := range connectors {
 			if op != "&&" {
-				return nil, invalid("directory changes are supported only in an && chain")
+				if firstErr == nil {
+					firstErr = invalid("directory changes are supported only in an && chain")
+				}
+				break
 			}
 		}
 	}
-	return commands, nil
+	return commands, firstErr
 }

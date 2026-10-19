@@ -39,7 +39,7 @@ func (c checker) fail(path, message string) error {
 	if path == "" {
 		path = "(top level)"
 	}
-	return invalid(c.label + ": " + path + ": " + message)
+	return &Error{Code: 2, Prefix: "invalid configuration", Message: c.label + ": " + path + ": " + message, Field: path}
 }
 
 func join(path, key string) string {
@@ -665,11 +665,14 @@ func diskSection(c checker, value any, path string) error {
 
 var configSchema = table(map[string]check{
 	"schema_version": schemaVersion, "name": text(NameRule, 1000), "description": text("", 1000), "organisation": text(NameRule, 1000),
+	"org_dir":         absolutePath,
+	"archive_command": plainCommand("archive"), "identity_service": table(map[string]check{"runtime_root": absolutePath}),
 	"rules": array(rulesPath, false, true), "organisation_rules": array(relativePath, false, true), "secrets": secretNames,
 	"owner_channel": text(NameRule, 1000), "test_environment": text(NameRule, 1000), "state": table(map[string]check{"path": absolutePath}),
-	"lanes": table(map[string]check{"budget_minutes": budget, "quiet_seconds": integer(1, 604800), "stop_grace_seconds": integer(1, 600), "lock_wait_seconds": integer(1, 3600), "room_timeout_seconds": integer(1, 60)}),
-	"turns": table(map[string]check{"idle_message": relativePath, "idle_seconds": integer(1, 604800), "poll_seconds": integer(1, 3600), "backoff_seconds": integer(1, 604800), "limit_backoff_seconds": integer(1, 604800)}),
-	"disk":  diskSection, "runners": namedTables(runnerEntry, 1), "supervisors": namedTables(supervisor, 0),
+	"dashboard": table(map[string]check{"org": absolutePath, "board": relativePath}),
+	"lanes":     table(map[string]check{"budget_minutes": budget, "quiet_seconds": integer(1, 604800), "stop_grace_seconds": integer(1, 600), "lock_wait_seconds": integer(1, 3600), "room_timeout_seconds": integer(1, 60), "sandbox": choice("off", "laneboss-files"), "sandbox_deny_extra": array(absolutePath, false, true)}),
+	"turns":     table(map[string]check{"idle_message": relativePath, "idle_seconds": integer(1, 604800), "poll_seconds": integer(1, 3600), "backoff_seconds": integer(1, 604800), "limit_backoff_seconds": integer(1, 604800)}),
+	"disk":      diskSection, "runners": namedTables(runnerEntry, 1), "supervisors": namedTables(supervisor, 0),
 	"judges":    namedTables(table(map[string]check{"description": text("", 1000), "command": plainCommand("judge"), "timeout_seconds": integer(1, 60)}, "command"), 0),
 	"resources": namedTables(resourceEntry, 0),
 	"routing":   routingSchema(), "test_environments": namedTables(testEnvironment, 0), "owner_channels": namedTables(ownerChannel, 0),

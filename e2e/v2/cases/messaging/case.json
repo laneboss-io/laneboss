@@ -1,0 +1,17 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "messaging",
+  "owner": "lb-v2-messaging",
+  "platforms": ["linux"],
+  "requires": [
+    "service",
+    "identity",
+    "lifecycle",
+    "approval",
+    "dashboard"
+  ],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": ["MSG-REL", "HUMAN-SEND", "MSG-RECHECK", "MSG-RETRY", "MSG-ACTOR"]
+}

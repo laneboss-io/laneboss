@@ -9,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"laneboss.io/laneboss/internal/textcontext"
 )
 
 type scanRun struct {
@@ -29,6 +31,7 @@ type refusalScan struct {
 	lane, by       string
 	runs           []*scanRun
 	guards         []guard
+	textTools      []textcontext.Tool
 	known          map[string]bool
 	records        []*scanRecord
 	recordByPath   map[string]*scanRecord
@@ -415,6 +418,10 @@ func newScan(s *session, lane, by string, final bool, emit func(object) error) (
 		return nil, err
 	}
 	scan := &refusalScan{s: s, lane: lane, by: by, runs: runs, known: map[string]bool{}, recordByPath: map[string]*scanRecord{}, oldInventory: map[string]object{}, inventoryByRun: map[int]map[string]object{}, problems: map[int][]any{}, foundPaths: map[int]map[string]bool{}, before: map[string]bool{}, calls: map[string]*scanItem{}, refused: []*refusalInfo{}, final: final, appended: object{"refusals": 0, "suspicions": 0}, emit: emit}
+	scan.textTools, err = textcontext.Load(s.c.home, s.c.data, screenRoleSource)
+	if err != nil {
+		return nil, refuse("%s", err.Error())
+	}
 	row, err := s.row(lane)
 	if err != nil {
 		return nil, err

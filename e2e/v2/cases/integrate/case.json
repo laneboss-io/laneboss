@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "integrate",
+  "owner": "lb-v2-integrate",
+  "platforms": ["linux"],
+  "requires": ["service", "identity", "records", "policy"],
+  "entry": "run.sh",
+  "timeout_seconds": 300,
+  "live_auth": false,
+  "assertion_ids": ["INTEGRATE-RECORDS"]
+}

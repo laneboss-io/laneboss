@@ -1,7 +1,7 @@
 #!/bin/sh
 # example-agent: a stand-in for an agent program, shipped with the example configuration so that a lane can run
-# end to end without one. It says what it was asked to do, prints the first line of the brief or message file it was
-# given, and exits 0. A real configuration names a real agent program instead.
+# end to end without one. It says what it was asked to do, prints the first task line of the brief or message file
+# it was given, and exits 0. A real configuration names a real agent program instead.
 action=${1:-run}
 file=
 while [ "$#" -gt 0 ]; do
@@ -18,6 +18,11 @@ done
 echo "example-agent: $action in $(pwd)"
 if [ -n "$file" ] && [ -r "$file" ]; then
     echo "example-agent: read $(wc -c < "$file") bytes from $file"
-    head -n 1 "$file"
+    awk '
+        NR == 1 { first = $0 }
+        $0 == "## Your task" { task = 1; next }
+        task && NF { print; printed = 1; exit }
+        END { if (!printed) print first }
+    ' "$file"
 fi
 echo "example-agent: done"

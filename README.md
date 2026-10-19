@@ -1,25 +1,81 @@
 # Laneboss
 
+**This development tree is the incomplete isolation-first v2 rebuild.** The
+installed command entry uses the typed v2 socket dispatcher and reports
+`implementation: v2-incomplete`. Common file-backed requests, composition and
+record ports are under implementation; service, isolation, worker and vendor
+dependencies still contain explicit failing stubs. This tree is not a working
+replacement for the released launcher and has no release acceptance evidence.
+The 1.0.0 release was cancelled. The feature descriptions, install commands and
+screenshots below describe retained legacy behavior to port, not a v2 pass.
+See the [contracts](docs/design/v2-contracts.md) and
+[integration gates](docs/design/v2-lanes.md) for current ownership and status.
+Self-hosted Clef-flash is the decided default judge under R108; TypeSafe Jev
+remains an explicitly selected alternative.
+
 **Laneboss is a launcher for supervised agent lanes: a supervisor session hands each piece of work to an executor in
 its own worktree, and the launcher records what happens to it, so that the supervisor learns it from events and not
 from the executor's own report.**
 
-*Pre-release: nothing has been released and interfaces can still change. What is built is in
+*Version 0.7.0. Interfaces can still change. What is built is in
 [What is built](#what-is-built).*
+
+Install Laneboss and claudock-cli on Linux or macOS (amd64 or arm64):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh
+```
+
+The default install uses checksum-verified release binaries and needs no Go toolchain.
+Use `--without-claudock` for Codex-only setups or `--from-source` to build instead
+([installation options](#install)).
 
 ## What you get
 
-Laneboss is for supervisor sessions, and gives every session:
+Laneboss gives a supervisor the tools to dispatch work, follow its progress and review the evidence:
 
-- **One command**, `laneboss`: it validates configurations, records events, renders briefs, checks the environment
-  and starts, watches, resumes and collects lanes (`scripts/install.sh` installs it).
-- **One versioned shared protocol**, appended to every brief it renders, so that every lane is given the same rules,
-  the refusal rule included. Where a configuration names its guards and a lane's raw session records, the launcher
-  reads them itself for guard refusals.
-- **One configuration per company**, kept outside this repository and apart from every other configuration.
+- **Portable releases:** one Go launcher with SQLite included, prebuilt for Linux and macOS on amd64 and arm64, with checksum verification before installation ([install guide](docs/install.md)).
+- **Your choice of agent:** claudock-cli is installed by default and recommended for Claude users with several profiles; direct Claude Code and Codex runners have their own setup examples ([runner guide](docs/getting-started.md#use-a-real-agent), [portable claudock setup](docs/claudock.md#portable-cli-setup)).
+- **Setup in one command:** `laneboss init` creates a named configuration, a project per existing Git repository, an L3–L6 org, supervisor instances and rendered hooks, selecting an installed runner without starting an agent ([quick start](docs/getting-started.md#quick-start)).
+- **Work in separate lanes:** start, watch, resume and collect worktrees with file-backed briefs, budgets, kept inputs and an append-only event record; turn-based lanes also have mail, scheduled turns and a terminal view ([lane guide](docs/architecture.md#lanes)).
+- **Shared rules and refusal review:** protocol 1.3.0 and org hooks give sessions common rules; configured raw-record scans identify guard refusals and suspected workarounds for a supervisor to review before acceptance ([hook guide](docs/org-hooks.md), [refusal guide](docs/architecture.md#refusals)).
+- **Roles with clear responsibilities:** the built-in library includes executor, reviewer, tester, docs and researcher roles plus supervisors for L4–L6; editable templates specify what each role delivers and which runner programs it may use at each level ([role library and driver rules](docs/org.md#role-library-and-lane-roles)).
+- **Reporting lines and peers:** lanes record their level and starter, receive reporting instructions in their briefs, and use `laneboss report` to report upward through installed channels; peer messages require the same recorded level and supervisor ([org guide](docs/org.md#role-library-and-lane-roles), [dashboard and message rules](docs/dashboard.md)).
+- **Recorded caller identity:** process ancestry and terminal records identify who issued a command; a headless supervisor registers with `laneboss start --role` before dispatching work ([identity setup](docs/configuration.md#supervisorsname), [current limits](#what-is-built)).
+- **A live local dashboard:** a human opens `laneboss dashboard --config NAME --port 0` to follow the org graph, lane activity, refusals, messages, logs, decisions and judge results, with English/Traditional Chinese labels and light/dark themes; requests require the per-run token ([dashboard guide](docs/dashboard.md)).
+- **Owner messages from Discord:** the receive-only gateway filters registered L5/L6 channels and allowed senders, preserves their configured authority and supports reconnect/resume while its session remains available ([gateway guide](docs/org-discord.md#run-the-gateway)).
+- **An owner decision sheet:** an optional `.xlsx` queue in a synced folder preserves answers and notes by ID, supports English and Traditional Chinese, and lets a supervisor acknowledge handled answers ([sheet guide](integrations/owner-sheet/README.md)).
+- **Decision memory:** an org can keep recorded decisions and scoped past cases, inject relevant history and capture clear owner decisions with provenance ([org history](docs/org-history.md), [decision store](docs/decisions.md)).
+- **Decision guidance:** applicable decisions open briefs and turns; TypeSafe-compatible judge scores warn at 0.5 by default. Score-based refusal requires the org to set `refuse_threshold`. A decided question returns its recorded answer ([guidance](docs/decisions.md#guiding-agents)).
+- **TypeSafe job guidance:** org rendering generates the command catalog from CLI syntax, levels and role sources. Baseline-allowed shell calls use the same configured judge and default warning threshold; a separate `jobs_refuse_threshold` enables refusal only on recorded managed targets. Stale catalogs and unavailable judges keep the baseline with a notice ([hook jobs](docs/decisions.md#laneboss-jobs-at-the-hook), [standalone generator](scripts/laneboss_jobs.py)).
 
 Laneboss is generic: it holds no company settings, credentials or state. A configuration names the secrets it needs
 and never holds one.
+
+## Demo
+
+Synthetic demo using the credential-free demo-agent with shop-api and shop-web.
+Captured with headless Chromium on a disposable Ubuntu box. The dashboard runs
+as the human principal under a Python pseudo-terminal because the box has no
+interactive terminal. This is not an authenticated AI-service test.
+
+![Demo org tree with running L5 and L4 supervisors](docs/assets/demo/01-org-tree.png)
+
+Demo org: recorded and running L5/L4 supervisor instances, model names and activity.
+
+![Demo L3 lanes grouped by their recorded stream supervisor](docs/assets/demo/02-lane-tree.png)
+
+Five L3 lanes under the L4 stream, with Running, Verifying and Ended states.
+
+![Demo lane detail with its recorded report line](docs/assets/demo/03-lane-detail.png)
+
+Demo API lane: recorded L3 level, instance:stream-lead report line and parsed timeline.
+
+![Demo lane lifecycle and events](docs/assets/demo/04-lifecycle-events.png)
+
+Demo API events: start, resume, acceptance, merge decision and collection history.
+
+How the capture works and its privacy checks: [the capture guide](docs/assets/README-shots.md).
 
 ## How it fits together
 
@@ -44,7 +100,7 @@ flowchart LR
     rec["Session records<br/>the agent program's own record<br/>of every tool call and result"]
     det["Refusal detection<br/>guards recognise refusals,<br/>suspected workarounds are flagged"]
     gate["Gate at lane mark<br/>accepted or merged is refused while a suspected<br/>workaround has a path without a verdict, or while a run<br/>is not covered and --accept-uncovered is not given"]
-    judge["Judge hook<br/>laneboss judge ask: one yes/no question<br/>to an external command<br/>nothing in the launcher uses it yet"]
+    judge["Judge adapter<br/>laneboss judge ask: one yes/no question<br/>to a configured external command<br/>used by org capture and decision guidance"]
 
     boss -->|"runs"| cmd
     cmd -->|"reads"| cfg
@@ -67,57 +123,102 @@ The supervisor session works through the `laneboss` command, which reads the con
 lane's supervising process records what happens to its runs as events in the event store; refusal detection reads each
 lane's raw session records for guard refusals; the gate at `lane mark` (with guards in the configuration) refuses to
 accept a lane while a suspected workaround has a path without a verdict, or while a run is not covered and
-`--accept-uncovered` is not given; and the judge hook can ask an external command one yes/no question (nothing in the
-launcher uses it yet).
+`--accept-uncovered` is not given; and the judge adapter asks a configured external command one yes/no question,
+logging requests and outcomes. Org decision capture and guidance use that judge machinery when configured.
 
 ## One lane, start to finish
 
-The [getting-started walkthrough](docs/getting-started.md) follows the current Go launcher, `0.6.0-dev4` at
-`8408e57`, from a file-backed brief through two runs and collection. Each command has expected output and an
+The [getting-started walkthrough](docs/getting-started.md) follows the Go launcher, `0.7.0`,
+from a file-backed brief through two runs and collection. Each command has expected output and an
 assertion that checks the launcher's actual result.
 
-`laneboss start --config example --role top` prints the supervisor's briefing and appends nothing. The supervisor
-reads it, then dispatches with `lane start`, which renders the brief, selects the runner, model and account, creates
-the lane's worktree and branch, and returns after the run starts in tmux. The supervisor follows events, checks the
+`laneboss start --config example --role top` prints the supervisor's briefing and records its calling session's
+identity without appending an event. Run it from the persistent session that will issue later commands. The supervisor
+reads it, then dispatches with `lane start --role executor`, which selects an org-owned role, renders the brief,
+selects the runner, model and account, creates the lane's worktree and branch, and returns after the run starts in
+tmux. The supervisor follows events, checks the
 end reason, exit code, surviving processes and output, and can use `lane resume` before collection. Following a
 resumed run needs `event tail --since` so an earlier end event cannot stop the follow prematurely.
 
 After reviewing the work, the supervisor records its decision with `lane mark`. Marking `merged` records a state;
-it does not merge Git commits or deploy. `lane clean` collects a stopped, merged or abandoned lane's clean managed
+it does not merge Git commits or deploy. `lane clean` first verifies an archive, then collects a stopped, merged or abandoned lane's clean managed
 worktree without force; a merged branch is removed when Git agrees it is merged, while the lane's events and kept
-inputs remain. A cleaned lane cannot resume.
+inputs remain. A missing or unowned worktree is kept while its lane's report/logs are archived;
+lane supervisors collect only recorded lower-level descendants from the same lane lives. A cleaned lane cannot resume.
 
 ## Install
 
-- Linux or macOS with a POSIX `sh`, and `git` and `tmux` on `PATH` (`doctor` checks the last two). Lanes run in tmux
-  sessions whose sockets are in `/tmp/laneboss-UID/`; on a system without `/proc` they also use `ps` to follow a run's
-  processes.
-- Go is needed to build the launcher. The installer selects the pinned Go 1.26.0 toolchain and builds with
-  `go build -trimpath`. The installed command is one Go binary, with SQLite included.
-
-With no checkout, one command installs the launcher:
+Install Laneboss and claudock-cli on Linux or macOS (amd64 or arm64), without Go:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh
 ```
 
-That line fetches `install.sh` from the `main` branch of the repository; [docs/install.md](docs/install.md) says what
-it does and needs, and that it runs what it fetches with your rights, which nothing checks. The second way is from a
-checkout:
+The bootstrap follows GitHub's latest-release redirect, downloads
+`laneboss_VERSION_OS_ARCH.tar.gz` and `SHA256SUMS` from that release, and checks the archive's SHA-256
+before unpacking or running it. Each archive includes the binary, LICENSE, README, Claude Code plugins,
+and the Discord gateway script with its run guide.
+After Laneboss is installed, it downloads claudock-cli `0.1.0` for the same OS and architecture from
+its own release and verifies that archive against its own `SHA256SUMS` through the same code path.
+Both commands are installed in the selected prefix's `bin` directory.
+It requires curl, tar, gzip and either sha256sum or shasum; a missing checksum or mismatch stops the install.
+Use `sh -s -- --version 0.7.0` after the pipe to select this release, or `--prefix DIR` to install elsewhere.
+The bootstrap itself comes from `main` over HTTPS; release checksums detect corruption but are not signatures.
+See [docs/install.md](docs/install.md) for the full trust boundary and local release checks.
+
+Codex-only users can skip claudock completely:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh -s -- --without-claudock
+```
+
+An existing claudock at the pinned version is kept. A different version is kept with a clear message
+unless `--upgrade-claudock` is passed. Download, checksum or publication failures in the claudock step
+exit nonzero; Laneboss has already finished installing. Installation creates no profiles and signs in to
+no service. For Claude, use [claudock profiles and the claudock runner](docs/getting-started.md#use-claudock-cli-for-a-real-agent).
+The guide also documents direct `claude` and `codex` runners.
+
+To build from source instead (requires Go, with the pinned Go 1.26.0 toolchain):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/laneboss-io/laneboss/main/install.sh | sh -s -- --from-source
+```
+
+Or build from a checkout:
 
 ```sh
 git clone https://github.com/laneboss-io/laneboss.git laneboss
 cd laneboss
-sh scripts/install.sh
+LANEBOSS_SOURCE=. sh ./install.sh --from-source
 export PATH="$HOME/.local/bin:$PATH"
 laneboss --version
 ```
 
-`scripts/install.sh` builds and installs into `~/.local` without administrator rights. It takes `--prefix DIR`
-to install elsewhere; `LANEBOSS_GO` selects the Go executable. Missing toolchains and modules are downloaded by Go.
-Plugin files are installed beside the binary and located by `laneboss plugin path`.
+Both install routes keep immutable versions under `~/.local/share/laneboss/versions` and link
+`~/.local/bin/laneboss` to the selected version, without administrator rights. Plugin files are installed beside
+the binary and located by `laneboss plugin path`. Source builds download missing toolchains and modules;
+`LANEBOSS_GO` selects the Go executable. Git and tmux are needed for lanes (`doctor` checks them).
+The lower-level `sh scripts/install.sh` builds and installs only Laneboss, as used by the source walkthrough.
 
 ## Quick start
+
+After installing, put `claudock`, `claude` or `codex` on `PATH` and run in an
+unbound shell with existing Git working repositories:
+
+```console
+laneboss init myorg --project ~/code/a --project ~/code/b
+laneboss start --config myorg --role top
+```
+
+Init creates the named configuration, a project per repository, an L3–L6 org,
+supervisor instances and rendered hooks. It announces its runner choice
+(`claudock`, then `claude`, then `codex`) and every created path. `--runner`
+chooses explicitly; `--top-level 6` selects L6 instead of L5. Existing orgs
+and configurations are preserved; init stages its files and rolls back an
+ordinary failure. It starts no agent, contacts no service and writes no account
+or secret. The owner supplies their Claudock profile names before dispatch.
+`start` prints the supervisor briefing. The guide explains setup and limits
+under **What init does, step by step**.
 
 Use the [getting-started guide](docs/getting-started.md) for the complete Linux/macOS walkthrough with commands,
 expected outputs and failure recovery. An AI agent should also read the matching [AGENTS.md checklist](AGENTS.md),
@@ -137,10 +238,13 @@ binary and temporary state are retained. To check a supplied Linux build, pass i
 one argument; the source installation is still checked.
 
 The demo uses the shipped `example-agent`, which reads its input and exits without an AI-service request. For a
-real agent, use the portable [claudock-cli setup](docs/claudock.md#portable-cli-setup) and the guide's runner
-configuration. `claudock` is found on `PATH` on Linux and macOS. Profile authentication and real model execution
-are separate owner-operated steps. The dashboard in this version is `laneboss start` in Markdown or JSON; there
-is no web dashboard command.
+real agent, choose a [runner configuration](docs/getting-started.md#use-a-real-agent). The installer includes
+claudock-cli by default, and it is the recommended setup for Claude users, especially for several Claude
+accounts and per-lane account selection. It is optional: direct Claude Code and Codex runners are alternatives,
+and Codex users can install with `--without-claudock`. The portable
+[claudock-cli setup](docs/claudock.md#portable-cli-setup) uses `claudock` on `PATH` on Linux and macOS.
+Authentication and real model execution are separate owner-operated steps. `laneboss start` supplies the CLI
+briefing in Markdown or JSON; a human can also open the [local web dashboard](docs/dashboard.md).
 
 Most commands print one JSON value; `doctor`, `event tail` and `judge egress` print one JSON object per line,
 `laneboss start` prints Markdown unless it is given `--format json`, `org validate` prints text unless given
@@ -160,16 +264,25 @@ to generated files; `org validate` checks the tree, schemas, imports, secret val
 store secret names; values live in an external store. The tree and commands are in [docs/org.md](docs/org.md).
 
 Every instance's Claude and Codex runner gets one shared PreToolUse hook, set up by `org init`, `instance add` and
-`render`: rules are data in shared and level `hooks/rules.toml`, every rule has a refusal description in `refusals/`
-that tells the agent why and what to do instead, and a policy or settings file that cannot be read means a denial
-([docs/org-hooks.md](docs/org-hooks.md)). Only L5 and L6 instances talk to the owner, each in its own Discord channel,
-registered with `org channel add`; L3 and L4 never get one ([docs/org-discord.md](docs/org-discord.md)).
+`render`. Init seeds only twelve Laneboss-first entries in `org.toml`; it writes no shared or level
+`hooks/rules.toml`, refusal catalog, starter examples or tool allowlist field. Add your own policy during
+[bootstrap](docs/org-hooks.md#bootstrap-add-your-own-entries). Optional rule files need matching refusal descriptions
+in `refusals/`; missing rule files mean no rules, while unreadable existing policy or settings means a denial.
+Built-in Laneboss-file protections, including the decision store and `shared/services/`, and L3 lane boundaries remain active
+([docs/org-hooks.md](docs/org-hooks.md)). Only L5 and L6 instances register owner Discord channels with
+`org channel add`; L3 and L4 never get one ([docs/org-discord.md](docs/org-discord.md)).
+
+Laneboss observes and records; it enforces your org's policy and its built-in protections.
 
 Each org keeps one decision store inside its `.laneboss` home, and no command reads another org's store: a store path
 or history socket that resolves outside the org is refused. Curated ledgers, reports and boards and finished lanes go
 in; `org hook-history` gives a runner its own instance's or its level's past cases, ranked by time and by later
 outcomes, with "do not repeat" warnings kept; `org capture-decision` stores an owner's clear decision verbatim
-([docs/org-history.md](docs/org-history.md)).
+([docs/org-history.md](docs/org-history.md)). The recorded decisions also steer the agents: every lane brief and turn
+message carries the decisions of its project and level, the org hook asks a judge whether a tool call conflicts with one
+and warns at the configured threshold in `guide.toml`; refusal requires an explicit org opt-in. Both
+`report --ask` and `lane send --ask` answer a question that is already decided instead of sending it
+([Guiding agents](docs/decisions.md#guiding-agents)).
 
 ## Go layout
 
@@ -184,23 +297,33 @@ Their local READMEs describe the flags, output and `go build -trimpath` commands
 
 ## What is built
 
-| Part | Built and tested | Not built yet |
+| Part | Available in this tree | Limits and setup |
 |---|---|---|
-| Installation | `scripts/install.sh`: builds one Go binary with Go 1.26.0 and `-trimpath`, installs plugins without administrator rights; installed versions are immutable and checked against a manifest. `install.sh` at the root, for anybody without a checkout: it gets the source of one version and runs that version's own installer ([docs/install.md](docs/install.md)) | |
-| Configurations | One per company, kept apart from every other (isolation by identity, not by path text); organisations; level names L3 to L6 | |
-| Org template | `org init`, `instance add`, `render` and `validate`: one folder, protocol sources and generated rules, schemas and secret checks ([docs/org.md](docs/org.md)); the shared level- and identity-aware hook with refusal descriptions, `org hook`, `refusals` and `check-hooks` ([docs/org-hooks.md](docs/org-hooks.md)); L5/L6 owner channels with `org channel add` ([docs/org-discord.md](docs/org-discord.md)); one history store per org, `org hook-history` and `org capture-decision` ([docs/org-history.md](docs/org-history.md)) | `lane start` and `resume` checking an org instance's runner command; `org render` registering the history hook in runner settings; the gateway that delivers channel events and calls decision capture |
-| Event store | One SQLite file per configuration: append-only, a hash on every event, duplicate-safe appends, the lane projection, `event tail --follow`, `state verify` and `rebuild` | The network service in front of the store |
-| Shared protocol and briefs | Protocol 1.3.0 with its refusal rule; `brief render`, with the cost and preflight sections mandatory for briefs that touch billing or deployment | |
-| Lanes | `lane start` (routing by difficulty, budgets), `resume`, `stop`, `status`, `check`, `mark` and `clean`; `lane.stuck` and `lane.timeout` events; a lane's session identity (`{session}`) and a prompt on standard input; turn-based lanes: `lane start --turns`, mail (`lane send`) and one turn at a time (`lane turn`), with the lane waiting between turns, the loop that starts those turns on a schedule (`lane loop`), and `lane attach`, a terminal view of a turn-based lane and a keyboard for it, and the runner key `stream`; `lane adopt` makes a session started outside the launcher a turn-based lane ([docs/architecture.md](docs/architecture.md#accounts-and-adoption-t5-built-in-part)) | Account choice by remaining quota; messages to a running executor |
-| Refusals | Guard refusals read from a lane's raw session records, suspected workarounds, the supervisor's review, and the gate at `lane mark --state accepted` or `merged` | Telling the owner about refusals; a judge that reads suspicions; the record formats of other agent programs |
-| Judges | The contract and `laneboss judge list`, `ask` and `egress`; every ask is logged, and a text the credential detector refuses is withheld before anything is sent (nothing in the launcher uses a judge yet) | The judge that picks a difficulty |
-| Supervisor sessions | `laneboss start`, the briefing a supervisor session reads; the Claude Code plugin's `/laneboss` command | |
-| Environment | `laneboss doctor`: one result line per check, and a non-zero exit when one fails | |
-| Owner decisions | `laneboss decisions`: the decision store, with the owner's exact words and provenance | Binding it to a configuration |
-| Publication | `scripts/scan.sh` and a pre-commit hook | |
-| Whole areas | | Test machines, owner messages and cost accounting (their configuration fields are checked but not used yet) |
+| Installation | Prebuilt Go binaries for four platforms, default claudock-cli companion, immutable version directories and SHA-256 checks ([install guide](docs/install.md)) | `--from-source` needs Go 1.26.0; checksums are not signatures; vendor sign-in is separate. |
+| Setup and configurations | `laneboss init`, isolated named configurations, projects, orgs and rendered hooks ([quick start](docs/getting-started.md#quick-start)) | Init preserves existing destinations and starts no agent. |
+| Org roles and hooks | Embedded L3–L6 role library, editable templates, exact level/role driver lists, source hashes and generated runner hooks ([org guide](docs/org.md#role-library-and-lane-roles), [hook guide](docs/org-hooks.md)) | Every start/adoption needs an org and a role; org sources override built-in fallbacks; `org roles init` installs editable copies; driver names do not verify executable contents. |
+| Protocol and events | Protocol 1.3.0, file-backed briefs, kept inputs, append-only SQLite events, follow, verify and rebuild ([architecture](docs/architecture.md#protocol-and-briefs)) | A successful command or runner exit still needs evidence review. |
+| Lanes | Routed starts, budgets, resume, stop, review, mark, clean, turn-based mail, loop, attach and adoption ([lane guide](docs/architecture.md#lanes)) | Session continuation depends on the runner; the init-generated Codex runner has no resume template. |
+| Refusals and judges | Configured raw-record scans, suspected-workaround review, acceptance gates and logged judge requests ([refusals](docs/architecture.md#refusals), [judges](docs/judges.md)) | Scans cover only configured records; a judge score is not proof. |
+| Reporting and identity | Recorded level/starter, report instructions in briefs, upward reports through installed channels, peer checks and caller ancestry/session records ([org guide](docs/org.md#role-library-and-lane-roles), [identity setup](docs/configuration.md#supervisorsname)) | Peer lanes need equal recorded levels and the same starter; historic missing fields stay unrecorded. See the identity limits below. |
+| Dashboard | Human-only local web view of graph, lifecycle, activity, refusals, messages, logs and decisions ([dashboard guide](docs/dashboard.md)) | Requires the per-run token; delivery does not imply an agent read acknowledgement. |
+| Owner channels and sheet | Receive-only Discord gateway and a standalone bilingual `.xlsx` decision queue ([Discord guide](docs/org-discord.md#run-the-gateway), [sheet guide](integrations/owner-sheet/README.md)) | Gateway needs Node 22+ and configured Discord access; the sheet needs Python/openpyxl and a separately supplied sync client. |
+| Decision history | Org-scoped history, decision capture, retrieval and provenance ([org history](docs/org-history.md), [store manual](docs/decisions.md)) | Applicable decisions open briefs and turns; the hook adds scored warnings or refusals, and decided questions return recorded answers. |
+| TypeSafe job catalog | Generated command catalog and validated, default warn-only hook recommendations using the decision judge ([hook jobs](docs/decisions.md#laneboss-jobs-at-the-hook)) | Catalog refusal needs its separate threshold and a recorded managed target; baseline-refused inputs never reach the judge. A stale catalog or unavailable judge retains baseline with a notice; the standalone generator needs Python 3.11+. |
+| Environment and publication | `doctor`, publication scan and pre-commit hook ([doctor](docs/architecture.md#doctor), [publication](CONTRIBUTING.md)) | Doctor checks availability, not vendor login or quota; runtime acceptance runs separately. |
 
-[Left for later lanes](docs/architecture.md#left-for-later-lanes) lists the rest. External runners are configured as commands; their account management remains outside the launcher.
+The caller policy is read-only access for a process with no recorded identity. Before state changes, including
+lane start, resume, adoption, event append and reports, register the persistent supervisor with
+`laneboss start --config NAME --role ROLE`, or use a controlling terminal identified as the human.
+Lane start and adoption refuse an unidentified caller at every level, before the level and role checks.
+The refusal starts with `the caller has no recorded identity` and names those two registration routes.
+`laneboss start --role` remains the headless bootstrap.
+
+Identity checks help prevent mistakes between sessions sharing an operating-system account. They do not isolate
+mutually untrusted processes of that account, which can alter identity records. A same-account process with no
+recorded lane or supervisor identity can register any configured supervisor role through `laneboss start --role`;
+this is the headless bootstrap. A recorded lane cannot register a supervisor role, and a recorded supervisor cannot
+raise its level through registration. Use separate OS accounts or containers where sessions must not trust each other.
 
 ## A lane's life
 
@@ -310,13 +433,14 @@ denied" message, `os` is an operating system's "Permission denied" from `cp`, `t
 `secret` is a line with a made-up credential, which the launcher withheld before asking. By the question's own
 definition `hook` and `harness` are refusals and `os` and `test` are not, and the chart groups them in that way. The
 nine runs asked identical requests, which measures how stable the answer is, not how accurate the judge is in general.
-Nothing else was measured: five subjects say nothing about other results, and nothing in the launcher uses a judge yet
-([docs/judges.md](docs/judges.md)). The pairs behind the chart are in
+Nothing else was measured: five subjects say nothing about model accuracy for decision guidance or
+job recommendations ([docs/judges.md](docs/judges.md)). The pairs behind the chart are in
 [docs/assets/data/judge_answers.csv](docs/assets/data/judge_answers.csv); the chart is a retained result of that trial.
 
 ## Commands
 
-The launcher's commands that read or write state (`event`, `state`, `brief`, `doctor`, `lane`, `judge`) are bound to
+The launcher's commands that read or write configuration state (including `event`, `state`, `brief`, `doctor`,
+`lane`, `judge`, `report` and `dashboard`) are bound to
 one configuration, with `--config NAME` or the variable `LANEBOSS_CONFIG`; the launcher never guesses which one.
 `laneboss decisions` is the exception: it is not bound to a configuration and takes its own `--db` path.
 `laneboss org` also works independently, using its explicit org folder.
@@ -324,32 +448,43 @@ one configuration, with `--config NAME` or the variable `LANEBOSS_CONFIG`; the l
 | Command | What it does |
 |---|---|
 | `laneboss --version` | Prints the program, package and protocol versions. |
+| `laneboss init NAME --project PATH... [--runner NAME] [--top-level 5\|6]` | Creates a configuration, projects, org and rendered hooks from existing repositories and an installed runner. |
 | `laneboss config list`, `show NAME`, `validate NAME` or `--all`, `path NAME` | Lists, shows, validates and locates configurations. |
 | `laneboss org init ORG_DIR [--levels 3-6] [--name NAME]` | Creates the org tree with generic rules and one example instance per level. |
 | `laneboss org instance add ORG_DIR NAME --level N --role ROLE [--discord-channel ID] [--secret NAME]...` | Adds an instance with its own level's rules and names-only config. |
 | `laneboss org render ORG_DIR` | Regenerates all org rules from protocol sources; refuses hand edits to generated files. |
+| `laneboss org roles list ORG_DIR`, `org roles init ORG_DIR [--update]` | Lists library/org roles or installs their templates and driver files; `--update` shows differences before replacing library sources. |
 | `laneboss org validate ORG_DIR [--format text\|json]` | Checks the managed org tree, schemas, imports, instance levels, secret values, hooks and owner channels. |
 | `laneboss org hook --runner claude\|codex [--instance FILE]` | The PreToolUse hook: reads one event on standard input and prints the decision. |
 | `laneboss org refusals ORG_DIR [--format text\|json]` | Lists every rule's refusal description. |
 | `laneboss org check-hooks ORG_DIR` | Checks that every instance's runners are registered with the org hook. |
 | `laneboss org channel add ORG_DIR INSTANCE (--channel-id ID \| --create) [--member ID:AUTHORITY]... [--dry-run]` | Registers an L5/L6 instance's owner channel. |
+| `laneboss org channel read ORG_DIR --json` | Prints validated, names-only Discord gateway settings and resolved state/event paths. |
 | `laneboss org hook-history --runner claude\|codex --org-dir DIR [--instance NAME]` | Prints bounded past cases for a runner's session start or prompt; prints nothing when the store is missing or locked. |
 | `laneboss org capture-decision --org-dir DIR --source PTR --text-file F --author-authority decide\|inform` | Asks the org's judge whether a human message is a decision and stores a clear one verbatim. |
 | `laneboss event append --config N --file F` | Appends one event read from a file (`-` reads stdin). |
 | `laneboss event tail --config N [--since SEQ] [--lane L] [--follow] [--until KIND]` | Prints stored events as JSON lines; `--follow` keeps going, `--until` stops after the first event of a kind. |
 | `laneboss state events`, `lanes`, `rebuild` or `verify --config N` | Reads, rebuilds and checks the event store and its lane projection. |
 | `laneboss brief render --config N --lane L --in BRIEF --out RENDERED` | Appends the protocol block to a brief; `--touches billing` and `--touches deploy` require the cost and preflight sections. |
-| `laneboss lane start --config N --lane L --brief FILE ...` | Renders the brief, picks the runner, model and account, makes the working directory and starts the run in the background. With `--turns [--idle SECONDS]` the lane is turn-based: it takes mail and is continued one turn at a time. |
-| `laneboss lane resume`, `stop`, `status`, `check`, `mark`, `clean --config N ...` | Continues, stops, shows, checks, records decisions about and cleans up lanes. |
-| `laneboss lane send --config N --lane L (--file F \| -) [--from NAME]` | Stores one message for a turn-based lane as a file of the lane and announces it with an event; the message waits for the next turn. |
+| `laneboss lane start --config N --lane L --brief FILE --role ROLE [--level N] ...` | Requires the org's role and driver permission, renders the brief, selects routing, creates the working directory and starts the run. With `--turns [--idle SECONDS]` the lane takes mail one turn at a time. |
+| `laneboss lane resume`, `stop`, `status`, `check`, `mark`, `clean --config N ...` | Continues, stops, shows, checks and records decisions about lanes; clean verifies an archive before collecting finished work. |
+| `laneboss lane archive --config N --lane L [--dry-run] [--to DIR]`, `archive daily --config N [--dry-run]`, `store search --config N QUERY` | Keeps searchable reports and verified tar receipts before local collection ([archive and store contract](docs/architecture.md#searchable-records-and-lane-archives)). |
+| `laneboss lane send --config N --lane L (--file F \| -) [--from NAME] [--ask]` | Stores one message for a turn-based lane as a file of the lane and announces it with an event; the message waits for the next turn. With `--ask` the message is a question, and one that a recorded decision already answers is answered from the record and not sent ([Guiding agents](docs/decisions.md#guiding-agents)). |
 | `laneboss lane turn --config N --lane L [--idle]` | Starts the next turn of a turn-based lane: a resume that carries the lane's waiting messages, or, with `--idle` and no mail, the configuration's idle message. |
 | `laneboss lane attach --config N --lane L` | Shows a turn-based lane in the terminal: the live turn's output from the lane's own log, the permission mode the agent reports (with a plain warning on bypass), the cost of a turn, and `idle` between turns. A typed line becomes `lane send` and `lane turn`. It prints text for a person, starts no agent, and leaving it stops no turn; Ctrl-C stops only a turn that it started. |
 | `laneboss lane scan`, `refusals`, `review --config N ...` | Scans a lane's raw session records again for guard refusals, lists refusals, suspected workarounds and what was scanned, and records the supervisor's verdict on each path of a suspicion. |
 | `laneboss judge list`, `ask`, `egress --config N ...` | Lists the configured judges, asks one a yes/no question and prints its probability, and prints the log of every ask ([docs/judges.md](docs/judges.md)). |
 | `laneboss doctor --config N` | Checks the configuration, its state directory, `git`, `tmux`, each runner's programs, each judge's program and the organisation's tools directory; it also warns, without failing, about a runner that can take turns and has no `limit_patterns`. |
-| `laneboss start [--config N] [--role ROLE] [--format text\|json]` | Prints the briefing a supervisor session reads when it begins: configuration, protocol, standing rules with their text, role, read-only checks, lanes by group (running, ended, accepted, lost, and idle: turn-based lanes between two turns) and recent events. Without a configuration it lists them. Appends no event and creates no state (on a file system where a directory cannot be locked it may create the reader's `.lock` file, as every reader of the store does: "Known limits" in [docs/architecture.md](docs/architecture.md)). |
+| `laneboss start [--config N] [--role ROLE] [--format text\|json]` | Prints the supervisor briefing, checks, grouped lanes and recent events. `--role` also records the caller's session identity. It starts no agent and appends no event; without a configuration it lists them. |
+| `laneboss report --config N --file FILE\|- [--ask]`, `report watch --config N --as TARGET` | Sends a screened report to the recorded supervisor (or human when no report line is recorded), records each installed channel's outcome, or watches terminal reports. `--ask` returns a recorded answer to a decided question before any delivery. |
+| `laneboss dashboard --config N [--port 0]` | Opens the human-only local web dashboard and prints its address with a per-run token. |
 | `laneboss plugin path [--agent claude-code]` | Prints the directory of the installed Claude Code plugin (the `/laneboss` command) as one JSON string; not bound to a configuration. See [docs/plugin.md](docs/plugin.md). |
 | `laneboss decisions ARGS` | The owner decision store, dispatched in-process to its Go implementation. |
+| `laneboss box launch --provider P --purpose NAME [--dry-run]` | Starts a spot test machine and records it in its own ledger, or checks whether a launch is allowed. |
+| `laneboss box run --provider P --purpose NAME --suite TEXT ...` | Runs a suite on a spot machine, brings the results back and waits for it to be gone. |
+| `laneboss box end [--provider P] --instance ID` | Collects a box and polls for proof that it is gone; can infer its provider from the ledger. |
+| `laneboss box list`, `sweep --provider P --older-than-min N [--delete]` | Lists boxes with ledger evidence, or examines and optionally deletes old orphans. |
+| `laneboss box check [--provider P]` | Checks its own `box.toml`, ledger writability and needed programs without contacting a provider. |
 
 A supervisor learns about every change of a lane from its events: `event tail --follow` shows `lane.started`,
 `lane.stuck`, `lane.timeout` and `lane.ended` as they happen ([Lanes](docs/architecture.md#lanes)). With guards in
@@ -370,6 +505,7 @@ its answer could not be logged, `70` an unexpected internal error ([docs/judges.
 `laneboss decisions` passes through the decision store's exit codes, which add `4` (embedding provider), `5` (database
 busy), `6` (permission problem) and `7` (storage problem); they are listed under [Run](docs/decisions.md#run) in its
 manual.
+`laneboss report` uses `3` when no channel delivered and `4` for partial delivery; inspect each channel's outcome.
 
 ## Documents
 
@@ -378,14 +514,18 @@ manual.
   configurations, the event store, lanes and their events, refusals and suspected workarounds, briefs, `doctor`,
   the publication scan and the known limits.
 - [docs/configuration.md](docs/configuration.md): every field of a configuration.
+- [docs/box.md](docs/box.md): spot test machines, suites, collection, the box configuration and exit codes.
 - [docs/org.md](docs/org.md): an org in one folder, its files, schemas, commands, runner rules and external secrets.
 - [docs/org-hooks.md](docs/org-hooks.md): the org hook, its rule data and refusal descriptions.
 - [docs/org-discord.md](docs/org-discord.md): L5/L6 owner channels and channel-aware events.
 - [docs/org-history.md](docs/org-history.md): the org's history store, ranking, injection and decision capture.
+- [docs/dashboard.md](docs/dashboard.md): the local web dashboard, recorded reporting lines and message permissions.
+- [integrations/owner-sheet/README.md](integrations/owner-sheet/README.md): the bilingual decision queue and answer preservation.
+- [scripts/laneboss_jobs.py](scripts/laneboss_jobs.py): the generated TypeSafe job catalog and its command usage.
 - [docs/install.md](docs/install.md): the one-command install: what it does, needs and trusts, and where the source
   comes from.
 - [docs/judges.md](docs/judges.md): the judge contract, the three `judge` commands and the egress log.
-- [docs/decisions.md](docs/decisions.md): the owner decision store.
+- [docs/decisions.md](docs/decisions.md): the owner decision store, and how its decisions guide agents.
 - [docs/plugin.md](docs/plugin.md): the Claude Code plugin: its one command, how it handles arguments, and the
   steps to add it to Claude Code.
 - [docs/claudock.md](docs/claudock.md): configuring an external Claudock runner.
@@ -398,11 +538,13 @@ manual.
   rule.
 - [CHANGELOG.md](CHANGELOG.md): what has changed.
 
-Laneboss can run external agent wrappers, including Claudock; it does not require a particular wrapper.
+Laneboss can run Claude Code and Codex directly or use external agent wrappers. claudock-cli is optional,
+installed by default and recommended for Claude users; Laneboss does not require a particular wrapper.
 
 ## Status
 
-**Pre-release.** Nothing has been released, and interfaces and file formats can still change. What is built and tested
-is in [What is built](#what-is-built); the right-hand column there is not built yet.
+**Version 0.7.0.** Interfaces and file formats can still change. Available features, setup requirements and
+remaining limits are in [What is built](#what-is-built). The credential-free walkthrough is not an authenticated
+AI-service test; release runtime verification is separate from these feature descriptions.
 
 License: Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).

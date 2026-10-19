@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"sync"
+
+	"laneboss.io/laneboss/internal/caller"
 )
 
 // A store writer owns event order independently of process and budget control.
@@ -58,8 +60,12 @@ func (r *turnRecorder) finish() error {
 	r.mutex.Unlock()
 	return <-r.done
 }
-func (r *turnRecorder) ending(end, started object) error {
-	e, err := envelope("lane.ended", r.lane, "laneboss", end)
+func (r *turnRecorder) ending(end, started object, actors ...string) error {
+	actor := "laneboss"
+	if len(actors) > 0 {
+		actor = actors[0]
+	}
+	e, err := envelope("lane.ended", r.lane, caller.LifecycleActor(actor), end)
 	if err != nil {
 		return err
 	}

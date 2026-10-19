@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.ladder-pins.v2",
+  "go": "go1.26.5",
+  "claudock-cli": "0.1.0",
+  "codex": "0.146.0",
+  "minimum_cpus": 32,
+  "minimum_memory_gib": 60,
+  "minimum_disk_gib": 160,
+  "platform": "linux",
+  "distribution": "ubuntu-24.04"
+}

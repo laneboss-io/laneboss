@@ -34,7 +34,7 @@ var envelopeFields = []string{"id", "kind", "lane", "actor", "occurred_at", "pay
 var eventID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 var eventKind = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}$`)
 var laneName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
-var actorName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:@/+-]{0,127}$`)
+var actorName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:@/+() -]{0,127}$`)
 var versionGrammar = regexp.MustCompile(`^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$`)
 var timestampGrammar = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{3}(?:[0-9]{3})?)?(?:Z|[+-][0-9]{2}:[0-9]{2})$`)
 

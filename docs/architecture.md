@@ -77,7 +77,7 @@ value that looks like a credential.
 | `laneboss config validate NAME` / `--all` | `{"valid": true, "configs": [...]}`; `--all` also refuses equal or nested state directories. |
 | `laneboss config path NAME` | `name`, `config_dir`, `config_file`, `state_dir`, `store`, and `socket`: the configuration's tmux socket, which its lanes record. |
 | `laneboss event append --config N --file F` | Appends one event read from a file (`-` is stdin; never from an argument): `{"id", "seq", "recorded_at", "sha256", "duplicate"}`. |
-| `laneboss event tail --config N [--since SEQ] [--lane L] [--follow] [--until KIND]` | One JSON line per stored event with `seq > SEQ`, in order (with `--lane`, only that lane's); `--follow` keeps polling (every 0.2 s) and prints new events as they are committed by any process, until interrupted (exit 0) or, with `--until`, until it has printed an event of that kind (exit 0). |
+| `laneboss event tail --config N [--since SEQ] [--lane L] [--follow] [--until KIND]` | One JSON line per stored event with `seq > SEQ`, in order (with `--lane`, only that lane's); `--follow` keeps polling (every 0.2 s) and prints new events as they are committed by any process, until interrupted (exit 0) or, with `--until`, until it has printed an event of that kind (exit 0). Each line also carries `externally_appended`: true for a lifecycle event written through `event append` (it confers no launcher authority), false for every other event; `--until` ignores externally appended events. |
 | `laneboss state events --config N` | Every event as one JSON array. |
 | `laneboss state lanes --config N` | The stored lane projection, sorted by lane. |
 | `laneboss state rebuild --config N` | Recomputes the projection from events alone, replaces the stored one and prints it in the `state lanes` format. |
@@ -87,6 +87,442 @@ value that looks like a credential.
 | `laneboss doctor --config N` | See "Doctor". |
 | `laneboss start [--config N] [--role ROLE] [--format text\|json]` | The session briefing: Markdown by default, or one JSON value with the keys `configuration` (its name, description, organisation, binding and warnings), `protocol`, `rules`, `role`, `checks`, `lanes`, `events` and `unknown`. Without a configuration, the list of configurations. The `role` section is the `[supervisors]` entry that `--role` names, with its level (the text line `- Level: L5 (top supervisor)`; `level` and `level_name` in the JSON entry; see "Levels"). The `lanes` section groups the lanes as `running`, `ended`, `accepted`, `lost` and `idle` (the lanes of state `waiting` with no run going on, that is, turn-based lanes between two turns, each item with `waiting`: the number of messages that wait for a turn, the returned ones included), and counts the rest as `others`; the JSON key `idle` is always there, and the text form prints the group "Idle, waiting for a turn (N):" only when N is above 0. Read-only: no event, no state (what every reader of the store may still do is under "Known limits"). After a successful binding (an overlap the binding itself knows is refused before that, with exit 2), an unsound store, or a state directory of its own that is not isolated, gives exit 3 and no briefing; another configuration that cannot be read gives a warning. |
 | `laneboss plugin path [--agent claude-code]` | One JSON string: the directory of the installed plugin. Not bound to a configuration. |
+
+Supervisor registration uses the authenticated identity service when configured.
+Its human-issued ticket is consumed before the service records the persistent
+parent. Caller resolution then reads that service record, and does not trust new
+local `sessions/` or `roles/` files. Existing live legacy identities are frozen
+once by the administrator at activation. Without a service, the open 0.7.0
+registration remains available with one R25-not-enforced notice. A role-selected
+`start` has an identity-recording side effect; a role-free briefing is read-only.
+[configuration.md](configuration.md) specifies both paths.
+
+## Searchable records and lane archives
+
+`laneboss store record --config NAME --kind K --file FILE [--lane L] [--private]`
+appends a `store.record` event to the configuration's existing `events.sqlite`.
+The payload has `kind`, `text`, `source`, `sha256` and `private`; its envelope
+supplies the lane, actor and recording time. K is `lane-report`, `decision`,
+`owner-word`, `ledger-row` or `receipt`. These records use the event store's
+existing append-only triggers and event hashes, and `state verify` checks their
+shape and public text hashes. No schema migration or separate service is needed.
+Writing requires the launcher's resolved caller identity. An identified lane's
+`store record` and `store search` calls select only its own records; supervisors
+and the human use their configuration. Bulk readers and unidentified search
+callers have the remaining scope limits listed below.
+
+Input is a bounded UTF-8 text file, at most 512 KiB. Binary data and credential
+shapes are refused; a credential refusal names the detector and line, never the
+matching bytes. Settings sources and explicit TOML/JSON/YAML fences cannot be
+indexed as public prose. Assignment-looking commands and code in an ordinary
+report remain text, including `GOTOOLCHAIN=local go vet ./...` and `err = run()`.
+For public records, a narrow backstop also recognises line-start assignments,
+with optional `export` and either `=` or `:`. For `:`, only lowercase names
+are considered and a single number/fraction matching `^[0-9][0-9/.,%]*$` is
+excluded. Values starting with `=` are excluded, so Go `:=` is not an assignment
+to this backstop. `PASS: 26`, `Pass: 26/26`, `Auth: OK` and
+`token := os.Getenv("T")` remain public prose/code. A name split on `_`, `.` or `-`
+must contain `pass`, `pwd`, `pw`, `key`, `secret`, `token`, `auth`, `cred` or
+`creds`, or a part ending in `password`/`passwd`; its value must be literal under
+the existing detector's `literalAssignment` rules. References, placeholders,
+`none` and code calls remain text. This applies only to public record content;
+the shared hook/event credential detector is unchanged.
+Archive treats reports containing those assignments or explicit settings fences as private and reports
+`report_private: true`; a credential shape still refuses archival. `--private`
+keeps only the source's basename and SHA-256,
+with empty text; credential-shaped input is still refused. Callers must classify
+other private prose themselves. This is a shape detector, not a general classifier
+of sensitive facts or all possible configuration formats. Archive never indexes
+raw worktree files or arbitrary log bodies. Its final-run report fallback reads
+only the run-record span described below; other log records contribute names,
+byte counts and hashes.
+
+`laneboss store search --config NAME QUERY [--kind K] [--lane L]` returns a JSON
+array of matches with the payload, event id, sequence, lane and `time`. Every
+whitespace-separated query term must occur in the text or source, matched
+literally without case. Filters apply in addition to the query. An empty result
+is `[]`. The search reads a verified store snapshot, creates no store, sends no
+model request and needs no embedding provider or credentials.
+
+`laneboss lane archive --config NAME --lane L [--dry-run] [--to DIR]` accepts a
+quiescent lane marked `merged` or `abandoned`. It refuses a running or unfinished
+lane, surviving processes, pending/refused events, a symlink at the recorded
+worktree path, and any uncommitted or untracked Git work in a worktree it will remove. It
+omits a missing worktree, or a directory without this lane's valid claim or
+recorded branch, from both the tar and removal plan. The report and logs are
+still archived; cleanup records the worktree in `kept` with `why: missing` or
+`why: not-this-lane`, and removes nothing in that directory. A dangling symlink
+is still a link, not an absent path. The omitted path appears in `keep_paths`.
+Both planning and cleanup use the same ownership/branch check; a worktree that
+becomes eligible after being omitted cannot be removed by that attempt. It
+requires a report: the lane
+directory's `report.md`, a previously recorded public `lane-report`, or the most
+recent authenticated upward `report.sent` from that lane. If none exists, the
+latest run's recorded `log.start`/`log.end` span in `output.log` supplies the report,
+using the same provenance as `decisions ingest-lane`. The source name includes
+that byte range and the SHA-256 covers exactly those bytes. Log summaries
+generated by archive are excluded from report selection. An empty or invalid
+report span is refused; no missing report is invented.
+Stored reports and upward report events must be newer than the lane's latest
+`lane.started`; reusing a lane cannot select its previous run's automatic report.
+A manual `report.md` retains priority, so update it when reusing that lane.
+Report refusals name the remedy: write a reviewed, credential-free report to
+`STATE_DIR/lanes/L/report.md`. That file overrides a missing/invalid/empty run
+span or a detector false positive in an immutable stored report. The fallback
+reader checks regular-file status before opening, uses `O_NONBLOCK`, then checks
+the opened descriptor again so a FIFO cannot block while the lifecycle lock is held.
+
+Archive holds the same configuration lanes lock used by lifecycle commands from
+planning through collection. Both dry and real runs compute the same sorted
+`remove_paths`: every entry, including the root, of a launcher-created worktree,
+plus each regular diagnostic `.log` file below this lane's record directory.
+`output.log` and files matching the current runner's `records` templates for
+each recorded run within
+the lane directory are backed up but retained, with their paths in `keep_paths`.
+Matching supports `**` and checks the enumerated lane files without traversing a
+runner's home or truncating a matching list. If a historical template cannot be
+expanded, all candidate logs are retained. The scope of `remove_paths` is
+those worktree and log paths; Git's administrative housekeeping and branch deletion
+remain part of the existing clean result. Supplied working directories are
+archived but retained, including their uncommitted work, and abandoned branches
+remain. A dry run validates inputs
+and returns the plan without writing archive/store records, creating a destination,
+uploading or cleaning. The lifecycle lock file may already exist or be created.
+
+Before returning a dry run or writing a real archive, preflight builds every
+record and both archive event payloads in memory and validates the same byte
+limits used by the writers. SHA-256 values not yet available are sized using the
+actual manifest's 64-character hash; these prospective receipts are never stored.
+The 32 MiB manifest read-back bound and 512 KiB record bounds are checked here,
+as is each canonical event's 1 MiB bound. A size refusal therefore appends no
+records or ledger rows, and dry and real runs refuse at the same boundary.
+
+The real run writes uniquely named, mode-0600 files to DIR (default
+`STATE_DIR/archives`, created privately). A `.manifest.json` has `format: 1`,
+`entries` for every tar member, the complete sorted `remove_paths` list and its
+`remove_paths_sha256`. The removal hash covers canonical JSON for that list.
+`report_record_sha256` binds the selected report record, including source and
+privacy choice, so a newly recorded report also changes the manifest digest.
+Each member records its relative path, type, size, mode and SHA-256; symlink hashes cover their
+link text and symlinks are never followed. The tar contains the worktree, selected
+logs and a lane-directory report when present. It is read afresh without extracting
+anything, and every manifest member and the whole tar hash must match. Extra,
+missing, reordered, changed or unsupported members fail this check.
+
+An optional root `archive_command` argument array may upload the archive. It has
+no shell expansion or template placeholders: the launcher appends tar path,
+manifest path, expected tar hash and lane name. The uploader must copy the needed
+artifacts, read its stored tar back, and print only that copy's lowercase SHA-256.
+The launcher allows 120 seconds and 4 KiB of output. A missing/different hash or
+failed command refuses cleanup; command output is not echoed. No bucket, account
+or service is built in. The uploader is trusted to describe its stored copy
+truthfully; the launcher cannot independently retrieve an arbitrary remote store.
+After upload it reads the local tar and manifest again to detect local changes.
+
+Only after read-back does archive save and re-read a `.receipt.json` containing
+the tar/manifest hashes, remote hash when configured, lane/run, removal-list hash
+and removal count. The list itself stays in the hashed manifest. `archive.verified`
+and `archive.completed` carry this compact metadata plus the receipt's path and
+SHA-256, never the removal list. The actual payloads are validated again before
+the first append. `archive.verified` is stored first, followed by the screened
+report, a file-backed log summary, receipt text and an Archive ledger row.
+The board row is appended only after verification has been stored or durably
+queued by the plain-clean read-only path below. Summary records
+contain log names, byte counts and hashes, with no raw log text. All inputs are
+hashed again before the existing `lane clean` implementation is called, without
+force. A changed input stops collection. A missing receipt or failed store append
+also stops before cleanup, except for the explicitly deferred plain-clean path
+below. Diagnostic logs are removed only after clean has a durable result in
+SQLite or that attempt's pending queue and each log passes an immediate fresh hash check;
+`archive.completed` records successful collection. Failed attempts retain their
+archive artifacts and receipts for inspection. A failure partway through Git or
+filesystem collection may leave partial collection, as with `lane clean`; the
+verified backup and removal plan remain available. Collection is not an atomic
+transaction across Git, SQLite and the filesystem.
+
+If collection was refused after verification, the next archive looks for the
+latest `archive.verified` after this lane's latest start, with no later
+`archive.completed`. When the fresh manifest digest equals its
+`manifest_sha256`, the existing attempt is reused: the tar, manifest and receipt
+are read back again, receipt hash/identity/removal fields are checked, and the
+indexed input records must still be present. No new tar, upload, store record
+or board row is added. The fresh plan is checked again before unforced clean
+and diagnostic-log collection. Results name the original artifacts and return
+`reused: true`. An explicit `--to` naming a different destination requests a
+fresh attempt, as does a changed manifest. Missing, unreadable or damaged old
+tar/manifest/receipt artifacts, an unavailable old destination, or an interrupted
+ingest without all indexed inputs refuses only that lane with exit 2. Later
+daily lanes continue. The refusal names two remedies: restore the old artifacts
+and indexed inputs, or make a fresh attempt with changed input or a different
+`--to`. For example, `laneboss lane archive --config NAME --lane L --to
+/absolute/new-archive-dir` performs the full tar/upload/ingest path while retaining
+old evidence. A reused dry run performs these read checks without collection.
+Invalid stored receipt metadata and failures reading the event store still halt
+the batch. An `archive.verified` whose actor is `lane:L` cannot support reuse for
+L: that caller would be running and could not legitimately archive itself.
+If `archive_command` is configured now, reuse requires a matching remote hash;
+a previously local-only attempt takes the complete fresh upload path instead.
+Older manifests without report binding produce a fresh digest and are archived
+afresh rather than treated as equivalent to a newly selected report.
+
+Plain `laneboss lane clean --config NAME --lane L` uses this same verified
+archive path first. A failed archive prevents cleanup; no force/bypass flag was
+added. Its response retains `pending`, `removed`, `kept` and the clean event
+pointer, and adds archive/manifest/receipt paths, hash and verification details.
+When SQLite is temporarily read-only, plain clean completes the file-backed
+archive, configured upload and receipt read-back, then returns `pending: true`.
+A queued cleanup has no stored event pointer. Verification and report/summary/receipt/
+ledger records are durably queued before worktree removal. The cleanup event
+and `archive.completed` follow them in the same lane queue. Re-planning and
+cleanup permit only the exact remaining suffix of this attempt's queued events;
+other pending/refused events still stop the operation. Only SQLite's READONLY
+result (including extended READONLY codes) enables this path; integrity, lock,
+disk, upload and validation errors retain their failure behavior. Direct archive
+and daily keep their strict store-write gate. No archive step is skipped.
+Once writes are restored, the existing drain in `lane start --reuse` stores
+these exact events in order, including `lane.cleaned`, before the next
+`lane.started`. Report text becomes searchable when its queued records drain.
+Both commands permit an authenticated lane to collect itself and permit a
+recorded L4-L6 lane supervisor to archive/clean descendants at strictly lower
+recorded levels within the same configuration. Starting from the target, the
+recorded `Starter` chain must reach the caller through `lane:` principals in at
+most four hops. Every hop resolves the parent's latest recorded start/adoption
+and requires its event sequence to be strictly less than the child's sequence,
+including the final hop to the caller. A name reused after the child's start
+therefore cannot stand for the old life that started that child. This binds
+authority to recorded lives without adding protocol fields. A non-lane starter,
+missing link, later/equal parent sequence or exhausted bound refuses the
+request. Peers, higher levels, unknown levels and another supervisor's subtree
+are refused; so is a human-started lane for an unrelated lane caller. This uses
+recorded ancestry and event order rather than inferring ancestry from levels
+or reused names. The walk does not reconstruct superseded parent lives: when
+an intermediate name has been reused, a lane caller cannot traverse its old
+life through the new record. An authenticated human or supervisor session can
+still collect that finished lane through the same verified archive gate.
+The configuration-wide daily remains a supervisor
+session or human operation, rather than a lane operation.
+
+Events, raw runner records, scan coverage, run metadata, briefs and inputs remain
+in the lane directory. Immutable event/ledger rows are never deleted. The
+launcher-owned `STATE_DIR/archive-ledger.md` retains archival rows under
+`## Archive` by appending and syncing one row, without a total-file size cap;
+configured user-owned Markdown boards remain intact. `output.log` remains at the
+documented path, so `decisions ingest-lane` can still ingest the final report and
+later supervisor marks. Already-cleaned
+lanes can archive their remaining logs/report, but their previously removed
+worktree cannot be reconstructed. Archives contain original private bytes and
+are not encrypted; the operator controls their destination and uploader.
+
+`laneboss archive daily --config NAME [--dry-run]` visits merged/abandoned lanes
+in name order. A lane refusal produces `status: refused` and a screened `reason`,
+then the routine continues to later lanes. It returns exit 2 only after reporting
+every finished lane if any lane was refused. An uploader failure, including a
+missing or mismatched read-back hash, halts the batch after that one attempt,
+so it creates no further tar or upload attempts in that invocation. With an
+uploader outage from the first lane, this retains one failed-attempt tar per run.
+An integrity failure in the current attempt, invalid stored receipt metadata,
+or a lock or store failure also
+halts further mutations; the remaining finished lanes receive `not-attempted`
+reports and the final exit is nonzero. The final invocation report includes
+`processed`, `refused`, `failed`, `skipped` and `not_attempted`, including zero.
+After taking the lifecycle lock, both manual and daily archive calls recheck
+completion: a cleaned lane with `archive.completed` after its latest start and
+no remaining diagnostic log returns `status: already-archived` without duplicate
+tar files, records or ledger rows. Lock and upload failures retain a safe refusal
+label and exit 2 while halting the batch; a busy lock is not reported as database
+corruption. Reusing the lane creates a new start and makes
+it eligible again. Scheduling is external to this command.
+
+`e2e-rows/test_archive_store.py` exercises the built binary on an authorized
+disposable Linux test machine. Supply an absolute `LANEBOSS_BIN` and an absolute
+`LANEBOSS_ARCHIVE_EVIDENCE` outside the checkout, then run `python3 -m unittest
+discover -s e2e-rows -p test_archive_store.py`. The rows preserve binary bytes/hash,
+inputs and CLI outputs. Repeat with a `laneboss_faults` build. Its
+`archive-clean-before-readback` point moves the actual clean operation before
+verification; the unchanged `ArchiveRows.test_a6_readback_guard` row must fail
+when selected with `LANEBOSS_ARCHIVE_MUTANT`, with the reach marker retained.
+The control must pass. This is a credential-free stand-in runner check, not an
+authenticated AI-service test or evidence of remote-provider durability.
+
+The P1 regression rows are `test_p1_daily_continues` (a dirty abandoned lane
+before a clean merged lane), `test_p2_report_commands` (assignment-looking report
+commands), `test_p3_large_removal_manifest` (a removal list over 1 MiB),
+`test_p3_limits_before_ingest` (a canonical payload limit with no partial ingest)
+and `test_p4_raw_records_retained` (raw logs remain and history ingest succeeds
+after marking/archive). Their docstrings identify the baseline failure. Tagged
+faults `archive-daily-stop-on-refusal`, `archive-report-assignment-refusal`,
+`archive-list-in-events` and `archive-drop-raw-logs` restore the respective bad
+behavior at the real call sites; `MUTANT_ROWS` selects the same unchanged rows.
+Every selected mutation must leave its reach marker and fail the row with at
+least one assertion failure and no fixture/setup/runtime errors. A row using
+subtests can produce several assertion failures from the same real mutant;
+the external harness must accept `len(result.failures) >= 1`, not require one
+failure exactly. In particular, `clean-refuse-unowned-worktree` can fail the
+absent, malformed and foreign-claim subtests while its own-claim branch subtest
+passes. Both
+normal and tagged controls must pass. Source inspection and static checks alone
+are not measured red/green or mutation results.
+
+The P1-5 rows `test_p5_upload_halts` and `test_p5_locked_retry` cover one uploader
+attempt/tar per failed daily run and unchanged tar/upload/record/board inventories
+when a Git-locked worktree refuses collection twice. They must fail by assertion
+on the preceding implementation. Tagged faults
+`archive-upload-keeps-batch-going` and `archive-repeat-verified-attempt` restore
+the respective old behaviors. `test_sensitive_assignments_private` checks the
+prefixed password/PASS names without echoing their values; the command-report
+row also checks nonliteral references and code. `test_clean_archives_first` and
+`test_lane_supervisor_collect` cover the mandatory plain-clean gate and a real
+L4 runner starting/collecting L3 children. Their tagged faults are
+`clean-without-archive` and `archive-refuse-child`. The standalone
+`e2e-rows/archive_supervisor.py` fixture records actual child CLI calls and
+propagates failures; it manufactures no launcher outcomes.
+
+The P1-6 rows `test_p6_sibling_child_denied` and `test_p6_human_child_denied`
+use actual L4 runner processes attempting archive and clean on a sibling L4's
+L3 child or a human-started L3. Both expect exit 2 and unchanged target files.
+The latter also checks that an L3 cannot clean another L3; that strict-level
+subcase already held on the baseline. The sibling row also retains the direct
+L4-peer denial. `archive-level-only` drops the ancestry walk and must fail the
+sibling-child row. The existing own-child collection row is the allowed control.
+`test_p7_clean_missing_worktree` removes a merged worktree through real Git,
+requires plain clean to retain a verified tar of the original report/log bytes
+and record `worktree/missing`, then checks present and dangling symlink refusals.
+Its tagged mutant is `archive-refuse-missing-worktree`.
+`test_p7_unowned_worktree_kept` checks off-branch, missing, malformed and foreign
+claims, including uncommitted files that must remain outside the tar and untouched.
+Its `clean-refuse-unowned-worktree` mutant restores a refusal inside raw cleanup,
+after planning and verification, so relaxing only the planner is insufficient.
+All four new P1 rows identify assertion failures expected on `6723773`; none
+are claimed as measured by static checks.
+
+`test_p8_reused_name_denied` covers reuse of an intermediate starter and of
+the caller itself. A real L4 lane A starts L3 T, A is marked merged and cleaned
+through the verified gate to free its managed path, then sibling L4 B starts
+A again at L3 with `--reuse`. B's archive/clean of T must exit 2 with T's files
+and report unchanged. The row checks the real launch/run identities and event
+ordering, then starts a new L4 life of A and checks the final caller hop too.
+The assertion must fail on `130991c`, which permits B's collection. The tagged
+`archive-ancestry-any-life` mutant drops the sequence binding and must fail the
+same unchanged row. The existing own-child collection row remains the allowed
+control. Each collector life keeps a separate plan/result file so reuse cannot
+overwrite the earlier fixture evidence. Runtime results remain subject to the
+authorized Linux measurement; static checks alone do not establish a kill.
+
+`test_clean_readonly_pending` exercises the cleanup ordering contract against
+a real store changed to mode 0444: clean must return pending with a verified
+tar/upload/receipt, preserve the original report/worktree canary in the tar,
+and queue verification, four indexed records, cleanup and completion in order.
+Restoring write permission and immediately starting with `--reuse` must store
+every queued event unchanged before run 2's start, clear pending/refused counts
+and make the old report searchable. It must fail by assertion on `5f50a12`;
+`archive-readonly-store-fails` restores that strict-append failure at the actual
+read-only error boundary and maps to the same row. Runtime red/green and mutant
+measurements belong on the authorized Linux test machine.
+
+The P2-G row `test_pg_status_lines_public` checks public status/Go code and
+private sensitive equals assignments. `test_ph_old_attempt_local` moves a
+verified attempt's directory aside, checks that daily still archives a later
+lane, and recovers with a fresh `--to` while preserving the old artifacts.
+`test_pj_reuse_requires_upload` requires a real fixture upload after enabling
+the uploader, and `test_pj_target_actor_not_reused` supplies a target-actor event
+through the public append path and requires a fresh attempt. The latter isolates
+the trust check; it is not a demonstrated forgery attack. Their docstrings name
+the expected baseline assertions. Runtime controls, fail-before/pass-after and
+mutant kills must be measured on the authorized disposable Linux machine.
+
+### Known limits of archive and store
+
+- **P2-2, suspected read-scope gap:** static inspection shows that `state events`
+  is a bulk configuration reader that does not filter `store.record` payloads
+  for lane principals, and that unidentified `store search` callers are not
+  required to establish an identity before configuration-wide search. These
+  paths are not a record-level privacy boundary. No canary/control proving this
+  suspected gap was run in the archive lane; separate accounts or containers
+  remain the isolation boundary against mutually untrusted processes.
+- **P2-4 / P2-I, read compatibility of content-policy changes:** checked reads re-screen immutable
+  records using current credential/settings rules. A future tightening can make
+  an old record fail `state verify`, `state rebuild` or every search scanning
+  that record. In particular, development stores from `e1216a9` or `bb47d8a`
+  can contain public assignments refused by the later backstop. This feature
+  is unreleased; before merge, the supervisor must confirm that no supervisor
+  state directory still holds `store.record` events from those builds. Policy
+  changes must remain read-compatible by checking only structure/hash on reads
+  or applying the record's versioned policy; this release supplies neither
+  versioned screening nor a migration. Never edit immutable events to repair it.
+- **P2-G, remaining backstop ambiguity:** lowercase colon assignments such as
+  `auth: OK`, `key: abc123`, `object_key: archives/x.tar` or
+  `ssh_key: ~/.ssh/id_ed25519`, and equals assignments such as `PASS=26`, still
+  match literal sensitive-name settings. Archive makes such reports private;
+  public `store record` requires `--private`. The status/Go exclusions above
+  tune this backstop only; they do not bypass the shared credential detector.
+- **P2-L, uppercase-colon backstop exclusion:** a `:` assignment whose name
+  contains an uppercase letter is excluded from the backstop, even when
+  indented as a YAML map. Unfenced `POSTGRES_PASSWORD: ...` or
+  `X-Api-Key: ...` lines in an ordinary report therefore do not become private
+  through this classifier. If the shared credential detector does not catch
+  their values, they can remain public text. A settings-source filename or an
+  explicit TOML/JSON/YAML fence still makes the report private, and public
+  `store record` callers can explicitly select `--private` to keep names and
+  hashes only. This exclusion is not a guarantee that uppercase colon values
+  are safe to publish; the shared credential detector is unchanged.
+- **P2-J, remote receipt scope:** reuse now excludes the target's own actor
+  and requires a matching remote hash when upload is configured. That hash does
+  not bind the uploader command's identity or prove current remote availability.
+  Replacing one uploader with another does not invalidate an old matching remote
+  hash; explicitly choose a different `--to` to request a complete fresh upload.
+- **P2-5, exact removal windows:** the final `planArchive` snapshot and comparison
+  finish before `cleanLocked` performs identity/claim/status checks and executes
+  `git worktree remove`. An external writer can create an ignored file during
+  that interval; Git's dirty check excludes ignored files, so that new file may
+  be removed without being in the tar. Diagnostic logs are now re-hashed after
+  clean, immediately before unlinking, but a writer can still append or replace
+  the name between `archiveFile` finishing its hash/closing the descriptor and
+  `os.Root.Remove` unlinking that name. There is no atomic quarantine operation.
+  The lifecycle lock excludes cooperating launcher changes, not arbitrary
+  filesystem writers; those writers must be quiescent during archival.
+- **P2-7, lock cost and supplied-directory scope:** there is no total lane,
+  byte or wall-clock bound for one daily invocation. The configuration lifecycle
+  lock spans planning, several complete hash passes, tar creation, store writes
+  and up to 120 seconds of upload per lane; concurrent lifecycle calls can hit
+  `lock_wait_seconds`. A supplied directory is still archived in full even
+  though retained. Its dirty Git status no longer prevents archival, but a
+  very large supplied directory can still be costly or hit the manifest bound.
+- **P2-8, state-row coverage:** A3 is a state-guard row. A running lane cannot
+  ordinarily also be marked merged/abandoned, so A3 does not independently prove
+  the separate live-survivor guard. The archive row set has no measured mutant
+  coverage for that predicate.
+- **P2-9, Git administrative metadata:** the tar keeps the worktree's `.git`
+  pointer, not `$GIT_COMMON_DIR/worktrees/<id>/`. Git removes that administrative
+  directory during collection, including `logs/HEAD`, `refs/worktree/*`, index,
+  administrative HEAD and any `config.worktree`. These ephemeral Git records
+  need a separate Git backup when required; they are absent from the archive.
+- **P2-B, manifest ceiling:** the exact bound is 32 MiB of indented manifest
+  bytes, checked before ingest. At roughly 230 bytes of entry metadata plus
+  90 bytes of removal path per worktree entry, this is about 100,000 entries.
+  Long paths lower that ceiling. Large monorepo dependencies or several virtual
+  environments may exceed it and will remain uncollected; streaming manifest
+  verification or a deliberately raised bound is not implemented.
+- **P2-C, report bounds and remedy:** an automatic run-span report is limited
+  to 512 KiB, whereas `decisions ingest-lane` allows 8 MiB. Missing run records,
+  invalid spans, empty messages and credential-detector false positives can
+  still refuse archive. Write a reviewed, credential-free
+  `STATE_DIR/lanes/L/report.md` to override those sources; that report must fit
+  the same 512 KiB record/canonical payload bounds. Do not fabricate run records
+  or discard original raw bytes to get past a refusal. A dedicated no-report
+  receipt policy and larger/split report records are not implemented.
+
+The other reviewed P2s are addressed in code: completion is rechecked under the
+lock (P2-1), the lane writer validates `store.record` (P2-3), and the Archive
+ledger appends without a 1 MiB total-file cap (P2-6). The new review's P2-D report lifetime,
+P2-E FIFO-open and P2-F lock-label issues are addressed in code; P2-10 is now
+the mandatory archive-before-clean policy with recorded descendant authority.
+P2-H's old-attempt failures are lane-local with a fresh-destination remedy, and
+P2-K's negative authority cases have rows, pending the required Linux measurements.
+Record and manifest limits remain explicit preflight refusals. Disk, permission or store failures can still
+interrupt multiple writes; retained artifacts and receipts support inspection
+and recovery, rather than an atomic cross-system rollback. Earlier archives that
+already removed raw logs require restoration from their tar before history
+ingest; this change does not recreate those historical files automatically.
 
 ## What isolation covers
 
@@ -637,7 +1073,7 @@ elsewhere `ps`, which is given at most 10 seconds) and writing the run record. T
 the loop. A sample takes:
 
 - on Linux every descendant of the supervising process, which is the run's child subreaper and so adopts every
-  process of the run that detaches (unless `LANEBOSS_PROCESSES=portable`);
+  process of the run that detaches, including when `LANEBOSS_PROCESSES=portable` selects `ps` for process reads;
 - the descendants of the runner and of every process it remembers whose identity (id and start time) the same
   sample shows alive; a remembered process seen ended is never used as a parent again, so a reused process id
   leads nowhere;
@@ -648,6 +1084,23 @@ the loop. A sample takes:
 
 New identities go into the run record, which is written again on every pass until a write succeeds. When the
 process table cannot be read, the sample is skipped and nothing is concluded from it.
+
+On Linux the supervising process must enable `PR_SET_CHILD_SUBREAPER` before starting its runner. Its PID and
+start time are already checked against the run record. A kernel refusal ends the run with exit code 125 and
+no runner execution. Detached descendants remain below that recorded supervisor, so caller resolution can
+prove their ancestry without relying on environment labels or on a timely process-tree sample.
+
+Both supervisor paths also retain the runner's exact kernel PID, start time and OS session ID in a separate
+`runner_session` run-record field. After ancestry fails, an open lane can match the caller's kernel session
+ID to the recorded runner PID only while that same kernel process is alive with the exact recorded start
+time. The runner is its session leader. Other processes cannot join that existing session, and its PID cannot
+be reused while the leader lives. This fallback is available on Linux and Darwin without an environment token.
+Darwin no longer uses sampled helpers as independent lane roots: otherwise a remembered reparented child
+that called `setsid()` could evade this session boundary. Direct supervisor/runner ancestry and terminal paths
+remain available. On macOS, background, nohup and double-fork children retain identity if they keep the runner's
+session; a reparented `setsid()` child does not. The Darwin control calls the syscall from Python because macOS
+does not ship a `setsid` command by default. The platform rows and tagged mutants are described in
+`e2e-rows/COMMUNICATION.md` and `e2e-rows/DARWIN-COMMUNICATION.md`.
 
 - **Order.** Whatever ends a run, the supervising process first makes sure every process of the run is gone, and
   only then records anything. Recording never delays stopping.
@@ -745,15 +1198,23 @@ command").
 
 ### Cleaning
 
-`lane clean` takes a lane marked merged or abandoned that is not running and not cleaned yet, whose last run's
+`lane clean` first uses the verified archive gate described in
+[Searchable records and lane archives](#searchable-records-and-lane-archives).
+Archive failure prevents collection. A completed archive with no remaining
+diagnostics reports `already-archived`; otherwise the verified collection
+primitive below applies, without force.
+
+The collection primitive takes a lane marked merged or abandoned that is not running and not cleaned yet, whose last run's
 supervising process is gone and of whose recorded processes none survives; a latest launch without its run record
 refuses the clean unless an end event without survivors shows its processes are gone (so do resume and a reused
-start). When the lane's working directory carries another lane's or another configuration's claim, the clean is
-refused before anything is removed.
+start). A missing worktree, wrong branch or absent/invalid/foreign claim keeps
+that path out of the archive and removal plan; only this lane's report and logs
+are archived and collected. A symlink at the recorded path still refuses cleanup.
 
 1. A worktree the launcher created is removed only when it still carries this lane's claim and has this lane's
    branch checked out; anything else at that path (a worktree made there by hand afterwards, for example) is kept
-   with `why` `not-this-lane`, and a kept worktree keeps no claim of this lane (it is released).
+   with `why` `not-this-lane` (`missing` for an absent path). A kept directory's
+   claim is released only if it still belongs to this lane; a foreign claim is untouched.
 2. Such a worktree that holds uncommitted or untracked work (`git status --porcelain`) refuses the whole clean:
    nothing is removed and nothing is appended.
 3. The worktree is removed with `git worktree remove`, never with force. When Git fails, the clean stops and says,
@@ -767,7 +1228,8 @@ refused before anything is removed.
    exists, or was removed and made again) are released too, and a directory made there since, with its own claim, is
    left alone.
 6. `lane.cleaned` lists what was removed and what was kept, and why. The lane's directory in the state directory
-   (logs, rendered briefs, kept inputs, run records) is always kept.
+   (raw logs, rendered briefs, kept inputs, run records) is always kept. The archive wrapper collects diagnostic
+   logs only after their verified tar/receipt exists, and records `archive.completed` afterwards.
 
 ### Events
 
@@ -798,11 +1260,11 @@ digits.
 | `lane.gone` | `lane mark --gone` | `run` (the lane's latest run) and `launch`: the supervisor declares that launch gone; nothing about its end |
 | `lane.cleaned` | `lane clean` | `removed`: items `{"item": "worktree", "path"}`, `{"item": "branch", "name"}`, `{"item": "session", "name"}`; `kept`: the same with `why` (`not-created`, `missing`, `not-this-lane`, `abandoned`, `not-merged`, `record`), always including `{"item": "lane-directory", "path", "why": "record"}` |
 | `lane.ingested` | `laneboss decisions ingest-lane` | `lane`, `rows_added`, `rows_existing` and `rows` (items `{"id", "sha256"}`, at most 4096): the receipt of the lane's records that went into the decision store, whose `id` names the configuration, the lane, the part (`report`, `events` or `attachment`) and the first 16 hex digits of the source hash. It records what was ingested and changes nothing else of the lane; the decision store keeps the text and it is never embedded or sent |
-| `lane.mailed` | `lane send`, actor `supervisor` | `sequence` (1 to 999999999), `sender` (`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`), `sha256` (of the message file), `bytes` (1 to 262144): never the text |
+| `lane.mailed` | `lane send` or attach, actor is the resolved sender ID | `sequence` (1 to 999999999), `sender` (the resolved principal ID, or `attach` for keyboard input; historical sender labels remain readable), `sha256` (of the message file), `bytes` (1 to 262144), optional `legacy_relationship` (boolean `true`): never the text |
 | `lane.delivered` | the supervising process behind `lane.ended` | `run` (2 or more), `sequences` (1 to 64 increasing whole numbers from 1 to 999999999) |
 | `lane.returned` | the supervising process behind `lane.ended`, `lane check` behind `lane.lost`, `lane mark --gone` behind `lane.gone` | `run`, `sequences` (as for `lane.delivered`) and `reason` (`exit`, `timeout`, `stopped`, `limit`, `dropped`, `lost`, `gone` or `cut`: why the end of the run sent the messages back) |
 
-Events the launcher writes have actor `laneboss`, those of `lane mark` and `lane send` actor `supervisor`, and
+Detected launcher events have actor `laneboss`; user-triggered lifecycle changes and mail record the resolved caller ID, and
 `occurred_at` is the moment the thing happened.
 
 The loop writes four kinds of its own. They are not `lane.*` events: the projection ignores them, `check_transition` does
@@ -1006,6 +1468,91 @@ session identity is built (T2); what they say of the loop is built (T3); what th
 
 ### Mail (built, T2)
 
+#### Peers and historical report lines
+
+`internal/peers` applies the recorded report line to mail. The human may reach
+any lane; a recorded parent and child may communicate; lane peers must have the
+same non-null level and the same non-null starter. `lane send` resolves the
+caller from recorded process identity. `--from` cannot select another sender.
+All state commands stay bound to the caller's configuration.
+
+Attach keeps `sender: attach` as the input-source label and records its resolved
+caller as the event's `actor`. The label grants no permission: enqueue and turn
+delivery both check that caller against the current attach and mail rules. A
+turn resolves the recorded actor for attached mail, so removing its supervisor
+or changing the lane's report line cannot leave the label with old authority.
+
+Lanes recorded before 0.7.0 have no `starter`. Such a historical lane accepts
+mail from an identified supervisor of its own configuration whose level is
+strictly above the lane's level, or from the human. A historical lane with no
+recorded level used the protocol's L3 default; that default is used only for
+this permission check, without changing its recorded level. Supervisor roles,
+org instances and supervisor lanes use their levels from the same configuration's
+records. Unidentified callers, callers from another configuration, and equal or
+lower levels remain refused. A lane with a recorded starter always uses the
+normal report-line rule, including after a legacy lane name is reused.
+
+Every mail delivery authorized by the fallback adds `legacy_relationship: true` to `lane.mailed`
+and the send receipt. Both the event-store validator and the turn-mail reader
+accept this optional marker only when it is the boolean `true`. Authorization
+is checked again under the lane and mail locks before the file is written.
+The first sender does not adopt a starter: all later legacy messages use this
+same marked path, so the other configuration supervisors remain reachable.
+An existing recorded parent/child permission stays unmarked; human mail to a
+legacy lane is always marked.
+
+The send command, manual turn check and carried-sender checks all call
+`report.CheckMessage`, which uses `peers.MessageDecision`. A turn resolves each
+carried sender in the target configuration and recomputes the decision from
+current records before writing its prompt or starting a runner. It never uses
+the stored marker as permission. Each fallback message in the actual prompt
+has a `legacy_relationship: true` metadata line, followed by its original
+message bytes. A now-refused sender stops the turn and leaves its mail queued.
+`lane resume --message` keeps its strict recorded report-line rule. That direct
+prompt path has no queued-message marker or per-message delivery validation;
+the compatibility fallback is scoped to mail and turns.
+
+`laneboss report` from a lane without a recorded starter delivers to every
+configured `[supervisors]` recipient, in name order, using each recipient's
+installed dashboard, Discord, file and terminal channels. Each recipient gets
+its own report ID, `report.sent`, channel outcomes and `report.delivered`
+events. All carry `legacy_relationship: true`; legacy channel outcomes also
+identify `to`. If no supervisors are configured, the marked report goes to the
+human. An individual channel failure does not prevent later channels or
+recipients from being attempted. Current lanes report only to their recorded
+starter. The dashboard message API preserves the marker and the message list
+shows a “Legacy relationship” label; `state events` retains the exact event
+payloads. This compatibility path does not add peers or attach permission.
+Discord reports also display a `[legacy_relationship: true]` prefix while the
+event and file channels retain the original report text.
+
+#### Upgrading historical lanes
+
+`event append` refuses launcher-owned run lifecycle events from every caller:
+`lane.started`, `lane.adopted`, `lane.resumed`, `lane.ended`, `lane.timeout`,
+`lane.stuck`, `lane.lost`, `lane.gone`, `lane.delivered`, `lane.returned` and
+`lane.cleaned`. Its `Instead:` route names the lane commands that produce
+those records. The actor label does not grant permission to append one.
+Identity readers use the first start for each run and retain a life's original
+report line across resumes; later events cannot erase its recorded starter.
+Reuse begins a new life with its own launcher-recorded starter. Historical
+records that acquire a non-null starter stop using the legacy fallback.
+An unnumbered historical lane counts as L3 when checking the level of a child
+it tries to start, so it cannot create an L3–L6 supervisor identity.
+
+Registration remains an open bootstrap operation. An unidentified headless
+process is refused until it registers with `start --role`; it can register a
+configured supervisor or instance and then has that identity's permissions.
+Identity records are files owned by the account running the launcher and do
+not protect against another process of that same account rewriting them.
+
+The two directions intentionally have different recipient rules. Legacy mail
+requires a strictly higher-level sender (or the human); legacy reports go to
+every configured `[supervisors]` entry, regardless of level. Org instances may
+send when their recorded level qualifies, but are not extra broadcast report
+recipients. This preserves the configuration-wide report route requested for
+upgrading lanes rather than selecting a supervisor by inference.
+
 **Where it lives.** `lanes/LANE/mail/` in the state directory holds the lane's messages, one file each, named
 `SEQUENCE-DIGEST`: SEQUENCE is the message's sequence number as nine decimal digits with leading zeros, from `000000001`,
 and DIGEST is the SHA-256 of the file's bytes as 64 lower-case hexadecimal digits. A listing is then in sequence order,
@@ -1020,9 +1567,10 @@ the checked reader that `--brief` and `--message` use (a regular file, opened th
 `-` reads standard input. The text is never taken from an argument, because a shell would expand it before the launcher
 saw it: `--file` together with `-`, a positional argument that is not `-`, and neither of the two are refused, and a
 `--file` path that looks like a credential is refused without being repeated. The sender and the message are checked
-before the lane is looked at (`mail.check_sender`, `mail.read_message`, `mail.check_message`). `--from NAME` names the
-sender and defaults to `supervisor`; it matches `[A-Za-z0-9][A-Za-z0-9._-]{0,63}` and is checked for credential shapes.
-The command appends one event, `lane.mailed`, with actor `supervisor`, and prints one
+before the lane is looked at (`mail.check_sender`, `mail.read_message`, `mail.check_message`). The sender is the
+resolved principal ID, as is the event actor. `--from NAME` is optional, is checked for credential shapes, and must
+equal that resolved ID; it cannot impersonate another principal.
+The command appends one event, `lane.mailed`, and prints one
 JSON value: `lane`, `sequence`, `sender`, `sha256`, `bytes`, `file` (the absolute path), `event` (`id` and `seq`) and
 `waiting` (how many messages now wait for a turn, the returned ones included).
 
@@ -1107,7 +1655,7 @@ projection. A hand-written event is held to the same rules.
 
 | Kind | Written by | Payload |
 |---|---|---|
-| `lane.mailed` | `lane send`, actor `supervisor` | `sequence` (1 to 999999999), `sender` (`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`), `sha256` (the hash of the message file, 64 hex digits), `bytes` (1 to 262144) |
+| `lane.mailed` | `lane send` or attach, actor is the resolved sender ID | `sequence` (1 to 999999999), `sender` (resolved principal ID, or `attach` for keyboard input; historical labels remain readable), `sha256` (the hash of the message file, 64 hex digits), `bytes` (1 to 262144), optional `legacy_relationship` (boolean `true`) |
 | `lane.delivered` | the supervising process, after `lane.ended`; actor `laneboss` | `run` (2 or more), `sequences` (1 to 64 whole numbers from 1 to 999999999, increasing) |
 | `lane.returned` | the supervising process after `lane.ended`, `lane check` after `lane.lost`, `lane mark --gone` after `lane.gone` (and for a `lane.lost` that was never announced); actor `laneboss` | `run` (2 or more), `sequences` (as for `lane.delivered`), `reason` (`exit`, `timeout`, `stopped`, `limit`, `dropped`, `lost`, `gone` or `cut`: why the end of the run sent the messages back. `cut` is an end with reason `exit` and exit code 0 whose prompt was not written whole, a missing `prompt` counting as `cut`; any other end gives its own reason) |
 
@@ -3066,8 +3614,8 @@ of 4096 waiting calls at once; so ordinary latency (a result later than two seco
 can still leave a call both refused and suspected, and a `clean` verdict settles it. A scan of the whole record decides a
 call without a result at the record's end. A write through a file tool is never a workaround: the protocol allows it.
 
-The two tests (`src/laneboss/shellscan.py`) are cheap and bounded, read only the first 64 KiB and the first 10,000
-tokens of a command, and run nothing:
+The two refusal-linked tests share `internal/lane/shellscan.go`, read only the
+first 65,536 runes and the first 10,000 tokens of a command, and run nothing:
 
 - **`shell-write`**: the later shell command writes a file that is one of the refused call's targets. A command is cut
   into tokens outside quotes (single and double quotes, `$'...'`, backslashes, `$(...)`, `${...}` and backticks stay
@@ -3099,6 +3647,44 @@ hold (more than 1024, or more than 256 KiB) are counted in one `(N more)` item; 
 come first. Writes made by an interpreter's own code (`python -c`, a script) are not recognised by `shell-write`; such a
 command can still be `reworded`.
 
+The same bounded shell word splitter records **`shell-substitution-in-text`**
+for unescaped backtick pairs inside double-quoted words anywhere. Legacy
+backticks in positional prose can be accidental Markdown code spans.
+An unescaped `$(` is observed only in inline interpreter code arguments
+(`python3 -c`, `node -e`, `perl -e`/`-E`, `ruby -e`, `php -r`, `osascript -e`
+and related interpreter forms), text option values (`-m`, `--message`, `--body`,
+`--title`, `--text`, `--description`), or positional prose identified by the
+bound org's [text-observation policy](text-observations.md). `-F` and `--file`
+values are inputs, not prose. Plain `cd "$(cmd)"` and `echo "... $(date) ..."`
+arguments do not produce dollar observations. For example,
+`python3 -c "print('$(uname)')"` lets the shell run `uname` before Python
+receives the code as text.
+
+An unquoted-delimiter heredoc sent directly to an interpreter is also observed
+for either marker. Quotes inside its body are text and do not disable shell
+expansion; a quoted or escaped delimiter disables it. Shell single-quoted words,
+escaped backticks and `\$(` remain exempt. PID (`$$`) and ordinary arithmetic
+expansion alone are exempt. ANSI-C escaped quotes keep their literal boundary,
+backslash-newline openers are recognised, and `$((cmd) )` or `$((a);(b))` is
+recognised as command-substitution fallback when the arithmetic wrapper does
+not close with adjacent parentheses.
+
+The scan is a syntax observation, not proof of execution or author intent.
+It does not recursively inspect double-quoted words nested inside an unquoted
+command or parameter substitution, nor nested legacy backtick commands.
+Heredocs piped through another program into an interpreter are not traced.
+`eval`, `sh -c` and SSH strings are not recursively interpreted as prose;
+the broad backtick rule still applies to their outer double-quoted words.
+This is an accident detector, not a full shell parser or an evasion boundary.
+It runs for recorded shell calls even without a prior refusal.
+Its event has `refusal: null`, `how: ["shell-substitution-in-text"]`,
+`paths: ["(command)"]` and `similarity: null`. It remains visible in
+`lane refusals` under `observations`, apart from refusal-linked `suspicions`,
+and in the event history. It never enters `unreviewed`, refuses
+a tool call, or holds the acceptance gate. Existing refusal-linked workarounds
+still require their supervisor's path verdicts. Observations have no `reviewed`
+field, and `lane review` cannot record a refusal verdict for them.
+
 ### Events
 
 The three kinds are reserved: `EventStore.append()` checks their payloads and their place in the lane's life before
@@ -3109,7 +3695,7 @@ line's byte offset and the index of the call or result in that line).
 | Kind | Written by | Payload |
 |---|---|---|
 | `lane.refusal` | the supervising process (its scanning process), `lane scan`, `lane mark` | `run`, `refusal` (`rf-` and 24 hex digits), `guard`, `kind` (the guard's kind or null), `format`, `via` (`tool-result`, `hook`, or `log` for a text record), `hook` (`event`, `name` of the hook for `via` `hook`, else null), `tool` (or null), `at` (the time in the record, or null for text), `command` (an excerpt of the refused call's command or null), `message` (an excerpt of the guard's message), `targets` (sorted paths), `call` (`id`, `record`: the call's position, or null when the call was not seen; null for text), `record` (the refusal's position), `workarounds_checked` (false for text, or when the call was not seen) |
-| `lane.workaround_suspected` | the same | `run` (the later call's), `suspicion` (`ws-` and 24 hex digits), `refusal`, `how` (sorted: `reworded`, `shell-write`), `paths` (sorted, at least one), `tool`, `at`, `command` (an excerpt), `call` (`id`, `record`), `similarity` (`containment`, `coverage`, given exactly for `reworded`) |
+| `lane.workaround_suspected` | the same | `run` (the call's), `suspicion` (`ws-` and 24 hex digits), `refusal` (null only for the independent `shell-substitution-in-text` observation), `how` (sorted: `reworded`, `shell-write`, or the independent kind alone), `paths` (sorted, at least one), `tool`, `at`, `command` (an excerpt), `call` (`id`, `record`), `similarity` (`containment`, `coverage`, given exactly for `reworded`) |
 | `lane.refusal_reviewed` | `lane review` (actor `supervisor`) | `refusal`, `path`, `verdict` (`clean` or `workaround`), `suspicions` (the suspicions of that refusal naming that path that the verdict covers), `note` (`text`, `sha256` of the note file, or null) |
 
 An **excerpt** is `{"text", "withheld", "length", "sha256"}`: the first 240 characters of the text, its full length and
@@ -3120,18 +3706,20 @@ by trying candidates, so a record is the place to read what was withheld, not th
 still refuses, or that is larger than 512 KiB, is recorded with every excerpt and path withheld.
 
 The ids depend only on where things are: a refusal's on its identity (under "Session records"), a suspicion's on its
-refusal, the later call's record and id; a call refused both in its result
+refusal, the later call's record and id; an independent observation's identity
+uses the lane, its kind, the call's record and id (or position when no id was
+recorded). A call refused both in its result
 and by a hook is one refusal. So the same refusal found again, by a live scan
 and a later one, after `state rebuild` or by two scans at once, is the same refusal: `append()` reports it as a
 duplicate of the stored event (`"duplicate": true` with that event's id and seq), inside the same transaction that would
 store it. `lane.refusal` is allowed for a run that has begun, `lane.workaround_suspected` only for a recorded refusal of
-its run or an earlier one, and `lane.refusal_reviewed` only for recorded suspicions of that refusal that name its path;
+its run or an earlier one, except for the independent observation above, and `lane.refusal_reviewed` only for recorded suspicions of that refusal that name its path;
 a verdict never names `(N more)`.
 
 The lane's projection gains `refusals` once the lane has one of these events (rows of lanes without them are unchanged,
 so earlier stores need no rebuild): `recorded` (refusal id: `run`, `seq`, `guard`, `tool`), `suspected` (suspicion id:
 `refusal`, `run`, `seq`, `how`, `paths`), `verdicts` (each review: `refusal`, `path`, `verdict`, `suspicions`, `seq`)
-and `unreviewed` (each refusal and path some suspicion names without a verdict, with those suspicions). A later
+and `unreviewed` (each refusal and path some refusal-linked suspicion names without a verdict, with those suspicions). Independent observations are excluded. A later
 suspicion of a reviewed path is unreviewed until it is reviewed too; the latest verdict counts.
 
 ### When it runs
@@ -3201,7 +3789,7 @@ and `not-scanned` for a run no scan has covered yet.
 | Command | What it does |
 |---|---|
 | `lane scan --lane L` | Scans the lane's records again (above). Prints `lane`, `appended` (`refusals`, `suspicions`), `refused_events`, `recorded` (totals), `unreviewed`, `runs` (each run's coverage), `not_covered` (`run`, `reason`, `path`) and `pending_events`. |
-| `lane refusals [--lane L]` | Read-only: the lane's `refusals` (payloads with `seq` and their `suspicions`), `suspicions` (with `reviewed`: each path's latest verdict or null), `verdicts`, `unreviewed`, `coverage` (each run's latest), `not_covered`, `guards` (how many are configured) and `pending_events`; a list of these without `--lane`. |
+| `lane refusals [--lane L]` | Read-only: the lane's `refusals` (payloads with `seq` and their `suspicions`), refusal-linked `suspicions` (with `reviewed` verdicts), independent `observations` and `observation_count`, `verdicts`, `unreviewed`, `coverage`, `not_covered`, `guards` and `pending_events`; a list of these without `--lane`. |
 | `lane review --lane L --refusal ID --path P --verdict clean\|workaround [--note FILE]` | Records the supervisor's verdict on one path of a refusal's suspicions: every suspicion of that refusal that names the path. A relative path is read from the lane's working directory. The note is read from a file (at most 4000 characters, UTF-8) and refused when it looks like a credential. |
 
 ### Left for later

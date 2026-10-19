@@ -1,0 +1,1240 @@
+{
+  "schema": "laneboss.port-ledger.v2",
+  "source": "docs/design/isolation.md §8",
+  "revision": "v2.0-draft.4",
+  "rows": [
+    {
+      "id": "PORT-001",
+      "feature": "D:13, D:119–120 — deterministic Linux/macOS amd64/arm64 releases, SHA256SUMS, immutable installs, explicit source build",
+      "disposition": "Keep",
+      "destination": "Preserve packaging, manifests, upgrade/rollback and checksum-before-execution; add separately installed service/helper artifacts and capability diagnostics. Checksums remain distinct from signatures.",
+      "target_packages": [
+        "internal/v2/distribution",
+        "internal/v2/admin"
+      ],
+      "required_cases": [
+        "packaging",
+        "admin"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-002",
+      "feature": "D:14 — bundled claudock-cli, opt-out and explicit upgrade",
+      "disposition": "Keep",
+      "destination": "Preserve companion choice and version verification; no automatic vendor sign-in.",
+      "target_packages": [
+        "internal/v2/distribution"
+      ],
+      "required_cases": [
+        "packaging"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-003",
+      "feature": "D:15 — direct Claude/Codex and portable Claudock guides",
+      "disposition": "Change/drop bare-Claude route",
+      "destination": "Rewrite for only Claudock/Codex, private history, swappable credential slot and actual authentication/sandbox matrix (§3).",
+      "target_packages": [
+        "internal/v2/runner/claudock",
+        "internal/v2/runner/codex"
+      ],
+      "required_cases": [
+        "claudock",
+        "codex",
+        "docs"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-004",
+      "feature": "D:16, D:180–183 — one-command org/project setup, source defaults/table order, top alias",
+      "disposition": "Change",
+      "destination": "Keep transactional source/render initialization and runner selection; add an explicit administrator service-install step and root grants. Init launches no model.",
+      "target_packages": [
+        "internal/v2/templates",
+        "internal/v2/admin"
+      ],
+      "required_cases": [
+        "templates",
+        "admin"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-005",
+      "feature": "D:17, D:97–100, D:121, D:325 — role library, built-ins, reviewer fallback, explicit role and exact driver policy, hashes",
+      "disposition": "Keep",
+      "destination": "Preserve org source precedence, malformed-source refusal and start / adopt / resume / turn rechecks. Driver selection constrains what the service launches, not agents' ordinary commands.",
+      "target_packages": [
+        "internal/v2/templates",
+        "internal/v2/policy",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "templates",
+        "policy",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-006",
+      "feature": "D:18–23, D:221–227, D:327–329 — twelve-entry Laneboss-first pack and narrow init seeds",
+      "disposition": "Change",
+      "destination": "Preserve twelve identities/Instead routes and existing-org D6 opt-in, but replace the six raw-tmux unconditional `pattern_only` seeds with scoped raw-agent-session descriptions (§7); private build/test tmux must work. No added secret/push/tool bans.",
+      "target_packages": [
+        "internal/v2/templates",
+        "internal/v2/policy"
+      ],
+      "required_cases": [
+        "templates",
+        "policy"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-007",
+      "feature": "D:24–27 — ordered whole-word `argv_words`, flag-first matching, quoted-data control, `pattern_only`",
+      "disposition": "Change conditionally",
+      "destination": "Preserve existing source bytes/readers/history. Proposed D2 judge-alone enforcement replaces active matching only after the owner's 對; no second implicit refusal path.",
+      "target_packages": [
+        "internal/v2/policy",
+        "internal/v2/migration"
+      ],
+      "required_cases": [
+        "policy",
+        "migration"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-008",
+      "feature": "D:28–31 — role blacklists and higher-level union",
+      "disposition": "Keep",
+      "destination": "Preserve own role plus all higher-level roles; no upward inheritance from lower levels.",
+      "target_packages": [
+        "internal/v2/policy"
+      ],
+      "required_cases": [
+        "policy"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-009",
+      "feature": "D:32–37 — lane-aware blacklist list, source paths in prompts, human try",
+      "disposition": "Keep",
+      "destination": "Read effective policy through the service; refresh source projection each run; agent reads list before work.",
+      "target_packages": [
+        "internal/v2/policy",
+        "internal/v2/templates"
+      ],
+      "required_cases": [
+        "policy",
+        "templates"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-010",
+      "feature": "D:38 — report line, starter, level and permitted peers",
+      "disposition": "Change",
+      "destination": "Bind to immutable authentic life IDs; enforce in the service and add ancestor event visibility.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/messaging",
+        "internal/v2/identity"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "messaging",
+        "identity"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-011",
+      "feature": "D:39, D:261–263 — screened upward reports and per-channel outcomes, state-relative human queue only",
+      "disposition": "Change",
+      "destination": "Service/outbox owns delivery; maintain terminal / mail / dashboard / Discord / file routes and visible partial outcomes.",
+      "target_packages": [
+        "internal/v2/messaging"
+      ],
+      "required_cases": [
+        "messaging"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-012",
+      "feature": "D:40, D:187, D:215–220 — caller identity and unidentified read-only policy",
+      "disposition": "Change",
+      "destination": "Kernel + launch containment + service-owned registration for all active lanes; unknown callers cannot start mutations. No environment-derived authority.",
+      "target_packages": [
+        "internal/v2/identity",
+        "internal/v2/service"
+      ],
+      "required_cases": [
+        "identity",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-013",
+      "feature": "D:41 — human token-authenticated web dashboard, graph / lifecycle / activity / refusals / messages / logs / analytics / decisions / judges, EN/繁中, themes",
+      "disposition": "Change",
+      "destination": "Keep every view and human action; dashboard becomes a service client, with token/Origin checks retained. It exists in code despite older walkthrough text (`internal/dashboard/dashboard.go:31`, `internal/dashboard/auth.go:22`).",
+      "target_packages": [
+        "internal/v2/dashboard"
+      ],
+      "required_cases": [
+        "dashboard"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-014",
+      "feature": "D:42 — Node 22+ receive-only Discord gateway, allowed senders/channels, authority and reconnect/resume",
+      "disposition": "Change",
+      "destination": "Keep gateway/filtering; grant only its delivery/receive capability outside lane sandboxes. Restart/history gaps remain documented, not silently called solved.",
+      "target_packages": [
+        "internal/v2/messaging",
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "messaging",
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-015",
+      "feature": "D:43 — bilingual owner `.xlsx` sheet, stable IDs, preserved answers / notes / closed questions and acknowledgment",
+      "disposition": "Keep",
+      "destination": "Standalone human integration; one writer and external sync remain requirements. No spreadsheet or sync credentials enter lanes.",
+      "target_packages": [
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-016",
+      "feature": "D:44, D:71–88 — applicable decisions in briefs/turns, TypeSafe advisory scores, decided-question answers, unavailable / withheld / window notices",
+      "disposition": "Change",
+      "destination": "Keep guidance and honest unavailable outcomes; lane hook → scoped service socket → outside judge worker. Only authenticated human commits or approved L6 D6 transactions create authoritative decisions; lane questions/proposals go upward and are not cross-lane guidance.",
+      "target_packages": [
+        "internal/v2/guidance",
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "guidance",
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-017",
+      "feature": "D:45 — generated TypeSafe job catalogs, syntax/role sources, managed inventory caching, deadlines, stale/unavailable notices",
+      "disposition": "Keep",
+      "destination": "Preserve catalogs, 30-second shared decision/job budget, at most ten remaining seconds per job ask and bounded hook timeout. Advice cannot become hidden command policy.",
+      "target_packages": [
+        "internal/v2/guidance",
+        "internal/v2/judge",
+        "internal/v2/templates"
+      ],
+      "required_cases": [
+        "guidance",
+        "judge",
+        "templates"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-018",
+      "feature": "D:46, D:556–560 — AWS/GCP spot boxes, launch ledger, run/harvest, orphan collection and GCP live fence",
+      "disposition": "Change",
+      "destination": "Keep provider / fence / cost / collection contracts in a privileged-capability worker, never a lane-wide cloud credential or host shell. Tests retain verified-machine transfer rules.",
+      "target_packages": [
+        "internal/v2/records",
+        "internal/v2/dataworker"
+      ],
+      "required_cases": [
+        "integrate",
+        "grants"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-019",
+      "feature": "D:47 — credential-free install / start / resume / review / clean walkthrough and retained evidence",
+      "disposition": "Change",
+      "destination": "Keep stand-in E2E, extend it through actual service / install / isolation setup. Continue to state it is not authenticated AI-service evidence.",
+      "target_packages": [
+        "internal/v2/distribution",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "docs",
+        "packaging",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-020",
+      "feature": "D:48–65, D:127–129, D:192–204 — typed layered settings, explain / provenance / bytes, retained overrides, runner fixed, bounded environment grants/tool denies",
+      "disposition": "Change",
+      "destination": "Keep precedence and union denies; service derives fresh delegation ceilings and materializes private paths. Values remain out of events; allow-add fields grant nothing. Future instance policy is protected by ownership, not enumeration.",
+      "target_packages": [
+        "internal/v2/policy",
+        "internal/v2/grants",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "policy",
+        "grants",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-021",
+      "feature": "D:66–70, D:130–135 — substitution observations, shared canonical payload/replay contracts, independent observation policy",
+      "disposition": "Keep",
+      "destination": "Preserve advisory observations and exact event bytes/counts; no acceptance hold from observation alone and no access-control dependency.",
+      "target_packages": [
+        "internal/v2/records",
+        "internal/v2/store"
+      ],
+      "required_cases": [
+        "integrate",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-022",
+      "feature": "D:89–91 — configuration-bound append-only records, keyword search, hashes/provenance, private names-only records and binary/credential refusal",
+      "disposition": "Change",
+      "destination": "Keep data model and screening; filter every read by caller/life and keep all DB access behind the service.",
+      "target_packages": [
+        "internal/v2/records",
+        "internal/v2/store"
+      ],
+      "required_cases": [
+        "integrate",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-023",
+      "feature": "D:92–96, D:138–155, D:164–166 — lane/daily archive, tar / manifest / read-back / uploader hash, receipt before unforced collection, retries/pending events and retained inventory/logs",
+      "disposition": "Change",
+      "destination": "Preserve the complete contract, ancestry/life checks and failure behavior. Service quiesces writers and owns durable archive/outbox state. Never delete before verified read-back or force-remove dirty work.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/dataworker"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "grants"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-024",
+      "feature": "D:116–118 — workspace source scanning, every flagged absolute line, prefixed / interpolated / grouped string credential recognition",
+      "disposition": "Keep",
+      "destination": "Retain literal-aware scanner behavior and redaction diagnostics as publication/content checks, independent of confinement.",
+      "target_packages": [
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-025",
+      "feature": "D:122 — protocol 1.3.0 and verbatim refusal/Instead recovery",
+      "disposition": "Keep",
+      "destination": "Retain prior protocol bytes/hashes; version any new transport/grant semantics explicitly rather than rewriting historical briefs.",
+      "target_packages": [
+        "internal/v2/api"
+      ],
+      "required_cases": [
+        "integrate",
+        "docs"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-026",
+      "feature": "D:123–126, D:167–169 — per-run versus persistent account selection, room rotation, full model diagnostics and API alias expansion",
+      "disposition": "Keep",
+      "destination": "Account/room work is brokered; credential switching preserves the session only when the provider supports it. Record full names while argv uses the configured API map.",
+      "target_packages": [
+        "internal/v2/secrets",
+        "internal/v2/watchdog",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "secrets",
+        "watchdog",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-027",
+      "feature": "D:136 — judge `org_dir` support",
+      "disposition": "Keep",
+      "destination": "Resolve the same protected org source as roles/settings; no adapter-specific schema drift.",
+      "target_packages": [
+        "internal/v2/policy",
+        "internal/v2/judge"
+      ],
+      "required_cases": [
+        "policy",
+        "judge"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-028",
+      "feature": "D:156–157, D:265–269 — exact refusal-first output, no-service notice, plugin argument limit and service ticket route",
+      "disposition": "Change",
+      "destination": "Keep error/argument behavior and plugin briefing integration; active isolated mode has no open-registration fallback. A legacy offline view is explicitly labelled.",
+      "target_packages": [
+        "internal/v2/cli",
+        "internal/v2/identity",
+        "internal/v2/templates"
+      ],
+      "required_cases": [
+        "integrate",
+        "identity",
+        "templates"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-029",
+      "feature": "D:158–160 — judge egress reservations, bounded logs and killed-request accounting",
+      "disposition": "Keep",
+      "destination": "Preserve reservation/outcome pairing and limits in the service/judge worker. Unavailable is not a fabricated probability.",
+      "target_packages": [
+        "internal/v2/judge",
+        "internal/v2/store"
+      ],
+      "required_cases": [
+        "judge",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-030",
+      "feature": "D:161–162, D:170–172 — concurrent mail during stop, fresh permission/life recheck, attach display versus actor",
+      "disposition": "Keep",
+      "destination": "Preserve queue semantics and actor separation; use per-life service serialization instead of a global lifecycle wait.",
+      "target_packages": [
+        "internal/v2/messaging",
+        "internal/v2/lifecycle",
+        "internal/v2/identity"
+      ],
+      "required_cases": [
+        "messaging",
+        "lifecycle",
+        "identity"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-031",
+      "feature": "D:173–177 — authentic org retained on turn, current policy reload, idle payload ordering",
+      "disposition": "Keep",
+      "destination": "Preserve these contracts while adding fresh grant checks and the corrected requester actor.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/policy"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "policy"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-032",
+      "feature": "D:178–179 — `org validate` stable JSON and separate diagnostics warnings",
+      "disposition": "Keep",
+      "destination": "Preserve the two-key JSON contract and explicit diagnostics form; expose service capability diagnostics separately.",
+      "target_packages": [
+        "internal/v2/templates"
+      ],
+      "required_cases": [
+        "templates"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-033",
+      "feature": "D:205–214, D:443–444 — appended lifecycle history, origin markings, run/end spoof refusal, legacy mail markers",
+      "disposition": "Change",
+      "destination": "Read marked history; raw event append is **offline authenticated administrator migration/import only**, never a lane socket. Service-derived events alone confer live authority; no imported event/receipt can fabricate parentage, coverage or run outcomes.",
+      "target_packages": [
+        "internal/v2/migration",
+        "internal/v2/records",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "migration",
+        "integrate",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-034",
+      "feature": "D:258–260 — one live lane per worktree, canonical/nested overlap checks",
+      "disposition": "Keep",
+      "destination": "Extend to service-wide workspace/grant leases across configurations. A shared writable export is explicit, not overlapping lane ownership.",
+      "target_packages": [
+        "internal/v2/grants",
+        "internal/v2/lifecycle",
+        "internal/v2/admin"
+      ],
+      "required_cases": [
+        "grants",
+        "lifecycle",
+        "admin"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-035",
+      "feature": "D:270–298 — protected tickets, current policy checks, issued level/role, single use, expiry/replay, adoption/first-turn integration",
+      "disposition": "Change",
+      "destination": "Reuse ticket cryptography/policy and exact refusal routes; add native Darwin proof and launch-owned identities. Protect issuance from lanes and audit policy transitions.",
+      "target_packages": [
+        "internal/v2/identity",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "identity",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-036",
+      "feature": "D:331–343 — fixed environment base, names-only grants and reserved launcher variables",
+      "disposition": "Change",
+      "destination": "Retain deny-by-default inheritance and subset delegation; synthesize private HOME / TMP / vendor paths and service labels rather than pass host roots. Credentials are explicit adapter inputs.",
+      "target_packages": [
+        "internal/v2/grants",
+        "internal/v2/secrets",
+        "internal/v2/runner/claudock",
+        "internal/v2/runner/codex"
+      ],
+      "required_cases": [
+        "grants",
+        "secrets",
+        "claudock",
+        "codex"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-037",
+      "feature": "D:344–352 — historical unnumbered lanes and marked legacy reporting relationships",
+      "disposition": "Change",
+      "destination": "Retain historical read/report compatibility; owner explicitly binds an imported life before active delegation. Do not promote old actor labels into new service authority.",
+      "target_packages": [
+        "internal/v2/migration",
+        "internal/v2/identity"
+      ],
+      "required_cases": [
+        "migration",
+        "identity"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-038",
+      "feature": "D:353–355 — owner queue migration",
+      "disposition": "Change",
+      "destination": "Import once into protected service state with hashes/receipt; retain the old file as evidence until read-back, rather than requiring a risky manual overwrite.",
+      "target_packages": [
+        "internal/v2/migration",
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "migration",
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-040",
+      "feature": "D:561–565, D:583–594, D:640–653 — generic rules, named configurations / projects / org rules, doctor, file-backed brief render / cost / preflight sections",
+      "disposition": "Change",
+      "destination": "Keep names/binding, exact rule bytes and validation; service owns authoritative sources and exposes lane-specific projections. No configuration-to-instance guess.",
+      "target_packages": [
+        "internal/v2/policy",
+        "internal/v2/templates",
+        "internal/v2/admin"
+      ],
+      "required_cases": [
+        "policy",
+        "templates",
+        "admin"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-041",
+      "feature": "D:587–589 — SQLite hashes, duplicate-safe appends, projection, event tail and state read / rebuild / verify",
+      "disposition": "Change",
+      "destination": "Reuse storage invariants and replay; one service writer, scoped reads, owner-only rebuild. No lane gets SQLite sidecars.",
+      "target_packages": [
+        "internal/v2/store",
+        "internal/v2/service",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "service",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-042",
+      "feature": "D:595–605, D:958–1041 — lane routing, branch / base / workspace, budgets / quiet / limit / dropped, stop / status / check / mark / gone / clean, real exits / survivors / pending ordering/claims",
+      "disposition": "Change",
+      "destination": "Preserve all user outcomes and diagnostics; independent Git data, launch intents and OS containment replace shared worktree admin and sampled-only tracking.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/isolation/linux"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "linux"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-043",
+      "feature": "D:606–617, D:917–957 — raw-record refusals, suspicions, coverage, scan / list / review and acceptance gates",
+      "disposition": "Keep",
+      "destination": "Preserve history and honest unsupported / cut / missing records; move collection outside the lane. Suspicion inference is evidence for review, never write protection.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-044",
+      "feature": "D:618–639 — Markdown/JSON supervisor briefing and Claude plugin / path / manifests",
+      "disposition": "Keep",
+      "destination": "Keep briefing groups, checks, recent events and plugin argument boundaries; a briefing still does not start an AI agent. Registration is a distinct authenticated side effect.",
+      "target_packages": [
+        "internal/v2/templates",
+        "internal/v2/policy"
+      ],
+      "required_cases": [
+        "templates",
+        "policy"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-045",
+      "feature": "D:654–671 — stable session identity, stdin prompts and written/cut status",
+      "disposition": "Change",
+      "destination": "Keep exact prompt/session semantics; map vendor-assigned IDs explicitly for Codex and preserve “written is not read”.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/runner/claudock",
+        "internal/v2/runner/codex"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "claudock",
+        "codex"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-046",
+      "feature": "D:672–697 — immutable file mail, limits, ordered turns, delivery/return, waiting/idle state",
+      "disposition": "Keep",
+      "destination": "Service owns files/events and screens input; maintain sequence, redelivery and per-run outcome contracts.",
+      "target_packages": [
+        "internal/v2/messaging",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "messaging",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-047",
+      "feature": "D:698–728 — singleton loop, idle / backoff / room scheduling, status/errors and filtered tmux environment",
+      "disposition": "Change",
+      "destination": "Keep scheduling / status / backoff; run as service scheduler. Optional service-owned tmux/PTY is presentation, never an exposed lane management socket.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/watchdog"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "watchdog"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-048",
+      "feature": "D:729–764 — attach, safe stream readers, notices / cost / mode labels, input / Ctrl-C / resize / exit semantics",
+      "disposition": "Change",
+      "destination": "Keep terminal UX and output escaping; authenticated relay replaces raw socket access and keeps real stop ownership.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/service"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-049",
+      "feature": "D:765–812 — account room contract, slot selection/exclusions, no-room behavior and quiet-session adoption",
+      "disposition": "Change",
+      "destination": "Keep bounded room checks and adoption intent; room programs are isolated broker jobs and adoption crosses an explicit import/relaunch boundary. Do not claim the historical designed-only quota scheduler is built.",
+      "target_packages": [
+        "internal/v2/secrets",
+        "internal/v2/watchdog",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "secrets",
+        "watchdog",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-050",
+      "feature": "D:813–815, D:906–909 — publication scanner, optional private denylist and nonempty-input checks, pre-commit install hook",
+      "disposition": "Keep",
+      "destination": "Retain content checks independently of OS isolation; private denylist bytes never enter a project/archive.",
+      "target_packages": [
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-051",
+      "feature": "D:816–833 — external judge request / probability / egress contract, timeouts and credential screening",
+      "disposition": "Change",
+      "destination": "Keep observable results and bounded accounting; no judge program runs with the state service's authority.",
+      "target_packages": [
+        "internal/v2/judge"
+      ],
+      "required_cases": [
+        "judge"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-052",
+      "feature": "D:834–854, D:1042–1057 — portable decision DB, keyword / vector / hybrid search, embeddings/egress, import / export / load / migrate / verify and resident Unix search",
+      "disposition": "Change",
+      "destination": "Keep formats/provenance and scoped queries. Lane `--db` uploads/imports remain private inputs or non-authoritative proposals; only verified human/D6 operations commit canonical decisions. Confined workers return bounded results; clients never open management SQLite or ask the service to open arbitrary host paths. Frozen legacy offline tools create no live decision authority.",
+      "target_packages": [
+        "internal/v2/records",
+        "internal/v2/store"
+      ],
+      "required_cases": [
+        "integrate",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-053",
+      "feature": "D:855–868 — disk warning/stop latch shared by filesystem, resume/turn behavior",
+      "disposition": "Change",
+      "destination": "Keep thresholds/latch semantics in the service; measure the actual lane/export filesystem and preserve honest unreadable-filesystem failure.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/admin"
+      ],
+      "required_cases": [
+        "lifecycle",
+        "admin"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-054",
+      "feature": "D:869–871 — installed-command/README walkthrough checks and Apache License 2.0 distribution",
+      "disposition": "Keep",
+      "destination": "Preserve executable documentation checks, LICENSE and NOTICE; historical harness interpreter versions do not restore a Python product runtime.",
+      "target_packages": [
+        "internal/v2/distribution"
+      ],
+      "required_cases": [
+        "packaging",
+        "docs"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-055",
+      "feature": "D:872–874 — `cos` interactive helper and profile-swap integration",
+      "disposition": "Keep",
+      "destination": "Keep standalone helpers, exclusions / subscription-first / explicit paid-profile opt-in and session affinity. Active lane switching is requested through the service; helpers never receive other profiles' stores.",
+      "target_packages": [
+        "internal/v2/watchdog",
+        "internal/v2/secrets"
+      ],
+      "required_cases": [
+        "watchdog",
+        "secrets"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-056",
+      "feature": "D:875–881 — credential-bearing URL detector",
+      "disposition": "Keep",
+      "destination": "Preserve shape-based screening and values withheld; it is a content safeguard, not complete secret detection.",
+      "target_packages": [
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-057",
+      "feature": "D:1058–1070 — L3–L6 names and legacy level aliases, L1/L2 reserved",
+      "disposition": "Keep",
+      "destination": "Keep level/role distinctions and lower-child authorization; no invented `reports_to` TOML key. Parent links are authentic launch data.",
+      "target_packages": [
+        "internal/v2/identity",
+        "internal/v2/templates",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "identity",
+        "templates",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-058",
+      "feature": "CLI ledger / refusal / tool views, org history/decision ingestion (`internal/cli/cli.go:45`, `internal/cli/cli.go:147`)",
+      "disposition": "Change",
+      "destination": "Keep searchable scoped views; decision commits are human/D6, fresh ledger writes are trusted cloud-test worker outcomes, and tool/refusal coverage is verified against outside capture. Lane submissions stay untrusted observations/proposals; generic writes/raw event append are absent from lane sockets.",
+      "target_packages": [
+        "internal/v2/records"
+      ],
+      "required_cases": [
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-059",
+      "feature": "D:566–582 — old Python/source-fetch installer",
+      "disposition": "Change/drop obsolete runtime",
+      "destination": "Keep immutable source-install/rollback intent, source/address checks and explicit trust warnings; Go remains the product runtime. CLI install stays user-local, while service/helper provisioning is an explicit administrator step.",
+      "target_packages": [
+        "internal/v2/distribution"
+      ],
+      "required_cases": [
+        "packaging"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-060",
+      "feature": "D:910–916 — protocol 1.1.0/1.2.0 history and forward reads",
+      "disposition": "Keep compatibility",
+      "destination": "A structurally valid store written under protocol 1.1.0 still verifies, reads and rebuilds after import. Preserve exact protocol/input bytes and hashes; new policy cannot rewrite old evidence.",
+      "target_packages": [
+        "internal/v2/migration",
+        "internal/v2/store"
+      ],
+      "required_cases": [
+        "migration",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-061",
+      "feature": "D:1071–1122 — 0.5.0 configuration / event / projection incompatibilities and rollback",
+      "disposition": "Keep documented limits",
+      "destination": "Retain the precise old compatibility matrix and frozen-copy rollback route (§9); do not relink an old binary onto a new active store.",
+      "target_packages": [
+        "internal/v2/migration",
+        "internal/v2/distribution"
+      ],
+      "required_cases": [
+        "migration",
+        "packaging"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-062",
+      "feature": "R44, R54–R56 — complete Traditional Chinese Linux guide and bootstrap ladder tutorial",
+      "disposition": "Change; ship with release",
+      "destination": "Rewrite installation/admin helper, human verification, two drivers, service-launched L6, D6 approvals, D7/D9, secret grants, review/archive, watchdog, dashboard and day-2 steps from actual tested CLI blocks. Phase 7 includes synthetic screenshots and privacy checks (R4/D10).",
+      "target_packages": [
+        "internal/v2/templates",
+        "internal/v2/distribution",
+        "internal/v2/admin"
+      ],
+      "required_cases": [
+        "docs",
+        "templates",
+        "packaging",
+        "admin"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-064",
+      "feature": "D:104–115, D:188–191, D:246–257, D:299–310, D:311–315, D:885–904 — inferred effects, opaque-Laneboss refusal, ANSI-C / raw-target / copier backstops",
+      "disposition": "Drop as protection",
+      "destination": "Delete the code identified in §7. Keep applicable explicit blacklist matching and old records; do not port grammar holes as the security model.",
+      "target_packages": [
+        "internal/v2/isolation/linux",
+        "internal/v2/policy"
+      ],
+      "required_cases": [
+        "retire-hooks",
+        "linux",
+        "policy"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-065",
+      "feature": "D:228–244 — L3-only boundary and org-wide `allow_worktree_writes` escape, raw network/detach blanket backstops",
+      "disposition": "Drop",
+      "destination": "All levels get OS data grants. Cross-repo work uses per-child grants; ordinary network/detachment does not need a spelling exemption.",
+      "target_packages": [
+        "internal/v2/isolation/linux",
+        "internal/v2/grants"
+      ],
+      "required_cases": [
+        "retire-hooks",
+        "linux",
+        "grants"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-066",
+      "feature": "D:264, D:313–315, D:412–416, D:429, D:441–442 — Codex state writable root and PATH/hook as its integrity boundary",
+      "disposition": "Drop",
+      "destination": "No lane can write state; authenticated RPC works for any client spelling. Keep immutable adapter/runtime selection for reproducibility, not file-write inference.",
+      "target_packages": [
+        "internal/v2/isolation/linux",
+        "internal/v2/service"
+      ],
+      "required_cases": [
+        "retire-hooks",
+        "linux",
+        "service"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-067",
+      "feature": "D:319–323 — strict/tool allowlists removed",
+      "disposition": "Keep removal",
+      "destination": "Never reintroduce them under a sandbox or migration label. Retain compatibility metadata with a clear warning; explicit tool denies remain.",
+      "target_packages": [
+        "internal/v2/policy"
+      ],
+      "required_cases": [
+        "policy",
+        "retire-hooks"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-068",
+      "feature": "D:359–365, D:410–411 — Linux Codex-worker-only restriction; future-instance path expansion limit",
+      "disposition": "Change",
+      "destination": "Service-spawned children enable a Codex-supervisor target; native role support still requires its adapter/turn tests. Service-owned policy trees protect future instance files too.",
+      "target_packages": [
+        "internal/v2/runner/codex",
+        "internal/v2/identity",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "codex",
+        "identity",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-069",
+      "feature": "D:366–371, D:375–378, D:430–434 — same-account/open registration and human-login ancestry residuals",
+      "disposition": "Proposed change, R24 decision pending",
+      "destination": "Recommend service-confined root launches and explicit legacy import/relaunch. Removing existing-session `start --role` registration awaits the §11 R24/R44 decision; preserve history/briefing and do not label a live host session isolated. R102 uses the recorded provisional default.",
+      "target_packages": [
+        "internal/v2/identity",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "identity",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-070",
+      "feature": "D:372, D:374, D:390 — demo versus real auth, review versus exit, checksum versus signature, sheet sync, own-key exposure",
+      "disposition": "Keep limits",
+      "destination": "Publish those distinctions. None is cured merely by filesystem isolation.",
+      "target_packages": [
+        "internal/v2/api"
+      ],
+      "required_cases": [
+        "integrate",
+        "docs"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-071",
+      "feature": "D:373 — gateway restart/history continuity gap",
+      "disposition": "Keep limit",
+      "destination": "Preserve current documented behavior; closing it requires its own receive-history contract, not this isolation port.",
+      "target_packages": [
+        "internal/v2/messaging"
+      ],
+      "required_cases": [
+        "messaging",
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-072",
+      "feature": "D:379–383 — unpassed medium/ladder evidence and obsolete post-release smoke promise",
+      "disposition": "Change",
+      "destination": "Replace with §10's release gate on the exact new tree. A failed or diagnostic run is not publish evidence.",
+      "target_packages": [
+        "internal/v2/assembly"
+      ],
+      "required_cases": [
+        "integrate",
+        "e2e"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-073",
+      "feature": "D:384–389 — reachable tmux socket and required writable hook callback directory",
+      "disposition": "Drop",
+      "destination": "No shared control socket or writable hook policy/receipt directory reaches a lane; service relay and telemetry replace them.",
+      "target_packages": [
+        "internal/v2/lifecycle",
+        "internal/v2/isolation/linux"
+      ],
+      "required_cases": [
+        "retire-hooks",
+        "lifecycle",
+        "linux"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-074",
+      "feature": "D:391–409, D:439–440 — hook-version / alias / opaque-path / generic-route limits, unresolved delegation, advisory guide",
+      "disposition": "Change",
+      "destination": "Pin tested runner versions; preserve honest blacklist/record limits and delegation refusals. OS denial replaces syntax routes for actual access. Guidance remains advisory.",
+      "target_packages": [
+        "internal/v2/policy",
+        "internal/v2/grants",
+        "internal/v2/guidance"
+      ],
+      "required_cases": [
+        "policy",
+        "grants",
+        "guidance"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-075",
+      "feature": "D:417–428 — policy changes lacking live-run revocation/transition audit",
+      "disposition": "Change",
+      "destination": "Record transitions; revoke API rights and stop affected containment before a narrower restart. Service outage never reopens authority.",
+      "target_packages": [
+        "internal/v2/policy",
+        "internal/v2/grants",
+        "internal/v2/lifecycle"
+      ],
+      "required_cases": [
+        "policy",
+        "grants",
+        "lifecycle"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-076",
+      "feature": "D:435–438 — passed socket and unverified credential-drift/UID-hop concerns",
+      "disposition": "Change",
+      "destination": "Address explicitly in §4 and gate on canaries; do not assert the old suspected conditions were exploited or already fixed.",
+      "target_packages": [
+        "internal/v2/identity",
+        "internal/v2/peer/linux",
+        "internal/v2/secrets"
+      ],
+      "required_cases": [
+        "identity",
+        "secrets"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-077",
+      "feature": "D:446–547 — minimized test sets and retained private-suite removal inventories",
+      "disposition": "Keep principle; change boundary rows",
+      "destination": "One meaningful contract/boundary check plus its control/mutant; convert the adversarial/write-shape corpus to executed isolation tests (§10). Do not restore deleted variants just to increase counts.",
+      "target_packages": [
+        "internal/v2/isolation/linux",
+        "internal/v2/api"
+      ],
+      "required_cases": [
+        "retire-hooks",
+        "e2e",
+        "integrate"
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "PORT-078",
+      "feature": "D:1124–1129 — designed-only features and historical Python/0.5 compatibility text",
+      "disposition": "Keep as historical context",
+      "destination": "Do not advertise unimplemented quota inference, live executor messaging or unrelated remote-store features as part of this port. Supported current behavior is enumerated above.",
+      "target_packages": [
+        "internal/v2/api"
+      ],
+      "required_cases": [
+        "integrate",
+        "docs"
+      ],
+      "status": "pending",
+      "evidence": []
+    }
+  ]
+}

@@ -9,9 +9,22 @@ import (
 	"syscall"
 
 	"laneboss.io/laneboss/internal/testenv"
+	"laneboss.io/laneboss/internal/worktreepath"
 )
 
 type claim struct{ holder, name string }
+
+func checkWorktreeOverlap(lane, path string, rows []object) error {
+	for _, other := range rows {
+		if str(other["lane"]) == lane || flag(other["cleaned"]) || str(other["worktree"]) == "" {
+			continue
+		}
+		if worktreepath.Overlap(path, str(other["worktree"])) {
+			return refuse("the working directory overlaps lane %s's worktree; one lane per directory scope\nInstead: pick a separate directory, or clean lane %s first", str(other["lane"]), str(other["lane"]))
+		}
+	}
+	return nil
+}
 
 func claimsRegistry() (string, error) {
 	p := testenv.ClaimsDirectory()

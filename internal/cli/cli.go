@@ -8,22 +8,34 @@ import (
 	"os"
 	"syscall"
 
+	"laneboss.io/laneboss/internal/bootstrap"
+	"laneboss.io/laneboss/internal/box"
 	"laneboss.io/laneboss/internal/brief"
 	"laneboss.io/laneboss/internal/config"
+	"laneboss.io/laneboss/internal/dashboard"
 	"laneboss.io/laneboss/internal/decisions"
 	"laneboss.io/laneboss/internal/decisionsrv"
 	"laneboss.io/laneboss/internal/disk"
 	"laneboss.io/laneboss/internal/doctor"
 	"laneboss.io/laneboss/internal/event"
 	"laneboss.io/laneboss/internal/identity"
+	"laneboss.io/laneboss/internal/identityd"
+	"laneboss.io/laneboss/internal/identityd/ticket"
 	"laneboss.io/laneboss/internal/judge"
 	"laneboss.io/laneboss/internal/lane"
 	"laneboss.io/laneboss/internal/laneturns"
+	"laneboss.io/laneboss/internal/ledger"
 	"laneboss.io/laneboss/internal/org"
 	"laneboss.io/laneboss/internal/plugin"
 	"laneboss.io/laneboss/internal/protocol"
+	"laneboss.io/laneboss/internal/refusal"
+	"laneboss.io/laneboss/internal/report"
+	"laneboss.io/laneboss/internal/settingscli"
 	"laneboss.io/laneboss/internal/start"
 	"laneboss.io/laneboss/internal/state"
+	"laneboss.io/laneboss/internal/storecli"
+	"laneboss.io/laneboss/internal/ticketcmd"
+	"laneboss.io/laneboss/internal/toolrecord"
 )
 
 const refused = "not accepted; a typed value is never repeated here, see the usage line above or run with --help"
@@ -31,10 +43,19 @@ const refused = "not accepted; a typed value is never repeated here, see the usa
 type handler func([]string, io.Reader, io.Writer, io.Writer) int
 
 var handlers = map[string]handler{
+	"init":      bootstrap.Run,
+	"store":     storecli.Run,
+	"archive":   lane.RunArchive,
 	"decisions": runDecisions, "plugin": plugin.Run, "org": org.Run,
-	"config": config.Run, "event": event.Run, "state": state.Run,
+	"config": config.Run, "event": event.Run, "state": state.Run, "settings": settingscli.Run,
 	"brief": brief.Run, "lane": runLane, "judge": judge.Run,
-	"disk": disk.Run, "doctor": doctor.Run, "start": start.Run,
+	"disk": disk.Run, "doctor": doctor.Run, "start": start.Run, "ticket": ticketcmd.Run, "service": identityd.Run,
+	"report": runReport, "dashboard": dashboard.Run, "ledger": ledger.Run, "refusal": refusal.Run, "tool": toolrecord.Run,
+	"box": box.Run,
+}
+
+func runReport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	return report.Run(args, stdin, stdout, stderr, laneturns.SendReport)
 }
 
 func usageError(stderr io.Writer, message string) int {
@@ -56,10 +77,18 @@ func write(stdout, stderr io.Writer, text string) int {
 
 // Run passes each group's argument slice unchanged to its existing entry point.
 // Only options before the group belong to the root parser.
-func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) (code int) {
+func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	return RunWithService(args, stdin, stdout, stderr, nil)
+}
+
+// RunWithService is the unified client's integration point. The service must
+// authenticate its OS peer and own both issue and registration. Configurations
+// without a service retain the explicitly noticed legacy bootstrap.
+func RunWithService(args []string, stdin io.Reader, stdout, stderr io.Writer, service ticket.Service) (code int) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			if os.Getenv(identity.EnvPrefix+"DEBUG") != "" {
+			sensitive := len(args) > 0 && (args[0] == "ticket" || args[0] == "start")
+			if !sensitive && os.Getenv(identity.EnvPrefix+"DEBUG") != "" {
 				panic(recovered)
 			}
 			fmt.Fprintln(stderr, "internal error: panic")
@@ -67,6 +96,14 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) (code int) {
 		}
 	}()
 	if len(args) > 0 {
+		if service != nil {
+			switch args[0] {
+			case "ticket":
+				return ticketcmd.RunWithIssuer(args[1:], stdin, stdout, stderr, service)
+			case "start":
+				return start.RunWithRegistrar(args[1:], stdin, stdout, stderr, service)
+			}
+		}
 		if run, ok := handlers[args[0]]; ok {
 			return run(args[1:], stdin, stdout, stderr)
 		}

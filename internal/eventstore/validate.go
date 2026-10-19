@@ -9,11 +9,20 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/caller/records"
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/observation"
+	"laneboss.io/laneboss/internal/rolepolicy"
+	"laneboss.io/laneboss/internal/settings"
 )
 
 var kindGrammar = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}$`)
 var idGrammar = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
-var actorGrammar = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:@/+-]{0,127}$`)
+
+// Actor labels may identify a human source while retaining the bounded ASCII
+// identifier grammar and rejecting control characters.
+var actorGrammar = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:@/+() -]{0,127}$`)
 var protocolGrammar = regexp.MustCompile(`^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$`)
 var timestampGrammar = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{3}(?:[0-9]{3})?)?(?:Z|[+-][0-9]{2}:[0-9]{2})$`)
 
@@ -100,6 +109,11 @@ func Validate(value any) (Object, error) {
 		return nil, Refuse("payload: must be at most 1 MiB in canonical form")
 	}
 	kind := text(e["kind"])
+	if kind == "store.record" {
+		if err := ValidateRecord(object(e["payload"])); err != nil {
+			return nil, err
+		}
+	}
 	if strings.HasPrefix(kind, "lane.") {
 		if err := checkLane(e); err != nil {
 			return nil, err
@@ -354,7 +368,7 @@ var carriedCheck = sortedList(sequenceCheck, 0, 64)
 var positionCheck = fields(map[string]validator{"path": recordPath, "line": whole(1, 1<<62), "offset": whole(0, 1<<62), "item": whole(0, 1000000)})
 var reasonCheck = oneOf("exit", "timeout", "stopped", "limit", "dropped", "hook-config")
 var returnCheck = oneOf("exit", "timeout", "stopped", "limit", "dropped", "hook-config", "lost", "gone", "cut")
-var chosenCheck = fields(map[string]validator{"runner": oneOf("routing", "supervisor", "previous"), "model": oneOf("routing", "supervisor", "previous"), "effort": nullable(oneOf("routing", "supervisor", "previous")), "account": nullable(oneOf("supervisor", "default", "previous", "room"))})
+var chosenCheck = fields(map[string]validator{"runner": oneOf("routing", "supervisor", "previous", "settings"), "model": oneOf("routing", "supervisor", "previous", "settings"), "effort": nullable(oneOf("routing", "supervisor", "previous", "settings")), "account": nullable(oneOf("supervisor", "default", "previous", "room", "settings"))})
 
 func startFields() map[string]validator {
 	return map[string]validator{
@@ -376,6 +390,26 @@ func laneFields(kind string, p Object) map[string]validator {
 		return c
 	case "lane.started", "lane.adopted":
 		c := startFields()
+		if _, exists := p["settings"]; exists {
+			c["settings"] = settings.EventField(p)
+		}
+		if _, exists := p["runner_sandbox"]; exists {
+			c["runner_sandbox"] = oneOf(lanesandbox.RunnerReplaced)
+		}
+		if _, exists := p["role_context"]; exists {
+			c["role"] = rolepolicy.EventField(p, "role")
+			c["role_context"] = rolepolicy.EventField(p, "role_context")
+		}
+		for _, key := range []string{"level", "level_source", "starter"} {
+			if _, ok := p[key]; ok {
+				c[key] = func(value any, path string) error {
+					if err := records.Field(key, value); err != nil {
+						return Refuse("%s: %s", path, err)
+					}
+					return nil
+				}
+			}
+		}
 		if kind == "lane.started" {
 			c["run"] = runCheck
 			c["how"] = oneOf("start", "resume", "reuse")
@@ -411,7 +445,22 @@ func laneFields(kind string, p Object) map[string]validator {
 	case "lane.cleaned":
 		return map[string]validator{"removed": array(cleanItem(false), 64), "kept": array(cleanItem(true), 64)}
 	case "lane.mailed":
-		return map[string]validator{"sequence": sequenceCheck, "sender": grammar(`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`), "sha256": grammar(`[0-9a-f]{64}`), "bytes": whole(1, 262144)}
+		c := map[string]validator{"sequence": sequenceCheck, "sender": func(value any, path string) error {
+			id, ok := value.(string)
+			if !ok || !records.ValidSender(id) {
+				return Refuse("%s: must be a sender label or principal node id", path)
+			}
+			return nil
+		}, "sha256": grammar(`[0-9a-f]{64}`), "bytes": whole(1, 262144)}
+		if _, ok := p["legacy_relationship"]; ok {
+			c["legacy_relationship"] = func(value any, path string) error {
+				if value != true {
+					return Refuse("%s: must be true when present", path)
+				}
+				return nil
+			}
+		}
+		return c
 	case "lane.delivered":
 		return map[string]validator{"run": whole(2, 1000000), "sequences": sortedList(sequenceCheck, 1, 64)}
 	case "lane.returned":
@@ -422,7 +471,7 @@ func laneFields(kind string, p Object) map[string]validator {
 		}
 	case "lane.workaround_suspected":
 		return map[string]validator{
-			"run": runCheck, "suspicion": grammar(`ws-[0-9a-f]{24}`), "refusal": grammar(`rf-[0-9a-f]{24}`), "how": sortedList(oneOf("reworded", "shell-write"), 1, 2), "paths": sortedList(suspectedPath, 1, 1024), "tool": grammar(`[A-Za-z0-9][A-Za-z0-9._:-]{0,63}`), "at": nullable(checkTimestamp), "command": excerpt, "call": fields(map[string]validator{"id": nullable(grammar(`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`)), "record": positionCheck}), "similarity": nullable(fields(map[string]validator{"containment": numeric(0, 1, false), "coverage": numeric(0, 1, false)})),
+			"run": runCheck, "suspicion": grammar(`ws-[0-9a-f]{24}`), "refusal": nullable(grammar(`rf-[0-9a-f]{24}`)), "how": sortedList(oneOf("reworded", "shell-write", "shell-substitution-in-text"), 1, 2), "paths": sortedList(suspectedPath, 1, 1024), "tool": grammar(`[A-Za-z0-9][A-Za-z0-9._:-]{0,63}`), "at": nullable(checkTimestamp), "command": excerpt, "call": fields(map[string]validator{"id": nullable(grammar(`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`)), "record": positionCheck}), "similarity": nullable(fields(map[string]validator{"containment": numeric(0, 1, false), "coverage": numeric(0, 1, false)})),
 		}
 	case "lane.refusal_reviewed":
 		return map[string]validator{"refusal": grammar(`rf-[0-9a-f]{24}`), "path": suspectedPath, "verdict": oneOf("clean", "workaround"), "suspicions": sortedList(grammar(`ws-[0-9a-f]{24}`), 1, 4096), "note": nullable(note)}
@@ -458,6 +507,9 @@ func checkLane(e Object) error {
 }
 func consistent(kind string, p Object) error {
 	if kind == "lane.started" || kind == "lane.adopted" {
+		if err := records.Validate(p); err != nil {
+			return Refuse("payload report line: %s", err)
+		}
 		chosen := object(p["chosen_by"])
 		for _, key := range []string{"effort", "account"} {
 			if (p[key] == nil) != (chosen[key] == nil) {
@@ -535,6 +587,9 @@ func consistent(kind string, p Object) error {
 		reworded := false
 		for _, how := range list(p["how"]) {
 			reworded = reworded || how == "reworded"
+		}
+		if err := observation.Check(p); err != nil {
+			return Refuse("%s", err.Error())
 		}
 		if (p["similarity"] != nil) != reworded {
 			return Refuse("payload.similarity: is given exactly when the way includes reworded")

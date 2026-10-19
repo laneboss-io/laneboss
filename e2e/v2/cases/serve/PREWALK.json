@@ -1,0 +1,1435 @@
+{
+  "schema": "laneboss.serve-prewalk.v1",
+  "revision": "179f3f0",
+  "scope": "installed-lifecycle static prewalk; never imported by runtime acceptance",
+  "statuses": {
+    "source-ready": "The real source path and its checks exist, conditional on valid inputs and prior gates. No runtime pass is claimed.",
+    "blocked": "A specific refusal is predicted from the current source, after required prior gates. Expected refusal is source-derived, not measured.",
+    "unknown": "Native/environmental behavior, owner integration or a pending incoming fix prevents a source verdict."
+  },
+  "catalog_note": "The 78-row order is the report catalog. Shared proof pairs run repeatedly and may execute earlier than their displayed row.",
+  "incoming_reviewed": [
+    "894a31f",
+    "c43d622",
+    "39ac09e",
+    "fd1ab1a"
+  ],
+  "checks": [
+    {
+      "number": 1,
+      "check": "platform",
+      "status": "unknown",
+      "trace": "Linux/unprivileged UID, sudo and installed kernel prerequisites require the actual disposable box.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 683
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 2,
+      "check": "source",
+      "status": "source-ready",
+      "trace": "Stages a real source archive, records input bytes and rejects linked or incomplete source.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 691
+        },
+        {
+          "path": "scripts/v2-serve/provision.py",
+          "line": 347
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 3,
+      "check": "build",
+      "status": "unknown",
+      "trace": "Actual trimpath tagged Go build, artifact digest and release pairing run only on Linux.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 702
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 4,
+      "check": "fixture.build",
+      "status": "unknown",
+      "trace": "Builds the declared vendor stand-in from its retained module/source; no executable was built here.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 722
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 5,
+      "check": "authenticator.build",
+      "status": "unknown",
+      "trace": "Builds the dedicated software authenticator and requires explicit simulated provenance.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 736
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 6,
+      "check": "root.stage",
+      "status": "source-ready",
+      "trace": "Uses a new protected administrator evidence root and retained inputs, without credentials or real model execution.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 751
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 7,
+      "check": "boot.inputs",
+      "status": "source-ready",
+      "trace": "Real bundle assembler validates source/launch/policy pins; semantic Sources and empty Derived match the current initial validator only.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 755
+        },
+        {
+          "path": "scripts/v2-serve/provision.py",
+          "line": 268
+        }
+      ],
+      "gaps": [
+        "G2"
+      ]
+    },
+    {
+      "number": 8,
+      "check": "namespace.install",
+      "status": "unknown",
+      "trace": "Real host namespace prerequisite installation must succeed on Linux.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 789
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 9,
+      "check": "namespace.check",
+      "status": "unknown",
+      "trace": "Requires actual native namespace checks, not interface presence.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 789
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 10,
+      "check": "admin.install",
+      "status": "unknown",
+      "trace": "Runs the real protected installer and native initial validator; future Derived adoption needs G2 coordination.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 803
+        }
+      ],
+      "gaps": [
+        "G2"
+      ]
+    },
+    {
+      "number": 11,
+      "check": "admin.check",
+      "status": "unknown",
+      "trace": "Checks the actual installed artifact, accounts, protected paths and unit state.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 824
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 12,
+      "check": "installation",
+      "status": "source-ready",
+      "trace": "Requires exact retained installation fields and pairing, not a generated success constant.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 831
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 13,
+      "check": "fixture.enrollment",
+      "status": "source-ready",
+      "trace": "Requires complete pinned dual-driver enrollment under the dedicated partial/authenticator build.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 858
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 14,
+      "check": "serve",
+      "status": "unknown",
+      "trace": "Starts the actual installed service and checks its live unit/socket; source constructs real owners.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 872
+        },
+        {
+          "path": "internal/v2/assembly/assembly.go",
+          "line": 71
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 15,
+      "check": "health",
+      "status": "source-ready",
+      "trace": "Fresh native public-health socket returns actual artifact/snapshot/capability observations; it is not launch readiness.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 892
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 16,
+      "check": "authenticator.create",
+      "status": "source-ready",
+      "trace": "Creates the explicit software device; fresh signatures use the persisted monotonic counter.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 289
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 17,
+      "check": "human.enroll.begin",
+      "status": "source-ready",
+      "trace": "Installed root helper reserves the actual empty-baseline ceremony and exact endpoint generations.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 32
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 18,
+      "check": "human.enroll.attestation",
+      "status": "source-ready",
+      "trace": "Real software registration consumes the returned challenge; the marked attestation path remains explicit.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 41
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 19,
+      "check": "human.enroll.complete",
+      "status": "source-ready",
+      "trace": "Native admin/identity/store commit requires exact evidence, event, receipt and simulated presence.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 50
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 20,
+      "check": "human.enrollment",
+      "status": "source-ready",
+      "trace": "Credits only the actual installed enrollment receipt and named writer from the preceding commit.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 63
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 21,
+      "check": "admin.publish",
+      "status": "unknown",
+      "trace": "Known initial-read amplification is being fixed by service; installed timing/receipt outcome remains unmeasured on this source.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 367
+        }
+      ],
+      "gaps": [
+        "G0"
+      ]
+    },
+    {
+      "number": 22,
+      "check": "admin.publish.retry",
+      "status": "source-ready",
+      "trace": "Only runs after first publication succeeds; native exact replay and identical durable receipt/read-backs remain mandatory.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 380
+        }
+      ],
+      "gaps": [
+        "G0"
+      ]
+    },
+    {
+      "number": 23,
+      "check": "admin.publication",
+      "status": "blocked",
+      "trace": "First public blob read needs a same-socket human.session and hits G1. After that fix, the new exact-generation org.validate reaches G2.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 385
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 262
+        },
+        {
+          "path": "internal/v2/store/contract_stubs.go",
+          "line": 101
+        },
+        {
+          "path": "internal/v2/service/connection.go",
+          "line": 96
+        }
+      ],
+      "gaps": [
+        "G1",
+        "G2"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-service",
+        "code": "unauthenticated",
+        "message": "connection has no current read authority"
+      }
+    },
+    {
+      "number": 24,
+      "check": "human.session.challenge",
+      "status": "source-ready",
+      "trace": "Native authentication uses the private HumanPolicyGeneration bootstrap, then commits a real operation-bound nonce.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        },
+        {
+          "path": "internal/v2/identity/binding.go",
+          "line": 72
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 25,
+      "check": "human.session.confirm",
+      "status": "source-ready",
+      "trace": "Verifies actual WebAuthn assertion and counter, then atomically retains proof/evidence and consumes the challenge.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 26,
+      "check": "human.session",
+      "status": "blocked",
+      "trace": "Receipt may already be durable while its connection bind failed. The strengthened same-socket identity.self read now exposes the unbound-authority refusal.",
+      "sources": [
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 262
+        },
+        {
+          "path": "internal/v2/store/contract_stubs.go",
+          "line": 101
+        },
+        {
+          "path": "internal/v2/service/connection.go",
+          "line": 96
+        }
+      ],
+      "gaps": [
+        "G1"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-service",
+        "code": "unauthenticated",
+        "message": "connection has no current read authority"
+      }
+    },
+    {
+      "number": 27,
+      "check": "human.read.challenge",
+      "status": "source-ready",
+      "trace": "Prepares a fresh human.session proof for each CLI read, not a session ID reused across sockets.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 130
+        },
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 28,
+      "check": "human.read.confirm",
+      "status": "source-ready",
+      "trace": "Uses the real signer and identity verifier; the subsequent session bind still needs G1.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 130
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": [
+        "G1"
+      ]
+    },
+    {
+      "number": 29,
+      "check": "uid.direct-open",
+      "status": "unknown",
+      "trace": "Actual dropped-UID direct-open canary must observe protected database/WAL refusal on Linux.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 521
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 30,
+      "check": "human.claudock.session.challenge",
+      "status": "source-ready",
+      "trace": "claudock: commits a fresh human.session challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 31,
+      "check": "human.claudock.session.confirm",
+      "status": "source-ready",
+      "trace": "claudock: checks the actual human.session assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 32,
+      "check": "human.claudock.grants.challenge",
+      "status": "source-ready",
+      "trace": "claudock: commits a fresh grants.root challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 33,
+      "check": "human.claudock.grants.confirm",
+      "status": "source-ready",
+      "trace": "claudock: checks the actual grants.root assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 34,
+      "check": "human.claudock.ticket.challenge",
+      "status": "source-ready",
+      "trace": "claudock: commits a fresh ticket.issue challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 35,
+      "check": "human.claudock.ticket.confirm",
+      "status": "source-ready",
+      "trace": "claudock: checks the actual ticket.issue assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 36,
+      "check": "human.claudock.read.challenge",
+      "status": "source-ready",
+      "trace": "claudock: commits a fresh human.session challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 37,
+      "check": "human.claudock.read.confirm",
+      "status": "source-ready",
+      "trace": "claudock: checks the actual human.session assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 38,
+      "check": "human.claudock.control.challenge",
+      "status": "source-ready",
+      "trace": "claudock: commits a fresh exact lifecycle control challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 39,
+      "check": "human.claudock.control.confirm",
+      "status": "source-ready",
+      "trace": "claudock: checks the actual exact lifecycle control assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 40,
+      "check": "human.claudock.session",
+      "status": "blocked",
+      "trace": "Receipt may already be durable while its connection bind failed. The strengthened same-socket identity.self read now exposes the unbound-authority refusal.",
+      "sources": [
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 262
+        },
+        {
+          "path": "internal/v2/store/contract_stubs.go",
+          "line": 101
+        },
+        {
+          "path": "internal/v2/service/connection.go",
+          "line": 96
+        }
+      ],
+      "gaps": [
+        "G1"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-service",
+        "code": "unauthenticated",
+        "message": "connection has no current read authority"
+      }
+    },
+    {
+      "number": 41,
+      "check": "human.claudock.grants",
+      "status": "blocked",
+      "trace": "After session bootstrap is repaired, this nonempty approved profile manifest reaches the explicit protected-root resolver gap.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 155
+        },
+        {
+          "path": "internal/v2/grants/root.go",
+          "line": 13
+        }
+      ],
+      "gaps": [
+        "G3"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-grants",
+        "code": "not_implemented",
+        "message": "root enrolled capability handles require the protected enrollment resolver is not implemented"
+      }
+    },
+    {
+      "number": 42,
+      "check": "human.claudock.ticket",
+      "status": "source-ready",
+      "trace": "Issues an actual exact-scope ticket only after real root grants and confirmed proof; expiry and simulated provenance are checked.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 155
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 189
+        }
+      ],
+      "gaps": [
+        "G3"
+      ]
+    },
+    {
+      "number": 43,
+      "check": "lane.claudock.inputs",
+      "status": "source-ready",
+      "trace": "Checks the actual published L5 role/task/policy, enrolled driver/project and unticketed proposal. Real returned grant IDs bind later.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 185
+        },
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 509
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 44,
+      "check": "lane.claudock.start",
+      "status": "blocked",
+      "trace": "Fresh CLI has only its root ticket. Lifecycle's Store.Policy read has no bound read authority; no proof/session prelude is sent.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 185
+        },
+        {
+          "path": "internal/v2/lifecycle/launch.go",
+          "line": 59
+        },
+        {
+          "path": "internal/v2/service/connection.go",
+          "line": 96
+        }
+      ],
+      "gaps": [
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-service",
+        "code": "unauthenticated",
+        "message": "connection has no current read authority"
+      }
+    },
+    {
+      "number": 45,
+      "check": "lane.claudock.running",
+      "status": "unknown",
+      "trace": "Requires completed real PlanLaunch and native running survivors. The pending probe, worker, profile, source and projection/capture gaps prevent source acceptance.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/service/launch_control.go",
+          "line": 449
+        }
+      ],
+      "gaps": [
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9"
+      ]
+    },
+    {
+      "number": 46,
+      "check": "lane.claudock.events",
+      "status": "source-ready",
+      "trace": "Reads actual paged lane events and requires lane.created, lane.started and identity.bound with exact config/life/run and service origin.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 86
+        },
+        {
+          "path": "internal/v2/lifecycle/read.go",
+          "line": 244
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 47,
+      "check": "lane.claudock.reason",
+      "status": "source-ready",
+      "trace": "Uploads actual stop-reason bytes through blob begin/chunk/commit and checks the returned immutable ref.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 118
+        },
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 139
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 48,
+      "check": "lane.claudock.stop",
+      "status": "unknown",
+      "trace": "Commits an exact proof/CAS-bound stop intent and waits for the native launcher outcome; no terminal result is synthesized.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 118
+        },
+        {
+          "path": "internal/v2/lifecycle/control.go",
+          "line": 371
+        }
+      ],
+      "gaps": [
+        "G9"
+      ]
+    },
+    {
+      "number": 49,
+      "check": "lane.claudock.quiescent",
+      "status": "unknown",
+      "trace": "Requires a real terminal exit or signal and zero survivors, then rereads generation before marking.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 118
+        },
+        {
+          "path": "internal/v2/lifecycle/control.go",
+          "line": 193
+        }
+      ],
+      "gaps": [
+        "G9"
+      ]
+    },
+    {
+      "number": 50,
+      "check": "lane.claudock.abandon",
+      "status": "source-ready",
+      "trace": "Abandoned-only path bypasses positive review requirements, but retains exact proof/CAS, observed quiescence and durable state event.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/review.go",
+          "line": 265
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 51,
+      "check": "lane.claudock.archive",
+      "status": "blocked",
+      "trace": "With prior gates/quiescence satisfied, lifecycle explicitly lacks the durable archive worker intent.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/archive.go",
+          "line": 40
+        }
+      ],
+      "gaps": [
+        "G10"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-lifecycle",
+        "code": "not_implemented",
+        "message": "durable quiescent archive worker intent is not implemented"
+      }
+    },
+    {
+      "number": 52,
+      "check": "lane.claudock.clean",
+      "status": "blocked",
+      "trace": "Even with a genuine archive receipt, owned workspace/object removal and its retained receipt are unimplemented.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/archive.go",
+          "line": 127
+        }
+      ],
+      "gaps": [
+        "G11"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-grants",
+        "code": "not_implemented",
+        "message": "owned data removal and retained-object receipt is not implemented"
+      }
+    },
+    {
+      "number": 53,
+      "check": "lane.claudock.collected",
+      "status": "unknown",
+      "trace": "Requires actual cleaned state plus retained lane.cleaned event; G10/G11 currently prevent reaching this observation.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/read.go",
+          "line": 13
+        }
+      ],
+      "gaps": [
+        "G10",
+        "G11"
+      ]
+    },
+    {
+      "number": 54,
+      "check": "human.codex.session.challenge",
+      "status": "source-ready",
+      "trace": "codex: commits a fresh human.session challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 55,
+      "check": "human.codex.session.confirm",
+      "status": "source-ready",
+      "trace": "codex: checks the actual human.session assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 56,
+      "check": "human.codex.grants.challenge",
+      "status": "source-ready",
+      "trace": "codex: commits a fresh grants.root challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 57,
+      "check": "human.codex.grants.confirm",
+      "status": "source-ready",
+      "trace": "codex: checks the actual grants.root assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 58,
+      "check": "human.codex.ticket.challenge",
+      "status": "source-ready",
+      "trace": "codex: commits a fresh ticket.issue challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 59,
+      "check": "human.codex.ticket.confirm",
+      "status": "source-ready",
+      "trace": "codex: checks the actual ticket.issue assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 60,
+      "check": "human.codex.read.challenge",
+      "status": "source-ready",
+      "trace": "codex: commits a fresh human.session challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 61,
+      "check": "human.codex.read.confirm",
+      "status": "source-ready",
+      "trace": "codex: checks the actual human.session assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 62,
+      "check": "human.codex.control.challenge",
+      "status": "source-ready",
+      "trace": "codex: commits a fresh exact lifecycle control challenge bound to method, target, digest, generation, origin and RP; prior gates must hold.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 34
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 63,
+      "check": "human.codex.control.confirm",
+      "status": "source-ready",
+      "trace": "codex: checks the actual exact lifecycle control assertion, enrolled key, persisted counter and one-use nonce, then commits the exact ProofRef.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 72
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 94
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 64,
+      "check": "human.codex.session",
+      "status": "blocked",
+      "trace": "Receipt may already be durable while its connection bind failed. The strengthened same-socket identity.self read now exposes the unbound-authority refusal.",
+      "sources": [
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 262
+        },
+        {
+          "path": "internal/v2/store/contract_stubs.go",
+          "line": 101
+        },
+        {
+          "path": "internal/v2/service/connection.go",
+          "line": 96
+        }
+      ],
+      "gaps": [
+        "G1"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-service",
+        "code": "unauthenticated",
+        "message": "connection has no current read authority"
+      }
+    },
+    {
+      "number": 65,
+      "check": "human.codex.grants",
+      "status": "blocked",
+      "trace": "After session bootstrap is repaired, this nonempty approved profile manifest reaches the explicit protected-root resolver gap.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 155
+        },
+        {
+          "path": "internal/v2/grants/root.go",
+          "line": 13
+        }
+      ],
+      "gaps": [
+        "G3"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-grants",
+        "code": "not_implemented",
+        "message": "root enrolled capability handles require the protected enrollment resolver is not implemented"
+      }
+    },
+    {
+      "number": 66,
+      "check": "human.codex.ticket",
+      "status": "source-ready",
+      "trace": "Issues an actual exact-scope ticket only after real root grants and confirmed proof; expiry and simulated provenance are checked.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 155
+        },
+        {
+          "path": "internal/v2/identity/human.go",
+          "line": 189
+        }
+      ],
+      "gaps": [
+        "G3"
+      ]
+    },
+    {
+      "number": 67,
+      "check": "lane.codex.inputs",
+      "status": "source-ready",
+      "trace": "Checks the actual published L5 role/task/policy, enrolled driver/project and unticketed proposal. Real returned grant IDs bind later.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 185
+        },
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 509
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 68,
+      "check": "lane.codex.start",
+      "status": "blocked",
+      "trace": "Fresh CLI has only its root ticket. Lifecycle's Store.Policy read has no bound read authority; no proof/session prelude is sent.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 185
+        },
+        {
+          "path": "internal/v2/lifecycle/launch.go",
+          "line": 59
+        },
+        {
+          "path": "internal/v2/service/connection.go",
+          "line": 96
+        }
+      ],
+      "gaps": [
+        "G4",
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-service",
+        "code": "unauthenticated",
+        "message": "connection has no current read authority"
+      }
+    },
+    {
+      "number": 69,
+      "check": "lane.codex.running",
+      "status": "unknown",
+      "trace": "Requires completed real PlanLaunch and native running survivors. The pending probe, worker, profile, source and projection/capture gaps prevent source acceptance.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/service/launch_control.go",
+          "line": 449
+        }
+      ],
+      "gaps": [
+        "G5",
+        "G6",
+        "G7",
+        "G8",
+        "G9"
+      ]
+    },
+    {
+      "number": 70,
+      "check": "lane.codex.events",
+      "status": "source-ready",
+      "trace": "Reads actual paged lane events and requires lane.created, lane.started and identity.bound with exact config/life/run and service origin.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 86
+        },
+        {
+          "path": "internal/v2/lifecycle/read.go",
+          "line": 244
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 71,
+      "check": "lane.codex.reason",
+      "status": "source-ready",
+      "trace": "Uploads actual stop-reason bytes through blob begin/chunk/commit and checks the returned immutable ref.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 118
+        },
+        {
+          "path": "scripts/v2-serve/human.py",
+          "line": 139
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 72,
+      "check": "lane.codex.stop",
+      "status": "unknown",
+      "trace": "Commits an exact proof/CAS-bound stop intent and waits for the native launcher outcome; no terminal result is synthesized.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 118
+        },
+        {
+          "path": "internal/v2/lifecycle/control.go",
+          "line": 371
+        }
+      ],
+      "gaps": [
+        "G9"
+      ]
+    },
+    {
+      "number": 73,
+      "check": "lane.codex.quiescent",
+      "status": "unknown",
+      "trace": "Requires a real terminal exit or signal and zero survivors, then rereads generation before marking.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 118
+        },
+        {
+          "path": "internal/v2/lifecycle/control.go",
+          "line": 193
+        }
+      ],
+      "gaps": [
+        "G9"
+      ]
+    },
+    {
+      "number": 74,
+      "check": "lane.codex.abandon",
+      "status": "source-ready",
+      "trace": "Abandoned-only path bypasses positive review requirements, but retains exact proof/CAS, observed quiescence and durable state event.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/review.go",
+          "line": 265
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "number": 75,
+      "check": "lane.codex.archive",
+      "status": "blocked",
+      "trace": "With prior gates/quiescence satisfied, lifecycle explicitly lacks the durable archive worker intent.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/archive.go",
+          "line": 40
+        }
+      ],
+      "gaps": [
+        "G10"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-lifecycle",
+        "code": "not_implemented",
+        "message": "durable quiescent archive worker intent is not implemented"
+      }
+    },
+    {
+      "number": 76,
+      "check": "lane.codex.clean",
+      "status": "blocked",
+      "trace": "Even with a genuine archive receipt, owned workspace/object removal and its retained receipt are unimplemented.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/archive.go",
+          "line": 127
+        }
+      ],
+      "gaps": [
+        "G11"
+      ],
+      "expected_refusal": {
+        "owner": "lb-v2-grants",
+        "code": "not_implemented",
+        "message": "owned data removal and retained-object receipt is not implemented"
+      }
+    },
+    {
+      "number": 77,
+      "check": "lane.codex.collected",
+      "status": "unknown",
+      "trace": "Requires actual cleaned state plus retained lane.cleaned event; G10/G11 currently prevent reaching this observation.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 149
+        },
+        {
+          "path": "internal/v2/lifecycle/read.go",
+          "line": 13
+        }
+      ],
+      "gaps": [
+        "G10",
+        "G11"
+      ]
+    },
+    {
+      "number": 78,
+      "check": "cleanup",
+      "status": "unknown",
+      "trace": "Retains both journals and timings, stops owned units and preserves refused product cleanup; cannot credit uncollected lanes.",
+      "sources": [
+        {
+          "path": "scripts/v2-serve/run.py",
+          "line": 975
+        },
+        {
+          "path": "scripts/v2-serve/lifecycle.py",
+          "line": 236
+        }
+      ],
+      "gaps": [
+        "G10",
+        "G11"
+      ]
+    }
+  ]
+}

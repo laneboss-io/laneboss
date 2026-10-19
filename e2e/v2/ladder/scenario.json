@@ -1,0 +1,17 @@
+{
+  "schema": "laneboss.ladder-scenario.v2",
+  "contract_revision": "v2.0-draft.4",
+  "leaf_draw": ["claudock-cli", "claudock-cli", "codex", "codex"],
+  "nodes": [
+    {"name": "l6", "level": 6, "parent": "", "runner": "claudock-cli", "brief": "parent.md"},
+    {"name": "l5a", "level": 5, "parent": "l6", "runner": "claudock-cli", "brief": "parent.md"},
+    {"name": "l5b", "level": 5, "parent": "l6", "runner": "claudock-cli", "brief": "parent.md"},
+    {"name": "l4a", "level": 4, "parent": "l5a", "runner": "claudock-cli", "brief": "parent.md"},
+    {"name": "l4b", "level": 4, "parent": "l5a", "runner": "claudock-cli", "brief": "parent.md"},
+    {"name": "l4c", "level": 4, "parent": "l5b", "runner": "claudock-cli", "brief": "parent.md"},
+    {"name": "l3a", "level": 3, "parent": "l4a", "runner": "draw", "brief": "leaf.md"},
+    {"name": "l3b", "level": 3, "parent": "l4a", "runner": "draw", "brief": "leaf.md"},
+    {"name": "l3c", "level": 3, "parent": "l4b", "runner": "draw", "brief": "leaf.md"},
+    {"name": "l3d", "level": 3, "parent": "l4c", "runner": "draw", "brief": "leaf.md"}
+  ]
+}

@@ -1,0 +1,797 @@
+{
+  "status": "Round 5 candidate static only, based on supplied 4b99348f. Round 4 is supervisor-reported green. Linux must reach each nominated control assertion and pass the same candidate. No mutant is compiled, vetted or executed on the authoring Mac.",
+  "controls": [
+    {
+      "id": "r2-selected-fence",
+      "package": "store",
+      "test": "TestCollectConcurrentWrites",
+      "diagnostic": "real object collection",
+      "file": "store/collect_graph.go",
+      "edits": [
+        [
+          "version, err := strconv.ParseUint(string(digest[:13]), 16, 64)",
+          "_ = strconv.ParseUint\n\tvar version uint64\n\terr = s.db.QueryRowContext(ctx, \"SELECT coalesce(max(seq),0)+1 FROM projection_history WHERE kind<>'collection' AND substr(kind,1,11)<>'collection_'\").Scan(&version)"
+        ]
+      ]
+    },
+    {
+      "id": "r2-recovery-isolation",
+      "package": "store",
+      "test": "TestArchRecoveryIsolatesFailure",
+      "diagnostic": "one failed freeze halted recovery of other records",
+      "file": "store/arch_recover.go",
+      "edits": [
+        [
+          "var retained *archiveAttemptOutcome",
+          "_ = errors.As"
+        ],
+        [
+          "if !errors.As(err, &retained) {",
+          "if err != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r2-freeze-backoff",
+      "package": "store",
+      "test": "TestArchRecoveryBackoff",
+      "diagnostic": "transient native freeze was retried without bounded backoff",
+      "file": "store/arch_fail.go",
+      "edits": [
+        [
+          "s.deps.Clock.Now().Add(delay)",
+          "s.deps.Clock.Now().Add(-delay)"
+        ]
+      ]
+    },
+    {
+      "id": "r2-owned-progress",
+      "package": "service",
+      "test": "TestOwnedFailureDoesNotHalt",
+      "diagnostic": "missing collector was not recorded as an owned terminal refusal",
+      "file": "service/reconcile_attempt.go",
+      "edits": [
+        [
+          "outcome, err = s.failOwnedEffect(ctx, scope, lease, outcome, err)",
+          "s.recordFault(err)\n\t\t\treturn attemptStop"
+        ]
+      ]
+    },
+    {
+      "id": "r2-owned-observation",
+      "package": "store",
+      "test": "TestOwnedFailedObservation/exit",
+      "diagnostic": "terminal owned failure hid its measured observation",
+      "file": "store/owned_fail.go",
+      "edits": [
+        [
+          "Observation: observation",
+          "Observation: nil"
+        ]
+      ]
+    },
+    {
+      "id": "r2-native-ready",
+      "package": "service",
+      "test": "TestCleanupRequiresNativePorts",
+      "diagnostic": "cleanup dispatch accepted nil native collection ports",
+      "file": "service/host.go",
+      "edits": [
+        [
+          "availability, ok := runtime.Store.(interface{ CleanupNativeReady() bool })",
+          "_, ok := runtime.Store.(interface{ CleanupNativeReady() bool })"
+        ],
+        [
+          "if !ok || !availability.CleanupNativeReady() {",
+          "if !ok {"
+        ]
+      ]
+    },
+    {
+      "id": "r2-removal-reclaim",
+      "package": "store",
+      "test": "TestCollectReclaimAfterRemoval",
+      "diagnostic": "claim B could not replay claim A object and removal journals",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "when, err := time.Parse(time.RFC3339Nano, string(removedAt))",
+          "if receipt.ClaimID != job.Claim.ClaimID { return launchInvalid(\"replay requires current claim\") }\n\twhen, err := time.Parse(time.RFC3339Nano, string(removedAt))"
+        ]
+      ]
+    },
+    {
+      "id": "r2-snapshot-scale",
+      "package": "store",
+      "test": "TestArchiveConfiguredCaps",
+      "diagnostic": "installation budget could not archive a normal dependency-sized snapshot",
+      "file": "store/archive.go",
+      "edits": [
+        [
+          "uint64(len(snapshot.Objects)) > prior.Limits.resolved(prior.Job.Plan.Budget).SnapshotObjects",
+          "len(snapshot.Objects) > 4096"
+        ]
+      ]
+    },
+    {
+      "id": "r2-snapshot-budget",
+      "package": "store",
+      "test": "TestArchiveConfiguredCaps",
+      "diagnostic": "configured snapshot object refusal was bypassed",
+      "file": "store/archive.go",
+      "edits": [
+        [
+          "REMOVE_BLOCK",
+          "\tif uint64(len(snapshot.Objects)) > prior.Limits.resolved(prior.Job.Plan.Budget).SnapshotObjects {"
+        ]
+      ]
+    },
+    {
+      "id": "r2-collection-scale",
+      "package": "store",
+      "test": "TestCollectConfiguredCap",
+      "diagnostic": "installation collection budget still imposed the old constant cap",
+      "file": "store/collect_graph.go",
+      "edits": [
+        [
+          "uint64(len(selected)) > limits.CollectionObjects",
+          "len(selected) > 4096"
+        ]
+      ]
+    },
+    {
+      "id": "r2-worker-duration",
+      "package": "store",
+      "test": "TestArchiveBudgetDeadline",
+      "diagnostic": "archive lease still imposed the old sixty-second cap",
+      "file": "store/arch_limits.go",
+      "edits": [
+        [
+          "max(int64(60000), b.WallMS)",
+          "min(int64(60000), b.WallMS)"
+        ]
+      ]
+    },
+    {
+      "id": "r2-first-cleanup-release",
+      "package": "store",
+      "test": "TestBeginCleanupFresh",
+      "diagnostic": "first BeginCleanup did not join the actual archive and release",
+      "file": "store/collection.go",
+      "edits": [
+        [
+          "uint64(lane.Run)).Scan(&releaseRaw)",
+          "uint64(lane.Run+1)).Scan(&releaseRaw)"
+        ]
+      ]
+    },
+    {
+      "id": "r2-unknown-schema",
+      "package": "store",
+      "test": "TestArchUnknownSchema/weakened-trigger",
+      "diagnostic": "unknown or weakened schema was accepted as a legacy upgrade",
+      "file": "store/store.go",
+      "edits": [
+        [
+          "if err := verifySchemaDDL(ctx, tx, legacy); err != nil {",
+          "if err := verifySchemaDDL(ctx, tx, legacy); err != nil && ctx.Err() != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r3-graph-json-bound",
+      "package": "store",
+      "test": "TestCollectConfiguredCap",
+      "diagnostic": "installation collection budget still imposed the old constant cap",
+      "file": "store/collect_json.go",
+      "edits": [
+        [
+          "return api.CanonicalObjectJSON(raw)",
+          "return api.CanonicalJSON(raw)"
+        ]
+      ]
+    },
+    {
+      "id": "r3-cleanup-proof-bound",
+      "package": "api",
+      "test": "TestCollectLargeProof",
+      "diagnostic": "invalid JSON object or field shape",
+      "file": "api/collection.go",
+      "edits": [
+        [
+          "body, err := CanonicalObjectJSON(raw)",
+          "body, err := CanonicalJSON(raw)"
+        ]
+      ]
+    },
+    {
+      "id": "r3-stored-json-bound",
+      "package": "store",
+      "test": "TestStoredJSONBounds",
+      "diagnostic": "retained state still used the RPC frame bound",
+      "file": "store/receipts.go",
+      "edits": [
+        [
+          "if err := api.ValidateObjectJSON(data); err != nil {",
+          "if _, err := wire.Parse(data); err != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r3-fresh-budget-currency",
+      "package": "store",
+      "test": "TestBeginCleanupFresh",
+      "diagnostic": "fresh real archive producer failed",
+      "file": "store/testfx/launch_linux.go",
+      "edits": [
+        [
+          "DiskBytes: 1 << 20, Currency: \"USD\"",
+          "DiskBytes: 1 << 20"
+        ]
+      ]
+    },
+    {
+      "id": "r3-owned-quiescence",
+      "package": "store",
+      "test": "TestOwnedRefusesLiveWorker/running",
+      "diagnostic": "live or uncertain worker sealed an owned failed completion",
+      "file": "store/owned_fail.go",
+      "edits": [
+        [
+          "REMOVE_BLOCK",
+          "\t\tif err := s.checkOwnedQuiescence(archived, observation); err != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r3-owned-survivors",
+      "package": "store",
+      "test": "TestOwnedRefusesLiveWorker/survivors",
+      "diagnostic": "live or uncertain worker sealed an owned failed completion",
+      "file": "store/owned_quiet.go",
+      "edits": [
+        [
+          "observation.Survivors != nil && *observation.Survivors == 0",
+          "observation.Survivors != nil"
+        ]
+      ]
+    },
+    {
+      "id": "r3-owned-nil-started",
+      "package": "store",
+      "test": "TestOwnedRefusesLiveWorker/nil_started",
+      "diagnostic": "live or uncertain worker sealed an owned failed completion",
+      "file": "store/owned_quiet.go",
+      "edits": [
+        [
+          "r.Process == (api.ProcessHandle{})",
+          "r.Handoff == nil"
+        ]
+      ]
+    },
+    {
+      "id": "r3-owned-pending-progress",
+      "package": "service",
+      "test": "TestOwnedPendingDoesNotHalt/quiescence",
+      "diagnostic": "pending containment halted unrelated real effect processing",
+      "file": "service/reconcile_attempt.go",
+      "edits": [
+        [
+          "effectFenceRefused(err) || ownedFailurePending(err)",
+          "effectFenceRefused(err)"
+        ]
+      ]
+    },
+    {
+      "id": "r3-history-json-bound",
+      "package": "store",
+      "test": "TestCollectLargeStore",
+      "diagnostic": "large collection could not reopen its protected state",
+      "file": "store/verify_atomic.go",
+      "edits": [
+        [
+          "if err := api.ValidateObjectJSON(data); err != nil {",
+          "if _, err := wire.Parse(data); err != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r3-state-json-compare",
+      "package": "store",
+      "test": "TestCollectLargeStore",
+      "diagnostic": "large collection could not reopen its protected state",
+      "file": "store/verify.go",
+      "edits": [
+        [
+          "!sameStoredJSON(data, history[kind+\":\"+id])",
+          "!wire.SameJSON(data, history[kind+\":\"+id])"
+        ]
+      ]
+    },
+    {
+      "id": "r3-cleanup-replay-pending",
+      "package": "store",
+      "test": "TestOwnedKeepsCleanupReplay",
+      "diagnostic": "cleanup failure stranded protected removal journals in a terminal effect",
+      "file": "store/owned_fail.go",
+      "edits": [
+        [
+          "REMOVE_BLOCK",
+          "\t\tif collection.RemovalClaim != nil && (!workspace.present || workspace.intent != collection.Intent.ID || workspace.remover != collection.RemovalClaim.ClaimID || collection.RemovalJournal != nil && collection.RemovalJournal.Action == \"remove_clean\") {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-bounded-record-read",
+      "package": "store",
+      "test": "TestCollectPassBounded",
+      "diagnostic": "verification repeatedly decoded its complete collection record",
+      "file": "store/collect_pass.go",
+      "edits": [
+        [
+          "if !p.loaded {",
+          "if !p.loaded || p.loaded {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-pass-generation",
+      "package": "store",
+      "test": "TestCollectPassBounded",
+      "diagnostic": "verification cache survived a concurrent writer generation change",
+      "file": "store/collect_pass.go",
+      "edits": [
+        [
+          "generation != p.generation",
+          "generation < p.generation"
+        ]
+      ]
+    },
+    {
+      "id": "r4-canceled-page",
+      "package": "service",
+      "test": "TestReconcileStopsCanceledPage",
+      "diagnostic": "reconciler read beyond its canceled effect page",
+      "file": "service/reconcile.go",
+      "edits": [
+        [
+          "for _, effect := range effects {\n\t\t\t\tif ctx.Err() != nil {",
+          "for _, effect := range effects {\n\t\t\t\tif ctx.Err() != nil && len(effects) == 0 {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-expired-retire",
+      "package": "service",
+      "test": "TestExpiredArchRetire/quiet",
+      "diagnostic": "expired archive skipped measured observation and retirement",
+      "file": "service/archive.go",
+      "edits": [
+        [
+          "observation, retireErr := s.retireArchive(ctx, scope, lease)",
+          "var observation *api.ProcessObservation\n\t\tvar retireErr error"
+        ]
+      ]
+    },
+    {
+      "id": "r4-retire-measurement",
+      "package": "store",
+      "test": "TestArchiveRetireAfterExpiry",
+      "diagnostic": "native release with survivors authorized archive retirement",
+      "file": "store/arch_retire.go",
+      "edits": [
+        [
+          "api.ValidateReleaseReceipt(*q) != nil",
+          "false"
+        ],
+        [
+          "if count == nil || *count != 0 {",
+          "if count == nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-dirty-failure",
+      "package": "store",
+      "test": "TestCleanDirtyCanFail",
+      "diagnostic": "pre-removal dirty cleanup remained immortal",
+      "file": "store/clean_failure.go",
+      "edits": [
+        [
+          "read.present = err == nil",
+          "read.present = false && err == nil"
+        ]
+      ]
+    },
+    {
+      "id": "r4-refresh-inventory",
+      "package": "store",
+      "test": "TestCollectRefreshBeforeJournals",
+      "diagnostic": "unstarted cleanup did not refresh its moved ownership graph",
+      "file": "store/collection.go",
+      "edits": [
+        [
+          "if r.Inventory != nil {\n\t\tif err := s.checkCollectionGraph",
+          "if r.Inventory != nil {\n\t\tif ctx.Err() == nil { return s.readInventory(ctx, s.db, job, *r.Inventory) }\n\t\tif err := s.checkCollectionGraph"
+        ]
+      ]
+    },
+    {
+      "id": "r4-graph-terminal",
+      "package": "store",
+      "test": "TestCollectMovedGraphFails",
+      "diagnostic": "permanent cleanup fence remained an endless retry",
+      "file": "store/owned_fence.go",
+      "edits": [
+        [
+          "if err := s.checkCollectionGraph(ctx, job, r); hasCode(err, api.CodeConflict) {",
+          "if err := s.checkCollectionGraph(ctx, job, r); err == nil && hasCode(err, api.CodeConflict) {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-moved-terminal",
+      "package": "store",
+      "test": "TestArchiveMovedFenceTerminal",
+      "diagnostic": "moved sealed archive fence stayed pending forever",
+      "file": "store/owned_fence.go",
+      "edits": [
+        [
+          "return fault(api.CodePrerequisite, \"original archive authority or life fence permanently moved; preserve its sources and resolve this original operation\"), nil",
+          "return nil, nil"
+        ]
+      ]
+    },
+    {
+      "id": "r4-recovery-claim",
+      "package": "store",
+      "test": "TestArchiveMovedFenceTerminal",
+      "diagnostic": "moved domain fence could not acquire measurement-only recovery",
+      "file": "store/owned_claim.go",
+      "edits": [
+        [
+          "id, err := wire.NewID()",
+          "if err := s.checkEffectFence(ctx, s.db, r.Effect); err != nil { return api.EffectLease{}, err }\n\tid, err := wire.NewID()"
+        ]
+      ]
+    },
+    {
+      "id": "r4-freeze-context",
+      "package": "store",
+      "test": "TestFreezeOutlivesCaller",
+      "diagnostic": "request cancellation retired the original native freeze",
+      "file": "store/arch_fail.go",
+      "edits": [
+        [
+          "freezeParent = context.WithoutCancel(ctx)",
+          "freezeParent = ctx"
+        ]
+      ]
+    },
+    {
+      "id": "r4-allocation-intent",
+      "package": "store",
+      "test": "TestArchiveAllocationMustRetire",
+      "diagnostic": "unmeasured allocation intent sealed a nil-observation failure",
+      "file": "store/arch_retire.go",
+      "edits": [
+        [
+          "r.Allocating, r.Claim = true, lease",
+          "r.Allocating, r.Claim = false, lease"
+        ]
+      ]
+    },
+    {
+      "id": "r4-failure-retirement",
+      "package": "service",
+      "test": "TestAllocationFailureRetires",
+      "diagnostic": "pre-handoff failure orphaned its granted native allocation",
+      "file": "service/owned_failure.go",
+      "edits": [
+        [
+          "if lease.Record.Effect.Worker != nil && lease.Record.Effect.Worker.Kind == \"archive\" {",
+          "if lease.Record.Effect.Worker != nil && lease.Record.Effect.Worker.Kind != \"archive\" {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-effect-outcome-root",
+      "package": "store",
+      "test": "TestCollectCountsEffectOutcome",
+      "diagnostic": "effect-only output reference was omitted from the cleanup fence",
+      "file": "store/collect_graph.go",
+      "edits": [
+        [
+          "\"SELECT effect_states.data FROM effects JOIN effect_states USING(id) WHERE operation_id<>? ORDER BY effects.seq\",",
+          "\"SELECT effect_states.data FROM effects JOIN effect_states USING(id) WHERE operation_id<>? AND 0 ORDER BY effects.seq\","
+        ]
+      ]
+    },
+    {
+      "id": "r4-endpoint-stop",
+      "package": "service",
+      "test": "TestArchiveEndpointLifetime",
+      "diagnostic": "archive lease endpoint did not stop at retirement",
+      "file": "service/worker_listener.go",
+      "edits": [
+        [
+          "\tcancel()\n\tselect {\n\tcase <-done:",
+          "\tif ctx.Err() != nil { cancel() }\n\tselect {\n\tcase <-done:"
+        ]
+      ]
+    },
+    {
+      "id": "r4-retired-worker-auth",
+      "package": "store",
+      "test": "TestRetirementCutsWorkerReads",
+      "diagnostic": "retired archive retained worker socket authority",
+      "file": "store/arch_worker.go",
+      "edits": [
+        [
+          "REMOVE_BLOCK",
+          "\tif r.Retirement != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-recovery-shutdown",
+      "package": "store",
+      "test": "TestRecoveryCancelStaysPending",
+      "diagnostic": "service shutdown fabricated a terminal native freeze outcome",
+      "file": "store/arch_fail.go",
+      "edits": [
+        [
+          "REMOVE_BLOCK",
+          "\tif ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) && future(r.Job.Lease.ExpiresAt, s.deps.Clock.Now()) {"
+        ]
+      ]
+    },
+    {
+      "id": "r4-retirement-wire",
+      "package": "archive",
+      "test": "TestRetirementWireShapes/absent",
+      "diagnostic": "native retirement union did not survive the real strict decoder",
+      "file": "archive/retire.go",
+      "edits": [
+        [
+          "json:\"release,omitempty\"",
+          "json:\"release\""
+        ]
+      ]
+    },
+    {
+      "id": "r5-observe-timeout",
+      "package": "service",
+      "test": "TestArchiveRetirementTimeout/observe",
+      "diagnostic": "retirement timeout escaped pending or sealed without measurement",
+      "file": "service/archive_retire.go",
+      "edits": [
+        [
+          "return nil, archiveRetirementStepError(ctx, cleanup, err)\n\t\t\t}",
+          "return nil, err\n\t\t\t}"
+        ]
+      ]
+    },
+    {
+      "id": "r5-endpoint-timeout",
+      "package": "service",
+      "test": "TestArchiveRetirementTimeout/endpoint",
+      "diagnostic": "retirement timeout escaped pending or sealed without measurement",
+      "file": "service/archive_retire.go",
+      "edits": [
+        [
+          "if err := s.stopWorkerEndpoint(cleanup, state.Job.Lease.ID); err != nil {\n\t\t\treturn nil, archiveRetirementStepError(ctx, cleanup, err)",
+          "if err := s.stopWorkerEndpoint(cleanup, state.Job.Lease.ID); err != nil {\n\t\t\treturn nil, err"
+        ]
+      ]
+    },
+    {
+      "id": "r5-retain-timeout",
+      "package": "service",
+      "test": "TestArchiveRetirementTimeout/retain",
+      "diagnostic": "retirement timeout escaped pending or sealed without measurement",
+      "file": "service/archive_retire.go",
+      "edits": [
+        [
+          "if err := store.RecordArchiveRetirement(cleanup, scope, lease, measured); err != nil {\n\t\t\treturn nil, archiveRetirementStepError(ctx, cleanup, err)",
+          "if err := store.RecordArchiveRetirement(cleanup, scope, lease, measured); err != nil {\n\t\t\treturn nil, err"
+        ]
+      ]
+    },
+    {
+      "id": "r5-no-unmeasured-seal",
+      "package": "service",
+      "test": "TestArchiveRetirementTimeout/retain",
+      "diagnostic": "retirement timeout escaped pending or sealed without measurement",
+      "file": "service/archive_retire.go",
+      "edits": [
+        [
+          "if err := store.RecordArchiveRetirement(cleanup, scope, lease, measured); err != nil {\n\t\t\treturn nil, archiveRetirementStepError(ctx, cleanup, err)\n\t\t}",
+          "if err := store.RecordArchiveRetirement(cleanup, scope, lease, measured); err != nil {\n\t\t\tproof = &measured\n\t\t}"
+        ]
+      ]
+    },
+    {
+      "id": "r5-timeout-mixed-storage",
+      "package": "service",
+      "test": "TestRetireCtxClass/mixed",
+      "diagnostic": "retirement timeout classification swallowed storage or lost pending",
+      "file": "service/archive_retire.go",
+      "edits": [
+        [
+          "cleanup.Err() == context.DeadlineExceeded && retirementContextOnly(err)",
+          "cleanup.Err() == context.DeadlineExceeded"
+        ]
+      ]
+    },
+    {
+      "id": "r5-shutdown-fault",
+      "package": "service",
+      "test": "TestOwnedFailureShutdownNoFault",
+      "diagnostic": "shutdown inside owned failure recorded a spurious reconciler fault",
+      "file": "service/reconcile_attempt.go",
+      "edits": [
+        [
+          "outcome, err = s.failOwnedEffect(ctx, scope, lease, outcome, err)\n\t\t\tif err != nil {\n\t\t\t\tif ctx.Err() != nil {\n\t\t\t\t\tattempt.outcome, attempt.reason = \"cancelled\", \"owned_failure_cancelled\"\n\t\t\t\t\treturn attemptStop\n\t\t\t\t}",
+          "outcome, err = s.failOwnedEffect(ctx, scope, lease, outcome, err)\n\t\t\tif err != nil {"
+        ]
+      ]
+    },
+    {
+      "id": "r5-backoff-bound",
+      "package": "service",
+      "test": "TestRetirementBackoffBounded",
+      "diagnostic": "pending retirement backoff was unbounded or blocked unrelated effects",
+      "file": "service/effect_retry.go",
+      "edits": [
+        [
+          "min(30*time.Second, 250*time.Millisecond<<uint(retry.attempts-1))",
+          "250*time.Millisecond<<uint(retry.attempts-1)"
+        ]
+      ]
+    },
+    {
+      "id": "r5-head-failure",
+      "package": "store",
+      "test": "TestCleanChangedFail/head",
+      "diagnostic": "changed present original workspace could not fail terminally",
+      "file": "store/clean_failure.go",
+      "edits": [
+        [
+          "workspace.GitIdentity == w.GitIdentity &&",
+          "workspace.GitIdentity == w.GitIdentity && workspace.Head == w.Head &&"
+        ]
+      ]
+    },
+    {
+      "id": "r5-rename-failure",
+      "package": "store",
+      "test": "TestCleanChangedFail/rename",
+      "diagnostic": "changed present original workspace could not fail terminally",
+      "file": "store/clean_failure.go",
+      "edits": [
+        [
+          "workspace.GitIdentity == w.GitIdentity &&",
+          "workspace.GitIdentity == w.GitIdentity && workspace.DirectoryIdentity == w.DirectoryIdentity &&"
+        ]
+      ]
+    },
+    {
+      "id": "r5-foreign-workspace",
+      "package": "store",
+      "test": "TestCleanChangedFail/workspace",
+      "diagnostic": "foreign or unmeasured workspace sealed a cleanup failure",
+      "file": "store/clean_failure.go",
+      "edits": [
+        [
+          " && workspace.WorkspaceID == w.ID",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "r5-foreign-root",
+      "package": "store",
+      "test": "TestCleanChangedFail/root",
+      "diagnostic": "foreign or unmeasured workspace sealed a cleanup failure",
+      "file": "store/clean_failure.go",
+      "edits": [
+        [
+          "workspace.RootIdentity == w.RootIdentity && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "r5-foreign-git",
+      "package": "store",
+      "test": "TestCleanChangedFail/git",
+      "diagnostic": "foreign or unmeasured workspace sealed a cleanup failure",
+      "file": "store/clean_failure.go",
+      "edits": [
+        [
+          "workspace.GitIdentity == w.GitIdentity &&",
+          "workspace.GitIdentity != \"\" &&"
+        ]
+      ]
+    },
+    {
+      "id": "r5-stale-presence",
+      "package": "store",
+      "test": "TestCleanChangedFail/stale",
+      "diagnostic": "foreign or unmeasured workspace sealed a cleanup failure",
+      "file": "store/clean_failure.go",
+      "edits": [
+        [
+          " && !at.Before(requested)",
+          " && !requested.IsZero()"
+        ]
+      ]
+    },
+    {
+      "id": "r5-retirement-time-diagnostic",
+      "package": "store",
+      "test": "TestRetirementDiagnostics/timestamp",
+      "diagnostic": "retirement mismatch lost its distinct diagnostic",
+      "file": "store/arch_retire.go",
+      "edits": [
+        [
+          "archive retirement timestamp mismatch: require a valid nonfuture measurement",
+          "archive retirement binding mismatch: require a valid nonfuture measurement"
+        ]
+      ]
+    },
+    {
+      "id": "r5-retirement-selector-diagnostic",
+      "package": "store",
+      "test": "TestRetirementDiagnostics/selector",
+      "diagnostic": "retirement mismatch lost its distinct diagnostic",
+      "file": "store/arch_retire.go",
+      "edits": [
+        [
+          "archive retirement selector mismatch: require the original job, operation, effect and target",
+          "archive retirement binding mismatch: require the original job, operation, effect and target"
+        ]
+      ]
+    },
+    {
+      "id": "r5-retirement-binding-diagnostic",
+      "package": "store",
+      "test": "TestRetirementDiagnostics/generation",
+      "diagnostic": "retirement mismatch lost its distinct diagnostic",
+      "file": "store/arch_retire.go",
+      "edits": [
+        [
+          "archive release binding mismatch: require the installed allocation, backend and exited process generation",
+          "archive release selector mismatch: require the installed allocation, backend and exited process generation"
+        ]
+      ]
+    },
+    {
+      "id": "r5-retirement-counter-diagnostic",
+      "package": "store",
+      "test": "TestRetirementDiagnostics/survivors",
+      "diagnostic": "retirement mismatch lost its distinct diagnostic",
+      "file": "store/arch_retire.go",
+      "edits": [
+        [
+          "archive release counter mismatch: survivors, connections, jobs and exports must be known zero",
+          "archive release binding mismatch: survivors, connections, jobs and exports must be known zero"
+        ]
+      ]
+    },
+    {
+      "id": "r5-retirement-cancel",
+      "package": "service",
+      "test": "TestArchiveRetirementCanceled",
+      "diagnostic": "service cancellation inside retirement fabricated a terminal outcome",
+      "file": "service/archive_retire.go",
+      "edits": [
+        [
+          "\t\t\tif ctx.Err() != nil {\n\t\t\t\treturn nil, ctx.Err()\n\t\t\t}\n",
+          ""
+        ]
+      ]
+    }
+  ]
+}

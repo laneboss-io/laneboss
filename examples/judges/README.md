@@ -10,9 +10,7 @@ The tests build the Go program and exercise it as a subprocess. Their interprete
 requirement, not a runtime dependency of the helper.
 
 `typesafe_jev` is a stand-alone example of a launcher *judge*: an external command that the launcher runs for
-one yes/no question. It reads one JSON object on standard input, asks TypeSafe's Jev model one question and prints
-one JSON object. It is one file, uses Go's standard library only, imports nothing
-from `laneboss`, retries nothing and writes no file. Nothing that holds the key's exact text is ever printed (the
+a scalar yes/no question or typed batch. It reads one JSON object, sends one state and all independent questions together, and prints one validated object. The Go source shares `internal/typesafe` wire validation with the launcher; the built executable needs no launcher runtime. HTTP 429/529 get bounded exponential retries, and the adapter writes no files. Nothing that holds the key's exact text is ever printed (the
 scope of that rule is stated in [The key file](#the-key-file)).
 
 ## The contract
@@ -25,7 +23,7 @@ The launcher writes one request:
  "subject": {"result": "<text>", "command": "<text>"}}
 ```
 
-`kind` is `noul` (the only kind in version 1), `subject` holds one to eight named texts of at most 4000 characters
+The scalar contract uses `kind: "noul"`; typed guide batches and job catalogs use the extensions described below. For scalar asks, `subject` holds one to eight named texts of at most 4000 characters
 each. The program prints one answer, the probability of YES from 0 to 1, the model that answered and the provider's
 request identifier (`null` when the service sent none or sent something that is not an identifier):
 
@@ -40,7 +38,7 @@ short identifier-shaped subject text.
 
 | Exit | Meaning |
 | - | - |
-| 2 | a bad request (not this contract, `kind` not `noul`, no subject, too many or too long texts) or bad options; the line names an option at most and never repeats what was typed |
+| 2 | a bad request (not a supported scalar/typed/catalog contract, missing state/questions, malformed criteria, or excessive text) or bad options; the line names an option at most and never repeats what was typed |
 | 3 | the key file is refused or unreadable, has no line for the key's name, or holds a key of fewer than 16 characters |
 | 4 | an HTTP error (the line names the status), a connection that failed, an answer that is not the documented one, or a text that held the key (the line is then "the answer held the key and was not printed") |
 | 5 | a time-out |
@@ -55,6 +53,28 @@ In a launcher configuration the judge is a command:
 command = ["/path/to/typesafe_jev", "--env-file", "/path/to/typesafe.env"]
 ```
 
+The org's decision guide asks `decision.conflicts` and `decision.answers`
+as `kind: "typed"` batches. All candidate decisions and action windows share
+named `state` with a map of independent Nouls, explicit state references and
+yes/no criteria. A Noul near 0.5 is uncertainty; these are binary propositions,
+not severity scales. Ordinary guidance always adds advice. The legacy
+`refuse_threshold` remains an answer-reuse cutoff and grants no hook refusal.
+
+Catalog asks use `kind: "laneboss-jobs"`, an `owned` Noul and `command`
+Choice with `none`. The adapter preserves the official model/answers/usage
+envelope and every Choice option probability, confidence and selected value.
+Missing answers, distributions, model/usage or invalid fields make the whole
+ask unavailable. Low Choice confidence produces uncertainty advice without a
+route; catalog probabilities cannot refuse ordinary work, including with
+legacy refusal settings. The job budget is ten seconds within the shared
+30-second guide deadline, including process and log handling.
+
+The typed adapter also validates Score answers: a weighted position on ordered
+descriptive levels, with its legend, distribution and confidence. Decision and
+job applicability remain Nouls because the desired judgments are yes/no. See
+[the full wire contract](../../docs/judges.md#typed-batches-and-the-typesafe-boundary)
+and [the decision dial](../../docs/decisions.md#the-dial).
+
 `/path/to/typesafe_jev` is wherever you keep a copy of the file. The program can also be run by hand:
 
 ```sh
@@ -66,7 +86,7 @@ printf '%s\n' '{"laneboss_judge": 1, "question": "refusal.is-refusal", "kind": "
 | - | - |
 | `--env-file PATH` | required; the key file (below) |
 | `--key-name NAME` | the line to read; default `TYPESAFE_API_KEY`, the name the documentation gives for the key's environment variable |
-| `--model MODEL` | default `jev-latest`, the documentation's alias for the latest stable release (today `jev-1.13.0`); the answer reports the version that answered, and `--model jev-1.13.0` pins it |
+| `--model MODEL` | default `jev-latest`; the answer reports the version that answered. Select a supported version using the provider's [Models](https://docs.typesafe.ai/models) reference. |
 | `--base-url URL` | default `https://api.typesafe.ai`; for tests and private gateways; `https://` for any host (`https://localhost` too), or `http://` only when the host is the literal address `127.0.0.1`; no credentials, query or fragment |
 | `--timeout SECONDS` | default 8, at most 3600; the whole wait for the service, not one read |
 | `-h`, `--help` | the usage, on standard output |
@@ -103,7 +123,9 @@ once, kept in memory, sent only in the `Authorization` header to the address giv
 
 ## How it asks, and where that comes from
 
-The request and the reading of the answer were written from the provider's documentation, read on 2026-10-09:
+The original provider reference collection (2026-10-09) is listed below. The
+2026-10-15 audit uses the saved official API, primitives, state, confidence,
+System One and composite-scoring pages, as described in the judge contract:
 
 | Page | Address |
 | - | - |
@@ -127,12 +149,14 @@ One request: `POST https://api.typesafe.ai/v1/systemone`, headers `Authorization
 ```json
 {"state": {"result": "<text>", "command": "<text>"},
  "model": "jev-latest",
- "questions": {"answer": {"type": "noul", "instructions": "<the prompt>"}}}
+ "questions": {"answer": {"type": "noul", "instructions": "<the prompt>",
+                          "criteria": {"true": "The proposition in instructions is true for the named state.",
+                                       "false": "The proposition in instructions is false for the named state."}}}}
 ```
 
 `state` is the subject, so every text keeps its name, and `instructions` is the prompt unchanged. The question's key
 (`answer`) is the program's own; the documentation says it is not sent to the model. The answer is read from
-`answers.answer.noul` (a number from 0 to 1, "the probability of a yes answer"), the top-level `model` and the
+`answers.answer.noul` (the probability of yes), the required top-level `model`/`usage` envelope and the
 response header `x-typesafe-request-id`. The documentation says only "a JSON body describing what went wrong" about an
 error, so the program reads nothing from an error body.
 
@@ -142,9 +166,11 @@ and zero is printed without a sign. A repeated member anywhere in the response i
 or a model must be an identifier, `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`: an identifier that is not one becomes `null`
 (or is left out of an error line), a model that is not one makes the answer not the documented one (exit 4).
 
+HTTP 429/529 are retried at most twice, after 100 ms and 200 ms, inside the same Go context deadline. HTTP 401/422, exhausted retries, connection failures and malformed success envelopes return no answer. A retry repeats the complete batch.
+
 ## What is sent, and the limits
 
-For every question one request goes to the base URL's host, over HTTPS, or over plain HTTP only to the literal
+For each logical batch one request goes to the base URL's host, over HTTPS, or over plain HTTP only to the literal
 address `127.0.0.1` (no name is resolved for a plain-HTTP request, so no resolver or hosts-file mistake can carry the
 key in the clear to another machine). It carries:
 
@@ -153,7 +179,7 @@ key in the clear to another machine). It carries:
 - the prompt, as `instructions`;
 - the subject's NAMES and texts, as `state`;
 - the chosen model name (`jev-latest` unless `--model` says otherwise);
-- the fixed fields: the question's key `answer` and `"type": "noul"`.
+- the scalar `answer` question or the complete typed questions map, including instructions and criteria.
 
 The launcher's question identifier, the lane's name, files and environment variables are not sent. Like any HTTPS
 client, the program shows the provider its network address.
@@ -167,10 +193,7 @@ or `no_proxy` say, because over plain HTTP the key travels in the clear on that 
 must be `https://`, `https://localhost` included) the environment's proxy settings keep applying; the key travels
 inside TLS, and the proxy sees the host name.
 
-Certificates: the program uses the standard verified HTTPS connection of `urllib` and never disables certificate
-verification. No test proves it: the tests have no server with a certificate to refuse, and
-`test_remote_https_is_accepted` only shows that an `https://` address is accepted and fails later. If the operating system on your
-machine has no CA bundle, the call fails with exit 4 and a line that names `SSLCertVerificationError`.
+Certificates: Go's default HTTP transport verifies HTTPS certificates and never disables verification. Local HTTP stand-ins verify request/response plumbing only; these rows make no authenticated-service or live TLS claim. A connection failure returns exit 4 without printing provider bodies.
 
 ## What leaves the machine
 

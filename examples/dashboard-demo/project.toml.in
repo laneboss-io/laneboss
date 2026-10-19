@@ -1,0 +1,4 @@
+schema_version = 1
+name = "@PROJECT@"
+repository = "@REPOSITORY@"
+workers = ["agent", "held", "top", "stream"]

@@ -1,0 +1,22 @@
+{
+  "schema": "laneboss.ladder-controls.v2",
+  "assertion_id": "E2E-LADDER",
+  "scope": "verifier units, not live acceptance",
+  "controls": [
+    {"id": "wrong-token", "class": "WholeRunControls", "test": "test_wrong_token", "check": "answers"},
+    {"id": "wrong-path", "class": "WholeRunControls", "test": "test_wrong_path", "check": "answers"},
+    {"id": "other-lane-path", "class": "WholeRunControls", "test": "test_other_lane_path", "check": "answers"},
+    {"id": "missing-ancestor", "class": "WholeRunControls", "test": "test_missing_ancestor_answer", "check": "answers"},
+    {"id": "upward-skip", "class": "WholeRunControls", "test": "test_upward_skip", "check": "report-line"},
+    {"id": "early-pong", "class": "WholeRunControls", "test": "test_early_pong", "check": "ping-pong"},
+    {"id": "hidden-end", "class": "WholeRunControls", "test": "test_hidden_end", "check": "selected-end"},
+    {"id": "historical-end", "class": "WholeRunControls", "test": "test_historical_end", "check": "selected-end"},
+    {"id": "fake-end", "class": "WholeRunControls", "test": "test_fake_end", "check": "selected-end"},
+    {"id": "mail-sender-actor", "class": "WholeRunControls", "test": "test_first_mail_sender_actor", "check": "actor"},
+    {"id": "missing-transcript", "class": "WholeRunControls", "test": "test_missing_transcript", "check": "transcript"},
+    {"id": "absent-executable", "class": "PairControls", "test": "test_absent_immutable_executable", "check": "artifacts"},
+    {"id": "surviving-child", "class": "WholeRunControls", "test": "test_surviving_child", "check": "survivors"},
+    {"id": "sequential-trees", "class": "PairControls", "test": "test_sequential_pair", "check": "concurrency"},
+    {"id": "all-claude-leaves", "class": "WholeRunControls", "test": "test_all_claude_leaves", "check": "graph"}
+  ]
+}

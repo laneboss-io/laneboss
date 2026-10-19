@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/instancename"
+	"laneboss.io/laneboss/internal/rolepolicy"
 )
 
 var (
@@ -20,7 +23,9 @@ var (
 )
 
 var instanceOrder = []string{"schema_version", "name", "level", "role", "discord_channel_id", "services", "secrets", "writable_repos", "allowed_tools"}
-var orgOrder = []string{"schema_version", "name", "company", "levels", "owner_channel", "secret_store", "defaults"}
+
+// Defaults stay last so an appended scalar still belongs to that table.
+var orgOrder = []string{"schema_version", "name", "company", "levels", "owner_channel", "secret_store", "hooks", "defaults"}
 
 type problem struct {
 	Path    string `json:"path"`
@@ -206,13 +211,180 @@ func (c *checks) instanceFields(data map[string]any, prefix string) {
 	}
 }
 
+func (c *checks) hookPolicy(value any, field string, enabled []any) {
+	hooks := c.table(value, field, []string{"mode", "blacklist"}, nil)
+	if mode, exists := hooks["mode"]; exists {
+		if !c.text(mode, field+".mode", nil, 16) || (mode != "blacklist" && mode != "strict") {
+			c.fail(field+".mode", "must be blacklist or strict")
+		}
+	}
+	rows, exists := hooks["blacklist"]
+	if !exists {
+		return
+	}
+	items, ok := array(rows)
+	if !ok || len(items) > 512 {
+		c.fail(field+".blacklist", "must be an array of at most 512 tables")
+		return
+	}
+	seen := map[string]bool{}
+	for i, item := range items {
+		prefix := fmt.Sprintf("%s.blacklist[%d]", field, i)
+		row, ok := item.(map[string]any)
+		if !ok {
+			c.fail(prefix, "must be a table")
+			continue
+		}
+		allowed := []string{"id", "description", "band", "instead", "argv", "argv_prefix", "argv_words", "pattern", "path", "path_glob", "tool", "applies_to", "levels", "roles", "identities", "decision", "job", "examples_not_ok", "examples_ok", "pattern_only"}
+		for key := range row {
+			if !contains(allowed, key) {
+				c.fail(prefix, "contains an unknown field")
+			}
+		}
+		id, idOK := row["id"].(string)
+		if !idOK || !namePattern.MatchString(id) || seen[id] {
+			c.fail(prefix+".id", "must be a unique simple name")
+		} else {
+			seen[id] = true
+		}
+		c.text(row["description"], prefix+".description", nil, 4096)
+		band, bandOK := row["band"].(string)
+		if !bandOK || (band != "refuse" && band != "warn") {
+			c.fail(prefix+".band", "must be refuse or warn")
+		}
+		if value, exists := row["argv"]; exists {
+			values, ok := array(value)
+			if !ok || len(values) == 0 {
+				c.fail(prefix+".argv", "must be a nonempty array")
+			} else {
+				for j, value := range values {
+					c.array(value, fmt.Sprintf("%s.argv[%d]", prefix, j), func(item any, name string) {
+						if c.text(item, name, nil, 1024) && contains([]string{";", "&&", "||", "|", "|&", "&", "(", ")", ";;", ";&", ";;&"}, item.(string)) {
+							c.fail(name, "cannot contain shell operators")
+						}
+					})
+				}
+			}
+		}
+		for _, key := range []string{"argv_prefix", "pattern"} {
+			if value, exists := row[key]; exists {
+				c.array(value, prefix+"."+key, func(item any, name string) {
+					if c.text(item, name, nil, 1024) && contains([]string{";", "&&", "||", "|", "|&", "&", "(", ")", ";;", ";&", ";;&"}, item.(string)) {
+						c.fail(name, "cannot contain shell operators")
+					}
+				})
+			}
+		}
+		for _, key := range []string{"path", "path_glob", "tool", "decision", "job", "instead"} {
+			if value, exists := row[key]; exists {
+				c.text(value, prefix+"."+key, nil, 4096)
+			}
+		}
+		if value, exists := row["argv_words"]; exists {
+			if words, ok := array(value); !ok || len(words) == 0 {
+				c.fail(prefix+".argv_words", "must be a nonempty array")
+			}
+			c.array(value, prefix+".argv_words", func(item any, name string) {
+				if c.text(item, name, nil, 1024) && contains([]string{";", "&&", "||", "|", "|&", "&", "(", ")", ";;", ";&", ";;&",
+					">", ">>", "<", "<<", "<<-", "<<<", ">|", "<>", "&>", "&>>", ">&", "<&", "!"}, item.(string)) {
+					c.fail(name, "cannot contain shell operators")
+				}
+			})
+			for _, key := range []string{"argv", "argv_prefix", "pattern"} {
+				if _, exists := row[key]; exists {
+					c.fail(prefix+".argv_words", "cannot be combined with argv, argv_prefix or pattern")
+				}
+			}
+		}
+		if _, exists := row["job"]; exists {
+			c.fail(prefix+".job", "is not supported until the job catalog is available")
+		}
+		if value, exists := row["pattern_only"]; exists {
+			patternOnly, ok := value.(bool)
+			if !ok {
+				c.fail(prefix+".pattern_only", "must be a boolean")
+			} else if patternOnly {
+				matched := false
+				for _, key := range []string{"argv", "argv_prefix", "argv_words", "pattern", "path", "path_glob", "tool"} {
+					if words, ok := array(row[key]); ok {
+						matched = matched || len(words) > 0
+					} else if text, ok := row[key].(string); ok {
+						matched = matched || strings.TrimSpace(text) != ""
+					}
+				}
+				if !matched || row["decision"] != nil || row["job"] != nil {
+					c.fail(prefix+".pattern_only", "requires a deterministic matcher and no decision or job reference")
+				}
+			}
+		}
+		for _, key := range []string{"examples_not_ok", "examples_ok"} {
+			if value, exists := row[key]; exists {
+				values, ok := array(value)
+				if !ok || len(values) > 8 {
+					c.fail(prefix+"."+key, "must be an array of at most 8 examples")
+					continue
+				}
+				total := 0
+				for j, item := range values {
+					if c.text(item, fmt.Sprintf("%s.%s[%d]", prefix, key, j), nil, 512) {
+						total += len([]byte(item.(string)))
+					}
+				}
+				if total > 4096 {
+					c.fail(prefix+"."+key, "exceeds the combined example byte limit")
+				}
+			}
+		}
+		if scope, exists := row["applies_to"]; exists {
+			c.hookScope(scope, prefix+".applies_to", enabled)
+		}
+	}
+}
+
+func (c *checks) hookScope(value any, field string, enabled []any) {
+	scope, ok := value.(map[string]any)
+	if !ok {
+		c.fail(field, "must be a table")
+		return
+	}
+	for key := range scope {
+		if key != "levels" && key != "roles" && key != "identities" {
+			c.fail(field, "contains an unknown field")
+		}
+	}
+	if raw, exists := scope["levels"]; exists {
+		c.array(raw, field+".levels", func(item any, name string) { c.level(item, name) })
+	}
+	for _, key := range []string{"roles", "identities"} {
+		if raw, exists := scope[key]; exists {
+			c.array(raw, field+"."+key, func(item any, name string) { c.text(item, name, namePattern, 128) })
+		}
+	}
+	if raw, exists := scope["levels"]; exists {
+		if values, ok := array(raw); ok && len(enabled) > 0 {
+			for _, value := range values {
+				level, ok := integer(value)
+				if ok && !hasLevel(enabled, level) {
+					c.fail(field+".levels", "must use enabled levels")
+				}
+			}
+		}
+	}
+}
+
 func checkOrg(value any, label, root string) []problem {
 	c := checks{label: label}
 	// The Discord command consumes this optional service table. It must also be
 	// accepted by render/validate; otherwise registering a channel invalidates
 	// the same org that channel add has just written.
-	allowed := append(append([]string{}, orgOrder...), "services")
-	data := c.table(value, "document", allowed, orgOrder)
+	allowed := append(append([]string{}, orgOrder...), "services", "lane_roles")
+	required := []string{}
+	for _, key := range orgOrder {
+		if key != "hooks" { // Optional for existing orgs, regardless of table order.
+			required = append(required, key)
+		}
+	}
+	data := c.table(value, "document", allowed, required)
 	if value, exists := data["schema_version"]; exists {
 		c.version(value)
 	}
@@ -265,6 +437,20 @@ func checkOrg(value any, label, root string) []problem {
 			c.fail("defaults.level", "must be an enabled level")
 		}
 	}
+	if value, exists := data["hooks"]; exists {
+		c.hookPolicy(value, "hooks", levels)
+	}
+	if _, exists := data["lane_roles"]; exists && levelsOK {
+		enabled := []int{}
+		for _, item := range levels {
+			if level, ok := integer(item); ok {
+				enabled = append(enabled, level)
+			}
+		}
+		if _, err := rolepolicy.Settings(data, enabled); err != nil {
+			c.fail("lane_roles", err.Error())
+		}
+	}
 	if value, exists := data["services"]; exists {
 		// Python's Discord reader consumes only its own table and leaves other
 		// services and unknown service settings alone. Preserve that behavior.
@@ -310,7 +496,7 @@ func checkInstance(value any, label, directoryName string, levels []int) []probl
 	c := checks{label: label}
 	required := []string{}
 	for _, key := range instanceOrder {
-		if key != "discord_channel_id" {
+		if key != "discord_channel_id" && key != "allowed_tools" {
 			required = append(required, key)
 		}
 	}
@@ -319,7 +505,7 @@ func checkInstance(value any, label, directoryName string, levels []int) []probl
 		c.version(value)
 	}
 	if value, exists := data["name"]; exists {
-		c.text(value, "name", namePattern, 128)
+		c.text(value, "name", instancename.Expression, instancename.MaxLength)
 		if text, ok := value.(string); !ok || text != directoryName {
 			c.fail("name", "must match the instance directory name")
 		}

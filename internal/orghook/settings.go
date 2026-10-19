@@ -10,10 +10,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"laneboss.io/laneboss/internal/faults"
+	"laneboss.io/laneboss/internal/guardtime"
 	"laneboss.io/laneboss/internal/hookconfig"
 	"laneboss.io/laneboss/internal/selfexec"
 )
@@ -103,7 +106,7 @@ func settingsRow(inst *instance, runner string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"matcher": "", "hooks": []any{map[string]any{"type": "command", "command": command}}}, nil
+	return map[string]any{"matcher": "", "hooks": []any{map[string]any{"type": "command", "command": command, "timeout": json.Number(strconv.Itoa(guardtime.HookSeconds))}}}, nil
 }
 func runnerCommand(inst *instance, runner string) []string {
 	if runner == "claude" {
@@ -189,7 +192,12 @@ func policyFiles(inst *instance) ([]string, error) {
 	paths := []string{}
 	for _, layer := range []string{filepath.Join(inst.home, "shared"), filepath.Join(inst.home, "L"+string(rune('0'+inst.level))), inst.directory} {
 		if layer != inst.directory {
-			paths = append(paths, filepath.Join(layer, "hooks", "rules.toml"))
+			path := filepath.Join(layer, "hooks", "rules.toml")
+			if _, err := os.Lstat(path); err == nil {
+				paths = append(paths, path)
+			} else if !os.IsNotExist(err) {
+				return nil, invalid("a policy rule source is unreadable")
+			}
 		}
 		entries, err := os.ReadDir(filepath.Join(layer, "refusals"))
 		// Empty layers need no refusal directory. loadRules already requires every
@@ -217,6 +225,20 @@ func RenderHookSettings(org string) (map[string]map[string][]string, error) {
 
 // RenderHookSettingsUntil shares the org operation's inspection deadline.
 func RenderHookSettingsUntil(org string, deadline time.Time) (map[string]map[string][]string, error) {
+	return renderHookSettings(org, "", deadline)
+}
+
+// RenderHookSettingsFor prepares hooks in a staged org for its final location.
+// Only the generated command paths change; reads and writes stay in the stage.
+func RenderHookSettingsFor(org, destination string) error {
+	if !filepath.IsAbs(destination) {
+		return invalid("the published org path must be absolute")
+	}
+	_, err := renderHookSettings(org, filepath.Clean(destination), time.Now().Add(10*time.Second))
+	return err
+}
+
+func renderHookSettings(org, destination string, deadline time.Time) (map[string]map[string][]string, error) {
 	home, err := orgHome(org)
 	if err != nil {
 		return nil, err
@@ -258,6 +280,11 @@ func RenderHookSettingsUntil(org string, deadline time.Time) (map[string]map[str
 		if !time.Now().Before(deadline) {
 			return nil, invalid("hook rendering exceeded its time limit")
 		}
+		published := *inst
+		if destination != "" {
+			published.home = filepath.Join(destination, ".laneboss")
+			published.directory = filepath.Join(published.home, "instances", inst.name)
+		}
 		layout := vendorFor("codex")
 		configPath := filepath.Join(inst.directory, layout.Home, layout.Config)
 		configBytes, err := codexConfigBytes(configPath)
@@ -286,6 +313,14 @@ func RenderHookSettingsUntil(org string, deadline time.Time) (map[string]map[str
 				if err := hookconfig.CodexKeys(document); err != nil {
 					return nil, err
 				}
+			}
+			// Release rendering preserves the org's sandbox settings. This tagged
+			// mutation restores the old unconditional downgrade for the Linux row.
+			if runner == "claude" && faults.Get("sandbox-unconditional").Point != "" {
+				if err := faults.Reach("sandbox-unconditional"); err != nil {
+					return nil, err
+				}
+				document["sandbox"] = map[string]any{"enabled": false}
 			}
 			hooks := map[string]any{}
 			if value, exists := document["hooks"]; exists {
@@ -351,7 +386,7 @@ func RenderHookSettingsUntil(org string, deadline time.Time) (map[string]map[str
 					retained = append(retained, row)
 				}
 			}
-			generated, err := settingsRow(inst, runner)
+			generated, err := settingsRow(&published, runner)
 			if err != nil {
 				return nil, err
 			}
@@ -369,21 +404,22 @@ func RenderHookSettingsUntil(org string, deadline time.Time) (map[string]map[str
 			}
 			files = append(files, generatedFile{path, data})
 			if runner == "codex" {
-				command, err := hookCommand(inst, runner)
+				command, err := hookCommand(&published, runner)
 				if err != nil {
 					return nil, err
 				}
 				sum := sha256.Sum256(data)
-				marker := hookconfig.RenderedHooks{Home: filepath.Join(inst.directory, ".codex"),
-					Instance: filepath.Join(inst.directory, "instance.toml"), SHA256: hex.EncodeToString(sum[:]), Command: command,
+				marker := hookconfig.RenderedHooks{Home: filepath.Join(published.directory, ".codex"),
+					Instance: filepath.Join(published.directory, "instance.toml"), SHA256: hex.EncodeToString(sum[:]), Command: command,
 					Executable: manifest["executable"].(string), ExecutableSHA256: manifest["sha256"].(string)}
 				encoded, err := jsonDocument(marker)
 				if err != nil {
 					return nil, err
 				}
-				files = append(files, generatedFile{hookconfig.RenderMarkerPath(marker.Home), encoded})
+				markerPath := hookconfig.RenderMarkerPath(filepath.Join(inst.directory, ".codex"))
+				files = append(files, generatedFile{markerPath, encoded})
 			}
-			commands[runner] = runnerCommand(inst, runner)
+			commands[runner] = runnerCommand(&published, runner)
 			registry[runner] = map[string]any{"command": commands[runner]}
 		}
 		data, err := jsonDocument(registry)

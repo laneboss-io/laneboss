@@ -11,6 +11,9 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/report"
 )
 
 const attachHelp = "/turn   start a turn for the messages that wait\n/stop   stop the turn that this attach started (Ctrl-C does the same)\n/help   this list\n/exit   leave attach; a turn that is live goes on"
@@ -49,6 +52,7 @@ type attachSignal struct {
 type attachView struct {
 	c              *configuration
 	lane           string
+	sender         caller.Principal
 	out, errOut    io.Writer
 	terminal, echo bool
 	buffer         []byte
@@ -196,7 +200,7 @@ func (v *attachView) handle(text string) *int {
 		v.showPrompt()
 		return nil
 	}
-	v.request("send", text, func() (object, error) { return sendMessage(v.c, v.lane, "attach", []byte(text)) })
+	v.request("send", text, func() (object, error) { return queueMessage(v.c, v.lane, v.sender, []byte(text), true) })
 	return nil
 }
 func (v *attachView) liveRun() (int, error) {
@@ -205,9 +209,12 @@ func (v *attachView) liveRun() (int, error) {
 		return 0, err
 	}
 	defer s.close()
-	row, err := s.known(v.lane)
+	row, err := s.recordedRow(v.lane)
 	if err != nil {
 		return 0, err
+	}
+	if row == nil {
+		return 0, noLauncherLife(v.lane)
 	}
 	if flag(row["running"]) {
 		return integer(row["run"]), nil
@@ -399,6 +406,13 @@ func runAttach(c *configuration, a arguments, stdin io.Reader, stdout, stderr io
 		stdin = strings.NewReader("")
 	}
 	lane := a.get("lane")
+	principal, err := report.Resolve(c.name)
+	if err != nil {
+		return reportError(stderr, refused("%s\nInstead: report up with laneboss report.", err.Error()))
+	}
+	if err = report.CheckAttach(c.name, principal, lane); err != nil {
+		return reportError(stderr, refused("%s", err.Error()))
+	}
 	s, err := openSession(c, false)
 	if err != nil {
 		return reportError(stderr, err)
@@ -431,7 +445,7 @@ func runAttach(c *configuration, a arguments, stdin io.Reader, stdout, stderr io
 	defer restore()
 	done := make(chan struct{})
 	defer close(done)
-	v := &attachView{c: c, lane: lane, out: stdout, errOut: stderr, terminal: terminal, echo: echo, fresh: true, started: map[int]bool{}, results: make(chan attachResult, 8), done: done}
+	v := &attachView{c: c, lane: lane, sender: principal, out: stdout, errOut: stderr, terminal: terminal, echo: echo, fresh: true, started: map[int]bool{}, results: make(chan attachResult, 8), done: done}
 	sessionID := str(previous["session_id"])
 	if sessionID == "" {
 		sessionID = "none"
@@ -709,8 +723,14 @@ func stopAttachedRun(c *configuration, lane string, run int, onRequest func()) (
 		return nil, err
 	}
 	defer s.close()
-	row, err := s.known(lane)
+	row, err := s.recordedRow(lane)
 	if err != nil {
+		return nil, err
+	}
+	if row == nil {
+		return nil, noLauncherLife(lane)
+	}
+	if err := s.checkLaunchProjection(lane, row); err != nil {
 		return nil, err
 	}
 	p, err := s.latest(lane)
@@ -749,7 +769,7 @@ func stopAttachedRun(c *configuration, lane string, run int, onRequest func()) (
 		if err = s.refresh(); err != nil {
 			return nil, err
 		}
-		e, err := s.store.last(lane, "lane.ended")
+		e, err := s.last(lane, "lane.ended")
 		if err != nil {
 			return nil, err
 		}

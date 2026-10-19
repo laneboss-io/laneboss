@@ -165,13 +165,18 @@ and nothing runs.
 
 ### What the script accepts
 
-The script accepts at most two arguments: no argument, one argument or two arguments, and nothing else. Standard
+The script accepts at most two arguments: configuration and optional role. Standard
 input is not read. An argument is a plain name: it is not empty, starts with a letter or digit, and holds only
 letters, digits, dots, underscores and hyphens. More than two arguments, or an argument that is not a plain name (a
 space, a quote, `$`, `;`, `|`, `&`, `<`, `>`, a backtick, a glob character, a backslash, a newline, a leading dash,
 an empty argument, a non-ASCII character), is refused, and nothing is run. With no argument it runs
 `laneboss start`; with one, `laneboss start --config NAME`; with two,
-`laneboss start --config NAME --role ROLE`. `laneboss` itself applies the exact name grammar afterwards. The program
+`laneboss start --config NAME --role ROLE`. The plugin accepts no level or ticket-file argument.
+Service registration through the plugin or a shell-tool parent is unsupported. The supported ticket route uses
+owner-terminal issuance and direct CLI invocation from a custom dedicated persistent agent process; see
+[Human-issued registration tickets](TICKET.md). The plugin preserves the launcher's refusal and its recovery text.
+Without a service, role registration retains the open 0.7.0 path and prints the R25-not-enforced notice.
+`laneboss` itself applies the exact name grammar afterwards. The program
 is searched for as `laneboss` on `PATH`, then as `$HOME/.local/bin/laneboss`, and nowhere else.
 
 ### What the script prints, and when it prints nothing

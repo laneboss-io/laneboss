@@ -20,16 +20,16 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	action, rest := args[0], args[1:]
 	switch action {
-	case "init", "instance", "render", "validate":
+	case "init", "instance", "render", "validate", "roles":
 		return orgtree.Run(action, rest, stdout, stderr)
-	case "hook", "refusals", "check-hooks", "vet-codex":
+	case "hook", "refusals", "check-hooks", "vet-codex", "blacklist":
 		return orghook.Run(action, rest, stdin, stdout, stderr)
 	case "channel":
 		return orgdiscord.Run(rest, stdout, stderr)
 	case "hook-history", "capture-decision", "history-worker", "serve":
 		return decisionsrv.Run(args, stdin, stdout, stderr)
 	case "--help", "-h":
-		fmt.Fprint(stdout, "usage: laneboss org [-h] ACTION ...\n\nActions:\n  init, instance, render, validate\n  hook, refusals, check-hooks\n  channel, hook-history, capture-decision\n")
+		fmt.Fprint(stdout, "usage: laneboss org [-h] ACTION ...\n\nActions:\n  init, instance, render, validate, roles\n  hook, refusals, check-hooks, blacklist\n  channel, hook-history, capture-decision\n")
 		return 0
 	}
 	fmt.Fprintln(stderr, "usage: laneboss org [-h] ACTION ...")

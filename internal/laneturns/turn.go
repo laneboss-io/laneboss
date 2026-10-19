@@ -7,8 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/delegation"
 	"laneboss.io/laneboss/internal/hookconfig"
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/rolepolicy"
 	"laneboss.io/laneboss/internal/runnermodel"
+	"laneboss.io/laneboss/internal/settings"
 )
 
 func turn(c *configuration, a arguments, environment object, passStarted map[string]int) (object, error) {
@@ -18,6 +23,17 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 	}
 	environment = copyObject(environment)
 	lane := a.get("lane")
+	var principal caller.Principal
+	if !a.flags["automatic"] {
+		var err error
+		principal, err = c.caller()
+		if err != nil {
+			return nil, err
+		}
+		if err = caller.RequireIdentity(principal); err != nil {
+			return nil, refused("%s", err)
+		}
+	}
 	budget, err := parseBudget(a.get("budget"))
 	if err != nil {
 		return nil, err
@@ -42,15 +58,23 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 	if err = s.refresh(); err != nil {
 		return nil, err
 	}
-	if _, err = s.known(lane); err != nil {
+	if _, err := s.known(lane); err != nil {
 		return nil, err
+	}
+	if !a.flags["automatic"] {
+		if err = c.messagePermission(principal, lane); err != nil {
+			return nil, err
+		}
 	}
 	if err = s.drain(lane); err != nil {
 		return nil, err
 	}
-	row, err := s.known(lane)
+	row, empty, err := s.turnState(lane, a.flags["idle"])
 	if err != nil {
 		return nil, err
+	}
+	if empty {
+		return object{"lane": lane, "started": false, "reason": "no mail", "waiting": 0}, nil
 	}
 	if integer(row["run"]) == 0 {
 		return nil, refused("lane %s has not run yet; start it with lane start --turns", lane)
@@ -84,13 +108,64 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 	if previous == nil {
 		return nil, integrity("a turn-based lane has no previous run or adoption")
 	}
-	name := str(previous["runner"])
+	c, err = c.turnConfiguration(previous)
+	if err != nil {
+		return nil, refused("%s", err)
+	}
+	s.c = c
+	root, err := rolepolicy.ConfigRoot(c.home, c.data)
+	if err != nil {
+		return nil, refused("%s", err)
+	}
+	changes := object{}
+	if budget != nil {
+		changes["budget_minutes"] = budget
+	}
+	if a.get("account") != "" {
+		// Account requests pass the selected runner's checkAccount gate below.
+		// Current org, role and instance files retain their source screening.
+		changes["account"] = a.get("account")
+	}
+	snapshot, err := settings.Again(root, previous, changes, screenRoleSource)
+	if err != nil {
+		return nil, refused("%s", err)
+	}
+	starter := str(previous["starter"])
+	if starter == "" {
+		principal, err := c.caller()
+		if err != nil {
+			return nil, err
+		}
+		starter = principal.ID
+	}
+	if err := delegation.Bind(c.callerConfig(), starter, snapshot); err != nil {
+		if unresolved, ok := err.(*delegation.Unresolved); ok {
+			id, recordErr := randomID()
+			if recordErr != nil {
+				return nil, recordErr
+			}
+			name := "settings-refusal-" + id + ".log"
+			data, payload := unresolved.Record(integer(row["run"]), s.state.lanePath(lane, name))
+			if recordErr = s.state.write("lanes/"+lane+"/"+name, data, 0600, false); recordErr != nil {
+				return nil, recordErr
+			}
+			if _, recordErr = s.append("lane.refusal", lane, "laneboss", payload); recordErr != nil {
+				return nil, recordErr
+			}
+		}
+		return nil, refused("%s", err)
+	}
+	name := str(snapshot.Values["runner"])
 	r, err := c.runner(name)
 	if err != nil {
 		return nil, err
 	}
 	if problems := turnProblems(name, r); len(problems) > 0 {
 		return nil, refused("lane %s's runner %s cannot take turns, because %s", lane, name, strings.Join(problems, "; "))
+	}
+	selection, err := rolepolicy.Previous(c.home, c.data, previous, texts(r["resume"]), screenRoleSource)
+	if err != nil {
+		return nil, refused("%s", err.Error())
 	}
 	if err = refuseLive(s, lane); err != nil {
 		return nil, err
@@ -114,6 +189,10 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 	} else {
 		return object{"lane": lane, "started": false, "reason": "no mail", "waiting": 0}, nil
 	}
+	actor, err := turnActor(s, lane, taken)
+	if err != nil {
+		return nil, err
+	}
 	if previous["session_id"] == nil {
 		return nil, refused("lane %s has no recorded session identity, so it cannot be resumed by runner %s whose resume template uses {session}", lane, name)
 	}
@@ -122,7 +201,13 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 	if projectName != "" && project == nil {
 		return nil, refused("lane %s's project file is missing from the configuration; no turn starts without its standing rules", lane)
 	}
+	if project["workers"] != nil && !contains(texts(project["workers"]), name) {
+		return nil, refused("resolved runner is not one of the project's workers")
+	}
 	account := a.optional("account")
+	if snapshot.Selected("account") {
+		account = snapshot.Values["account"]
+	}
 	if account != nil {
 		if err = checkAccount(name, r, str(account), project, "--account"); err != nil {
 			return nil, err
@@ -148,7 +233,7 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 		}
 	}
 	if budget == nil {
-		budget = previous["budget_minutes"]
+		budget = snapshot.Values["budget_minutes"]
 	}
 	directory := str(previous["worktree"])
 	info, err := os.Stat(directory)
@@ -172,7 +257,8 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 	if _, err = exec.LookPath("tmux"); err != nil {
 		return nil, refused("tmux is not on PATH; lanes run in tmux sessions")
 	}
-	output, err := composeBrief(c, lane, projectName, data, "the message of the turn")
+	idleFirst := kind == "idle" && a.flags["automatic"]
+	output, err := composeTurnBrief(c, lane, projectName, data, "the message of the turn", caller.LineFrom(previous), idleFirst, selection)
 	if err != nil {
 		return nil, err
 	}
@@ -186,14 +272,29 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 		return nil, refused("a tmux session %s is still open at %s", sessionName(lane), socket)
 	}
 	run := integer(row["run"]) + 1
-	values := object{"account": account, "brief": obj(previous["brief"])["path"], "effort": previous["effort"], "lane": lane, "log": previous["log"], "model": previous["model"], "project": previous["project"], "session": previous["session_id"], "worktree": directory, "message": message["path"]}
-	values["model"] = runnermodel.API(r, str(previous["model"]))
+	model, effort := str(snapshot.Values["model"]), snapshot.Values["effort"]
+	values := object{"account": account, "brief": obj(previous["brief"])["path"], "effort": effort, "lane": lane, "log": previous["log"], "model": model, "project": previous["project"], "session": previous["session_id"], "worktree": directory, "message": message["path"]}
+	values["model"] = runnermodel.API(r, model)
 	argv, err := fillTemplate(r["resume"], values)
 	if err != nil {
 		return nil, err
 	}
-	gate := hookconfig.CodexGate{}
-	argv, err = gate.Prepare(argv, directory, environmentList(environment))
+	replaced := lanesandbox.ReplacesRunner(c.data)
+	if replaced {
+		argv, err = lanesandbox.ClaudeOverlay(argv, c.data)
+		if err != nil {
+			return nil, refused("%s", err)
+		}
+		if err := lanesandbox.CheckClaudeSettings(argv); err != nil {
+			return nil, refused("%s", err)
+		}
+	}
+	filtered, err := settings.Environment(environmentList(environment), snapshot.Map(), map[string]string{"LANEBOSS_CONFIG": c.name, "LANEBOSS_LANE": lane})
+	if err != nil {
+		return nil, refused("%s", err)
+	}
+	gate := hookconfig.CodexGate{LaneSandbox: replaced}
+	argv, err = gate.Prepare(argv, directory, filtered)
 	if err != nil {
 		return nil, refused("%s", err.Error())
 	}
@@ -202,18 +303,29 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 		return nil, err
 	}
 	started := copyObject(previous)
+	lanesandbox.RecordRunnerSandbox(started, c.data)
+	selection.Record(started)
+	for key, value := range caller.LineFrom(previous).Fields() {
+		started[key] = value
+	}
 	started["run"] = run
 	started["how"] = "resume"
 	started["launch"] = launch
 	started["account"] = account
+	started["runner"], started["model"], started["effort"] = name, model, effort
 	started["budget_minutes"] = budget
+	if account != nil && !snapshot.Selected("account") {
+		snapshot.Add("account", settings.Layer{Scope: "default", Value: account, Event: "turn account/room selection"})
+	}
+	started["settings"] = snapshot.Map()
 	started["quiet_seconds"] = c.quiet(r)
 	started["session"] = object{"socket": socket, "name": sessionName(lane)}
 	chosen := object{"runner": "previous", "model": "previous", "effort": nil, "account": accountBy}
-	if previous["effort"] != nil {
+	if effort != nil {
 		chosen["effort"] = "previous"
 	}
 	started["chosen_by"] = chosen
+	snapshot.MarkChoices(chosen)
 	started["mail"] = taken
 	started["idle_seconds"] = mail["idle_seconds"]
 	resumed := object{"run": run, "after": row["reason"], "message": message}
@@ -232,7 +344,7 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 			return nil, err
 		}
 	}
-	actual, err := renderBrief(s, lane, projectName, source, data, output)
+	actual, err := renderBrief(s, lane, projectName, source, data, output, selection)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +355,7 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 	if _, err = claim.take(mine); err != nil {
 		return nil, err
 	}
-	spec := object{"config": c.name, "lane": lane, "run": run, "launch": launch, "argv": argv, "cwd": directory, "started": started, "resumed": resumed, "prompt": base64.StdEncoding.EncodeToString(output), "budget_seconds": number(budget) * 60, "quiet_seconds": c.quiet(r), "grace_seconds": c.setting("lanes", "stop_grace_seconds", 10), "limit_patterns": array(r["limit_patterns"]), "dropped_patterns": array(r["dropped_patterns"]), "launcher_version": launcherVersion}
+	spec := object{"config": c.name, "lane": lane, "run": run, "launch": launch, "actor": actor, "argv": argv, "cwd": directory, "started": started, "resumed": resumed, "prompt": base64.StdEncoding.EncodeToString(output), "budget_seconds": number(budget) * 60, "quiet_seconds": c.quiet(r), "grace_seconds": c.setting("lanes", "stop_grace_seconds", 10), "limit_patterns": array(r["limit_patterns"]), "dropped_patterns": array(r["dropped_patterns"]), "launcher_version": launcherVersion}
 	process, err := beginWorker(s, lane, spec, environment)
 	if err != nil {
 		return nil, err
@@ -255,12 +367,12 @@ func turn(c *configuration, a arguments, environment object, passStarted map[str
 		if err = s.refresh(); err != nil {
 			return nil, err
 		}
-		event, err := s.store.last(lane, "lane.started")
+		event, err := s.last(lane, "lane.started")
 		if err != nil {
 			return nil, err
 		}
 		if event != nil && obj(event["payload"])["launch"] == launch {
-			marker, err := s.store.last(lane, "lane.resumed")
+			marker, err := s.last(lane, "lane.resumed")
 			if err != nil {
 				return nil, err
 			}

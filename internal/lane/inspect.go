@@ -8,6 +8,10 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/eventstore"
+	"laneboss.io/laneboss/internal/faults"
 )
 
 func (s *session) selectedRows(lane string) ([]object, error) {
@@ -137,8 +141,17 @@ func (s *session) status(a arguments) (any, error) {
 			fate = obj(ended["payload"])["prompt"]
 		}
 		entry := clone(row)
+		origin := event
+		if origin == nil {
+			origin, err = s.lastObservation(lane, "lane.adopted")
+			if err != nil {
+				return nil, err
+			}
+		}
+		entry["externally_appended"] = eventstore.ExternallyAppended(origin)
 		entry["live"] = live
 		entry["session_id"] = previous["session_id"]
+		entry["runner_sandbox"] = previous["runner_sandbox"]
 		entry["prompt"] = fate
 		entry["idle"] = str(row["state"]) == "waiting" && !flag(row["running"])
 		result = append(result, entry)
@@ -273,6 +286,10 @@ func (s *session) check(a arguments) (any, error) {
 	return result, nil
 }
 func (s *session) mark(a arguments) (any, error) {
+	principal, callerErr := s.c.caller()
+	if callerErr != nil {
+		return nil, callerErr
+	}
 	lane := a.get("lane")
 	count := 0
 	for _, b := range []bool{a.get("state") != "", a.get("landing") != "", a.has("gone")} {
@@ -369,7 +386,7 @@ func (s *session) mark(a arguments) (any, error) {
 			}
 		}
 	}
-	event, err := s.append(envelope(lane, kind, payload, "supervisor"), 10)
+	event, err := s.append(envelope(lane, kind, payload, caller.LifecycleActor(principal.ID)), 10)
 	if err != nil {
 		return nil, err
 	}
@@ -411,19 +428,61 @@ func directoryListing(root string) ([]string, error) {
 	return found, err
 }
 func (s *session) clean(a arguments) (any, error) {
-	lane := a.get("lane")
-	if _, err := s.known(lane); err != nil {
-		return nil, err
+	if faults.Get("clean-without-archive").Point != "" {
+		if err := faults.Reach("clean-without-archive"); err != nil {
+			return nil, err
+		}
+		unlock, err := s.lanesLock()
+		if err != nil {
+			return nil, err
+		}
+		defer unlock()
+		return s.cleanLocked(a, nil)
 	}
-	unlock, err := s.lanesLock()
+	value, err := s.archive(a)
 	if err != nil {
 		return nil, err
 	}
-	defer unlock()
+	archived := obj(value)
+	result := clone(obj(archived["clean"]))
+	if len(result) == 0 {
+		result = object{"lane": a.get("lane"), "pending": false, "removed": []any{}, "kept": []any{object{"item": "lane-directory", "path": s.lanePath(a.get("lane")), "why": "record"}}}
+	}
+	if flag(archived["pending"]) {
+		result["pending"] = true
+	}
+	for _, key := range []string{"archive", "manifest", "receipt", "sha256", "verified", "reused", "remove_paths", "keep_paths", "status"} {
+		if value, ok := archived[key]; ok {
+			result[key] = value
+		}
+	}
+	return result, nil
+}
+
+// cleanLocked is shared with archive, which holds this same lock from planning
+// through read-back and collection. No force option is introduced.
+func (s *session) cleanLocked(a arguments, plan *archivePlan) (any, error) {
+	s.authority = true
+	principal, callerErr := s.c.caller()
+	if callerErr != nil {
+		return nil, callerErr
+	}
+	if err := caller.RequireIdentity(principal); err != nil {
+		return nil, refuse("%s", err)
+	}
+	if err := s.c.archivePermission(principal, a.get("lane")); err != nil {
+		return nil, err
+	}
+	lane := a.get("lane")
+	var err error
 	if err = s.refresh(); err != nil {
 		return nil, err
 	}
-	if err = s.drain(lane); err != nil {
+	if plan != nil && len(plan.pending) > 0 {
+		if err = s.checkArchivePending(lane, plan.pending); err != nil {
+			return nil, err
+		}
+	} else if err = s.drain(lane); err != nil {
 		return nil, err
 	}
 	row, err := s.known(lane)
@@ -452,80 +511,67 @@ func (s *session) clean(a arguments) (any, error) {
 		}
 		mine := s.claimOwner(lane, str(p["launch"]), "")
 		path, repository, branch := str(p["worktree"]), str(p["repository"]), str(p["branch"])
-		var claim *claim
-		var value object
-		info, e := os.Stat(path)
-		if e == nil && info.IsDir() {
-			claim, e = locateClaim(path, false, p["claims"])
-			if e != nil {
-				return nil, e
-			}
-			value, e = readClaim(claim)
-			if e != nil {
-				return nil, e
-			}
-		} else if e != nil && !os.IsNotExist(e) {
+		worktree, e := s.worktreeForCollection(lane, p)
+		if e != nil {
 			return nil, e
 		}
-		if value != nil && !sameLane(value, mine) {
-			return nil, refuse("lane %s's working directory is claimed by %s; nothing was removed", lane, claimDescription(value))
+		if !worktree.owned && worktree.why == "not-this-lane" && faults.Get("clean-refuse-unowned-worktree").Point != "" {
+			if err = faults.Reach("clean-refuse-unowned-worktree"); err != nil {
+				return nil, err
+			}
+			return nil, refuse("the working directory has no valid lane claim; nothing was removed")
+		}
+		if plan != nil && repository != "" && worktree.why == "" && plan.worktree != path {
+			return nil, refuse("the worktree became eligible after archive planning; nothing was removed")
 		}
 		release := false
 		if repository != "" {
 			didRemove := false
-			if info == nil {
-				kept = append(kept, object{"item": "worktree", "path": path, "why": "missing"})
+			if worktree.why != "" {
+				kept = append(kept, object{"item": "worktree", "path": path, "why": worktree.why})
 			} else {
-				code, current, _, e := gitRun(path, "symbolic-ref", "--quiet", "--short", "HEAD")
+				code, changes, _, e := gitRun(path, "status", "--porcelain")
 				if e != nil {
 					return nil, e
 				}
-				if value == nil || code != 0 || current != branch {
-					kept = append(kept, object{"item": "worktree", "path": path, "why": "not-this-lane"})
-				} else {
-					code, changes, _, e := gitRun(path, "status", "--porcelain")
-					if e != nil {
-						return nil, e
-					}
-					if code != 0 || changes != "" {
-						return nil, refuse("lane %s's worktree has uncommitted or untracked work, so nothing was removed", lane)
-					}
-					before, e := directoryListing(path)
-					if e != nil {
-						return nil, e
-					}
-					code, _, errors, e := gitRun(repository, "worktree", "remove", path)
-					if e != nil {
-						return nil, e
-					}
-					if code != 0 {
-						after := []string{}
-						if info, e := os.Stat(path); e == nil && info.IsDir() {
-							after, e = directoryListing(path)
-							if e != nil {
-								return nil, e
-							}
-						}
-						if strings.Join(before, "\x00") == strings.Join(after, "\x00") {
-							return nil, refuse("Git refused to remove lane %s's worktree without force and the worktree is unchanged; nothing was removed: %s", lane, safeMessage(errors))
-						}
-						left := map[string]bool{}
-						for _, n := range after {
-							left[n] = true
-						}
-						gone := 0
-						for _, n := range before {
-							if !left[n] {
-								gone++
-							}
-						}
-						return nil, refuse("Git failed while removing lane %s's worktree and it is partly removed: %d of %d entries are gone; the branch and claim were left alone: %s", lane, gone, len(before), safeMessage(errors))
-					}
-					didRemove = true
-					removed = append(removed, object{"item": "worktree", "path": path})
+				if code != 0 || changes != "" {
+					return nil, refuse("lane %s's worktree has uncommitted or untracked work, so nothing was removed", lane)
 				}
+				before, e := directoryListing(path)
+				if e != nil {
+					return nil, e
+				}
+				code, _, errors, e := gitRun(repository, "worktree", "remove", path)
+				if e != nil {
+					return nil, e
+				}
+				if code != 0 {
+					after := []string{}
+					if info, e := os.Stat(path); e == nil && info.IsDir() {
+						after, e = directoryListing(path)
+						if e != nil {
+							return nil, e
+						}
+					}
+					if strings.Join(before, "\x00") == strings.Join(after, "\x00") {
+						return nil, refuse("Git refused to remove lane %s's worktree without force and the worktree is unchanged; nothing was removed: %s", lane, safeMessage(errors))
+					}
+					left := map[string]bool{}
+					for _, n := range after {
+						left[n] = true
+					}
+					gone := 0
+					for _, n := range before {
+						if !left[n] {
+							gone++
+						}
+					}
+					return nil, refuse("Git failed while removing lane %s's worktree and it is partly removed: %d of %d entries are gone; the branch and claim were left alone: %s", lane, gone, len(before), safeMessage(errors))
+				}
+				didRemove = true
+				removed = append(removed, object{"item": "worktree", "path": path})
 			}
-			release = !didRemove && value != nil
+			release = !didRemove && worktree.owned
 			if branch != "" {
 				if str(row["state"]) == "abandoned" {
 					kept = append(kept, object{"item": "branch", "name": branch, "why": "abandoned"})
@@ -550,11 +596,15 @@ func (s *session) clean(a arguments) (any, error) {
 				}
 			}
 		} else {
-			kept = append(kept, object{"item": "worktree", "path": path, "why": "not-created"})
-			release = value != nil
+			why := worktree.why
+			if why == "" {
+				why = "not-created"
+			}
+			kept = append(kept, object{"item": "worktree", "path": path, "why": why})
+			release = worktree.owned
 			keep := ""
-			if claim != nil {
-				keep = claim.name
+			if worktree.claim != nil {
+				keep = worktree.claim.name
 			}
 			if err = releaseStale(p["claims"], mine, path, keep); err != nil {
 				return nil, err
@@ -568,13 +618,19 @@ func (s *session) clean(a arguments) (any, error) {
 			kept = append(kept, object{"item": "session", "name": name, "why": "not-this-lane"})
 		}
 		if release {
-			if _, err = releaseClaim(claim, mine); err != nil {
+			if _, err = releaseClaim(worktree.claim, mine); err != nil {
 				return nil, err
 			}
 		}
 	}
 	kept = append(kept, object{"item": "lane-directory", "path": s.lanePath(lane), "why": "record"})
-	stored, err := s.record(envelope(lane, "lane.cleaned", object{"removed": removed, "kept": kept}, "laneboss"), 10)
+	cleanedEvent := envelope(lane, "lane.cleaned", object{"removed": removed, "kept": kept}, caller.LifecycleActor(principal.ID))
+	var stored bool
+	if plan != nil && plan.deferReadOnly {
+		_, stored, err = s.recordArchive(cleanedEvent, plan)
+	} else {
+		stored, err = s.record(cleanedEvent, 10)
+	}
 	if err != nil {
 		return nil, err
 	}

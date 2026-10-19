@@ -3,6 +3,7 @@
 package orghook
 
 import (
+	stdcontext "context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"strings"
 
 	"laneboss.io/laneboss/internal/cliargs"
+	"laneboss.io/laneboss/internal/faults"
+	"laneboss.io/laneboss/internal/guardtime"
 	"laneboss.io/laneboss/internal/hookconfig"
 )
 
@@ -67,17 +70,34 @@ func Run(action string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		if runner != "claude" && runner != "codex" {
 			return cliargs.Print(stderr, "laneboss org hook", "usage: laneboss org hook --runner {claude,codex} [--instance FILE]", cliargs.Reject("--runner"))
 		}
-		allowed, reason := hookDecision(stdin, runner, pinned)
+		allowed, reason, context := hookDecision(stdin, runner, pinned)
 		decision := "deny"
 		if allowed {
 			decision = "allow"
 		}
-		if json.NewEncoder(stdout).Encode(map[string]any{"hookSpecificOutput": map[string]any{
-			"hookEventName": "PreToolUse", "permissionDecision": decision, "permissionDecisionReason": reason,
-		}}) != nil {
+		output := map[string]any{"hookEventName": "PreToolUse", "permissionDecision": decision, "permissionDecisionReason": reason}
+		if context != "" {
+			// The decision guard's warning, put in front of the agent by the runner (docs/decisions.md, "Guiding agents").
+			output["additionalContext"] = context
+		}
+		if json.NewEncoder(stdout).Encode(map[string]any{"hookSpecificOutput": output}) != nil {
 			return 1
 		}
 		return 0
+	case "blacklist":
+		if len(args) == 0 {
+			fmt.Fprintln(stderr, listUsage+"\n"+tryUsage)
+			return 2
+		}
+		switch args[0] {
+		case "list":
+			return runBlacklistList(args[1:], stdout, stderr)
+		case "try":
+			return runBlacklistTry(args[1:], stdout, stderr)
+		default:
+			fmt.Fprintln(stderr, listUsage+"\n"+tryUsage)
+			return 2
+		}
 	case "refusals":
 		org, format := "", "text"
 		for i := 0; i < len(args); i++ {
@@ -156,31 +176,72 @@ func cliOption(args []string, index int) (string, string, int, error) {
 	}
 	return key, args[index+1], index + 1, nil
 }
-func hookDecision(stdin io.Reader, runner, pinned string) (allowed bool, reason string) {
+func hookDecision(stdin io.Reader, runner, pinned string) (allowed bool, reason, context string) {
 	defer func() {
 		if recover() != nil {
-			allowed, reason = false, errorRefusal("internal inspection failure")
+			allowed, reason, context = false, errorRefusal("internal inspection failure"), ""
 		}
 	}()
 	data, err := io.ReadAll(io.LimitReader(stdin, maxBytes+1))
 	if err != nil {
-		return false, errorRefusal("the hook event is unreadable")
+		return false, errorRefusal("the hook event is unreadable"), ""
 	}
 	if len(data) > maxBytes {
-		return false, errorRefusal("the hook event exceeds 2 MiB")
+		return false, errorRefusal("the hook event exceeds 2 MiB"), ""
 	}
 	event, err := parseJSON(data, "the hook event")
 	if err != nil {
-		return false, errorRefusal(err.Error())
+		return false, errorRefusal(err.Error()), ""
 	}
-	allowed, reason, err = decide(event, runner, pinned)
+	var seen policyContext
+	allowed, reason, err = decide(event, runner, pinned, &seen)
 	if err != nil {
 		allowed, reason = false, eventErrorRefusal(err.Error(), event)
 	}
-	if err := recordCallback(event, runner, pinned, allowed, reason); err != nil {
-		return false, errorRefusal("callback receipt could not be kept")
+	var guard map[string]any
+	if err == nil && !allowed && seen.inst != nil && faults.Get("guide-guard-overrides-refusal").Point != "" {
+		// The tagged mutant corrupts the baseline input. The guard itself still
+		// has only one call site, under the normal error-free allowance gate.
+		if err := faults.Reach("guide-guard-overrides-refusal"); err != nil {
+			panic("guide mutation marker could not be kept")
+		}
+		allowed, reason = true, "org policy permits this tool call"
 	}
-	return allowed, reason
+	if err == nil && allowed {
+		ctx, cancel := stdcontext.WithTimeout(stdcontext.Background(), guardtime.Timeout)
+		defer cancel()
+		ctx = withManagedCache(ctx)
+		// The org policy allowed the call: now the recorded decisions have their say (guard.go). The guard only adds: it
+		// is never called for a call that the policy refused or could not inspect, and what it returns for an allowed
+		// call is the policy's allow, an allow with a warning, or a refusal.
+		allowed, reason, context, guard = guardCall(seen.inst, seen.act, event, runner, reason, ctx)
+		context = joinGuardContext(seen.context, context)
+		if allowed {
+			var jobContext string
+			var jobs map[string]any
+			allowed, reason, jobContext, jobs = jobCall(seen.inst, seen.act, event, runner, reason, ctx)
+			if jobContext != "" {
+				context = strings.TrimSpace(context + "\n" + jobContext)
+			}
+			if !allowed {
+				context = ""
+			}
+			if jobs != nil {
+				if guard == nil {
+					guard = map[string]any{}
+				}
+				guard["jobs"] = jobs
+			}
+		}
+	} else if err == nil && seen.inst != nil {
+		if changed, r, c, g := jobRelaxBaseline(seen.inst, seen.act, event, runner); changed {
+			allowed, reason, context, guard = true, r, c, map[string]any{"jobs": g}
+		}
+	}
+	if err := recordCallback(event, runner, pinned, allowed, reason, guard); err != nil {
+		return false, errorRefusal("callback receipt could not be kept"), ""
+	}
+	return allowed, reason, context
 }
 
 func currentDirectory() (string, error) {

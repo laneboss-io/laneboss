@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "identity",
+  "owner": "lb-v2-identity",
+  "platforms": ["linux"],
+  "requires": ["service", "identity", "admin", "linux", "dashboard"],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": true,
+  "assertion_ids": ["HUMAN-IDENTITY", "PEER", "TICKET-ONCE"]
+}

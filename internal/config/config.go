@@ -58,16 +58,20 @@ const (
 	DefaultStopPercent  = 90
 )
 
-// Error is a safe refusal or invalid-configuration error.
+// Error is a safe refusal or invalid-configuration error. Field names the configuration field that failed, when one
+// field did, so a caller that reports the failure (the org hook) can say which field to fix.
 type Error struct {
 	Code    int
 	Prefix  string
 	Message string
+	Field   string
 }
 
 func (e *Error) Error() string     { return e.Message }
-func refused(message string) error { return &Error{2, "refused", message} }
-func invalid(message string) error { return &Error{2, "invalid configuration", message} }
+func refused(message string) error { return &Error{Code: 2, Prefix: "refused", Message: message} }
+func invalid(message string) error {
+	return &Error{Code: 2, Prefix: "invalid configuration", Message: message}
+}
 
 // EnvName returns the launcher's environment-variable name for suffix.
 func EnvName(suffix string) string { return EnvPrefix + suffix }

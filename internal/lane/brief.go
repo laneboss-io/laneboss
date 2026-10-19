@@ -9,8 +9,12 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/decisionsrv"
 	"laneboss.io/laneboss/internal/identity"
+	"laneboss.io/laneboss/internal/peers"
 	"laneboss.io/laneboss/internal/protocol"
+	"laneboss.io/laneboss/internal/rolepolicy"
 )
 
 var protocolBytes = protocol.Bytes()
@@ -34,7 +38,7 @@ func ended(b []byte) []byte {
 	}
 	return append(append([]byte{}, b...), '\n')
 }
-func (c *configuration) compose(lane, project, source string, data []byte, touches []string) (*composedBrief, error) {
+func (c *configuration) compose(lane, project, source string, data []byte, touches []string, recorded caller.Line, selected ...*rolepolicy.Selection) (*composedBrief, error) {
 	if !utf8.Valid(data) {
 		return nil, refuse("the brief must be UTF-8 text")
 	}
@@ -50,6 +54,28 @@ func (c *configuration) compose(lane, project, source string, data []byte, touch
 	}
 	rules := c.ruleInputs(project)
 	var b bytes.Buffer
+	intro := "Everything above this block is the brief exactly as written."
+	if len(selected) > 0 && selected[0] != nil {
+		selection := selected[0]
+		// The recorded decisions of the lane's project and level go before the task, read now, whatever this brief is
+		// (a first brief, a follow-up message or the continue text).
+		section := decisionsrv.BriefSectionFor(selection.Catalog.Root, project, selection.Level, func(text string) bool {
+			rule, _ := credential(text)
+			return rule != ""
+		})
+		prefix, err := selection.PrefixWith(section)
+		if err != nil {
+			return nil, refuse("%s", err.Error())
+		}
+		if rule, _ := credential(string(prefix)); rule != "" {
+			return nil, refuse("org role or protocol looks like a credential; nothing was written")
+		}
+		b.Write(prefix)
+		intro = "The task after 'Your task' is the brief exactly as written; org policy precedes it."
+		for _, input := range selection.Inputs {
+			rules = append(rules, ruleInput{input.Path, input.Bytes})
+		}
+	}
 	if len(data) > 0 {
 		b.Write(ended(data))
 	}
@@ -57,13 +83,20 @@ func (c *configuration) compose(lane, project, source string, data []byte, touch
 	if shownProject == "" {
 		shownProject = "none"
 	}
-	fmt.Fprintf(&b, "\n<!-- laneboss launcher block: begin (protocol %s) -->\n\n---\n\n# Launcher block\n\nEverything above this block is the brief exactly as written. laneboss %s appended this block.\n\n- Configuration: %s\n- Project: %s\n- Lane: %s\n- Protocol version: %s\n- Brief sha256: %s\n\n", protocolVersion, launcherVersion, c.name, shownProject, lane, protocolVersion, digest(data))
+	reportLine, err := peers.ReportLine(c.callerConfig(), lane, recorded)
+	if err != nil {
+		return nil, refuse("%s", err)
+	}
+	fmt.Fprintf(&b, "\n<!-- laneboss launcher block: begin (protocol %s) -->\n\n---\n\n# Launcher block\n\n%s laneboss %s appended this block.\n\n- Configuration: %s\n- Project: %s\n- Lane: %s\n\n%s- Protocol version: %s\n- Brief sha256: %s\n\n", protocolVersion, intro, launcherVersion, c.name, shownProject, lane, reportLine, protocolVersion, digest(data))
 	b.Write(ended(protocolBytes))
-	for _, r := range rules {
+	for _, r := range c.ruleInputs(project) {
 		fmt.Fprintf(&b, "\n## Standing rules: %s (sha256 %s)\n\n", r.name, digest(r.data))
 		b.Write(ended(r.data))
 	}
 	b.WriteString("\n<!-- laneboss launcher block: end -->\n")
+	if b.Len() > 5*1024*1024 {
+		return nil, refuse("the rendered brief exceeds its 5 MiB handover limit")
+	}
 	return &composedBrief{b.Bytes(), data, rules, source, project, unique(touches)}, nil
 }
 

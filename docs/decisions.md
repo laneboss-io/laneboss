@@ -289,6 +289,11 @@ laneboss decisions ingest-lane --db decisions.sqlite \
   launcher-written record of which bytes belong to which run, so those bytes are
   the runner's own final message. An empty report is refused: an empty report
   row is never written.
+- `lane archive` retains `output.log` and its run records at those paths. Calling
+  `ingest-lane` after archival still reads the recorded span and later supervisor
+  marks; diagnostic logs may have been collected. The archive's compact receipt
+  references its manifest instead of putting a full worktree removal list in
+  this event history.
 - **The events** are the lane's events from the event store, in order, one
   stored envelope a line of JSON — started, ended, resumed, marks, verdicts and
   the rest of `lane.*`, except the `lane.ingested` receipts. An ingest records
@@ -763,6 +768,396 @@ so `records_after` is `records_before + added + superseded`.
 `load` never calls an embedding provider and sends nothing anywhere. `stats`
 reports `records_without_vectors`, the records that have no vector under any
 model; `embed` fills them, and `verify` passes before and after.
+
+## Guiding agents
+
+A recorded decision that no agent reads changes nothing: the lane asks the owner again, or does what the owner already
+ruled out. The guide puts an org's recorded decisions in front of its agents in three places. A judge (TypeSafe
+through the judge adapter, or another compatible judge) supplies typed probabilities; ordinary guidance observes and warns:
+
+1. every lane brief and every follow-up or turn message carries the decisions that apply to its project and level, in a
+   short section that is headed so that it cannot be missed;
+2. the org hook asks whether a tool call conflicts with a decision and adds advice;
+3. a question that a recorded decision already answers gets the recorded answer back instead of becoming a new question.
+
+It needs an org with a decision store (`laneboss decisions init`, [Org history](org-history.md)). A lane of a
+configuration with no org, and an org with no store, behave exactly as before.
+
+### Which decisions apply
+
+A record guides an agent when all of these hold:
+
+- its `kind` is `decision`, `answer`, `instruction`, `preference`, `correction` or `owner-decision`. A ledger, report,
+  board or bulletin entry is history, and a `question_from_owner` is a question: none of them is a decision;
+- its `status` is `in_force` (a superseded, withdrawn or fulfilled record is not), and its `scope.valid_until`, when it
+  has one, has not passed;
+- it is in scope. **For a lane** the scope is the lane's project and level: the record's `project` label equals the name
+  given to `lane start --project`, and the record has no `level` or the lane's level (`--level`, default 3). A lane
+  without a project has no label to compare, so it gets the decisions of every project, or only of the labels that the
+  `projects` setting below names. **For the org hook**, which runs inside one org instance and does not know the lane's
+  project, the scope is the instance: the record has no `level`, or the instance's level, or its `instance` is the
+  instance's name; every project's decisions are considered unless `projects` narrows them. (A decision that
+  `org capture-decision` stores carries the project label `org-history` and the level and name of the instance that
+  received it: it guides that instance's hook and the projectless lanes of its level, and a lane of a lower level learns
+  it from its supervisor's brief.)
+
+### In every brief and every turn
+
+`lane start`, `lane resume`, `lane turn` and `lane adopt` put one section between the org's role text and the task, read
+from the store when the message is composed, so a turn carries a decision that was recorded after the lane started:
+
+```markdown
+## Recorded decisions that apply to this lane
+
+Project demo, level L3. These are the owner's recorded decisions, and they bind this lane until the owner supersedes
+them. Follow each one. Do not ask a question that one of them already answers: use its answer. ...
+
+- **D-22** (owner-decision, answered 2026-10-08T09:04:00Z)
+  - Decided: "Never skip approval for the production release."
+  - It answered: "May we skip approval for the production release?"
+```
+
+The newest decisions come first (by `answered_at`), at most twelve are shown, an answer is cut to 600 bytes and its
+question to 240, each text is put on one line, and a final line says how many more decisions apply and how to list them
+(`laneboss decisions search --db STORE "" --mode exact --project NAME`). A quoted text that looks like a credential is
+withheld. The section never fails a brief: a store that cannot be read puts a notice in its place (with the error
+code) that tells the agent to ask its supervisor, and a section that the launcher's credential detector would refuse
+as a whole is replaced by a shorter notice, so a recorded decision can never stop a lane from starting. The section
+is part of the rendered brief, which the launcher keeps under its hash, so the bytes an agent was given stay on record.
+
+### The dial
+
+The hook runs org policy before decision guidance. Guidance adds advice to an
+allowed call. Ordinary decisions and catalog matches have no refusal authority;
+refusal authority belongs to the org blacklist policy.
+Missing, uncertain or unavailable model results also remain advisory.
+
+Org blacklist entries with `pattern_only = true` use only their deterministic
+matcher and are excluded from TypeSafe candidate selection in both the hook and
+`org blacklist try`. The default raw-task pack uses this setting; it cannot
+consume decision-judge capacity or add unscored warnings to unrelated calls.
+Other authored blacklist entries retain their existing scoring behavior. See
+[Org hook policy](org-hooks.md#writing-blacklist-entries) for the entry schema.
+
+The guide uses a Noul for one binary proposition: does this action conflict
+with this recorded decision? A Noul is the probability of yes, not a measure of
+conflict severity. Near 0.5 means the model is uncertain. If a future feature
+needs a degree of severity, it should use a Score with concrete ordered levels,
+then normalize by the top level index before combining dimensions.
+
+All scoreable candidate decisions and bounded action windows share **one typed request**.
+Its named state contains `decisions` (complete id, kind, answer and prior
+question text) and `texts` (the action windows or the new question). Every
+Noul has the full question in `instructions`, backticked paths such as
+`decisions[0]` and `texts[1]`, and `criteria.true`/`criteria.false`
+describing a conflict and a consistent or unrelated action. Question IDs only
+join answers to code; TypeSafe does not send them to the inference model.
+
+A shell action includes its complete command. A file action includes its path,
+new text, every edit in a multiple edit, and remaining input fields as JSON;
+`apply_patch` includes its patch. Plain reads (`Read`, `read_file`,
+`Glob`, `LS`, `Grep`) are exempt before guide/history loading.
+
+Long calls use up to three 3,500-character windows with 300-character overlap
+and a part heading, covering at most 9,900 characters. All windows remain in
+the same request. The strongest returned probability is used only if all
+windows and complete decision text were evaluated. A longer call is `partial`
+even if a covered window returned a high probability. Each decision is screened
+separately: a text over 4,000 characters is `cut`, and a credential-shaped text
+is `withheld`. Only that decision is excluded; the others remain in one batch
+with complete text and explicit paths to the filtered state. An uncovered
+decision cannot silently clear its comparison or blind another decision.
+Oversized or credential-shaped action windows still affect every remaining
+comparison because the action state is shared. An oversized overall batch also
+remains unscored. A panic while preparing or asking the advisory batch produces
+an unscored notice, never an ordinary-work denial; catalog asks do the same.
+
+At most `max_decisions` decisions are selected, by shared words then recency.
+Left-out decisions are explicitly unscored. The internal batch allows at most
+36 Noul questions (12 decisions times 3 windows), question IDs of at most 64
+ASCII identifier bytes, and 256 KiB of total input. These are application
+bounds, not TypeSafe API question-count limits. The API supports many
+independent questions per state.
+
+A `request_user_input` call instead asks `decision.answers`: does this
+particular recorded decision already settle this question? It uses the same
+batch machinery and adds the recorded answer as advice. Explicit
+`lane send --ask` and `report --ask` can return an already recorded answer
+using the lookup cutoff described below.
+
+Settings in `.laneboss/shared/services/guide.toml` are read on every call.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | Disable guide/catalog judging with `false`. |
+| `jobs` | `true` | Add catalog advice to baseline-allowed shell calls. |
+| `judge` | none | Configured external judge supporting typed batches. Without it, a short notice lists applicable decisions. |
+| `configuration` | history configuration | The session's bound configuration defining the judge. |
+| `warn_threshold` | `0.5` | Inclusive yes-probability cutoff for advisory context. At 0.5 yes and no are equally likely, so the context asks the agent to review. |
+| `refuse_threshold` | `0.85` | Legacy name retained as the decided-answer lookup cutoff. It never authorizes ordinary hook refusal. |
+| `jobs_refuse_threshold` | none | Legacy validated setting; it never authorizes catalog refusal. |
+| `max_decisions` | `5` | Candidate count, 1 through 12. Left-out decisions get an unscored notice. |
+| `unavailable` | `"warn"` | Unscored calls warn. Legacy `"refuse"` is accepted as `"warn"`. |
+| `projects` | every project | Limit decision labels in hook guidance and projectless lane briefs. |
+
+Thresholds are policy probability cuts, not medium/high intensity levels.
+TypeSafe communicates uncertainty through calibrated probabilities
+(docs.typesafe.ai, Concepts, "How to build with TypeSafe").
+Validate performance in the target domain; no individual answer is guaranteed.
+These defaults have **no measured
+domain-calibration claim**. Tune warning and answer-reuse cutoffs against
+labeled domain examples and inspect uncertain cases; a stand-in only verifies
+transport and policy. Thresholds are finite values in [0,1]. For configuration
+compatibility, `warn_threshold` must not exceed `refuse_threshold` or an
+explicit `jobs_refuse_threshold`.
+
+```toml
+judge = "jev"
+warn_threshold = 0.5
+max_decisions = 5
+unavailable = "warn"
+# Optional lookup cutoff; this does not enable hook refusal:
+# refuse_threshold = 0.85
+```
+
+| Result | Hook behavior |
+|---|---|
+| Yes probability at or above `warn_threshold` | Allow with decision id, text and probability in `additionalContext`. |
+| Probability below the warning cutoff, with complete coverage | Allow with the baseline reason and no decision context. |
+| Partial/malformed answers, timeout, nonzero exit, missing judge, cut/withheld state, omitted decisions or unreadable store/history | Allow with an explicit unscored notice and applicable decisions. |
+| Malformed/unreadable guide settings | Allow with `config invalid: FIELD` and a settings-error receipt; no judge runs. |
+| Missing/disabled guide or no applicable decision | Use org policy. |
+
+A malformed or missing answer invalidates the entire typed batch. The guide
+does not treat a missing value as zero. One sent/outcome pair records each
+adapter invocation; a batch outcome carries the individual `probabilities`
+map and a null scalar probability. Callback receipts retain each decision's
+outcome and probability (the legacy field name is `score`), without raw call
+text.
+
+The org's policy protects `shared/services`, guide/history definitions,
+decision-store journal files and configured judge inputs from agent edits.
+Edit policy sources through the org's authorized policy workflow and render.
+Guide/catalog judging shares a 30-second context deadline; execution, log locks
+and cleanup consume that same deadline. Process execution reserves the smaller
+of three seconds or one quarter of the remaining budget for cleanup and outcome
+logging. An unavailable result warns. Generated hook
+entries use a 60-second runner timeout; re-render after upgrading.
+
+### Laneboss jobs at the hook
+
+For a shell call that passes baseline policy, the org hook also asks whether it does a job on a Laneboss-managed
+object that a Laneboss command already does. The catalog describes lane lifecycle, worktrees, event-store and dashboard
+jobs; it is not a list of raw commands that the hook can always inspect. The complete catalog is generated from
+`internal/cli/syntax.json`, the CLI's expanded command tree
+(including commands added in code), and the org's levels and role sources. A newly defined CLI command appears without
+editing a second command list. The Go launcher consumes its embedded syntax and needs no Python at hook time;
+`scripts/laneboss_jobs.py` generates the same state for standalone use and independent verification.
+
+This tree has bounded adapters for `printf`, ordinary Git forms, explicit-PID `kill`, curl URL/HEAD forms, and selected
+tmux operations with an inspectable payload. Unsupported options, dynamic inputs, sqlite3 and other commands can remain
+opaque and be refused by baseline rules before a judge is asked. In particular, the L3 lane boundary still refuses raw
+network clients, including unrelated curl URLs. The job catalog cannot relax that boundary. Broader unknown-command
+behavior belongs to the blacklist integration; do not infer model coverage from the catalog's choices.
+
+`org init` and `org render` manage `.laneboss/shared/services/laneboss-jobs.json` and record it in the render manifest.
+Render an existing org after upgrading the CLI or changing its role sources. The catalog records the SHA-256 of the
+embedded syntax bytes, exact `org.toml` bytes, the sorted map of hashes of `L3` through `L6` role Markdown and TOML
+sources, and the generated job rows. Its fingerprint hashes those four source hashes. Before asking the judge, the hook
+regenerates the expected state and compares the whole catalog, so a stale source hash or altered row is not trusted.
+The catalog, its source policy paths and every named judge configuration candidate belong to `{hook_paths}`. Protection
+is the union of the launcher binding, the guide/history resolver, the independently read `org.toml` `[history]`
+configuration, and readable root `configuration` assignments in guide/history service files. An override or resolver
+failure cannot remove another source's candidate. A malformed guide retains independently parseable configuration
+assignments; recovery skips comments, table-scoped keys and string contents. Source reads use no-follow, non-blocking
+opens, regular-file checks and a 64 KiB bound. Unrelated configuration files remain outside this added set.
+Edit sources and render; do not hand-edit the catalog
+or its manifest.
+
+When `guide.toml` is present and enabled, `jobs` defaults to `true`. The job judge is the same `judge` in the same
+`configuration` used for decisions. One ask carries the whole shell command and catalog as TypeSafe state, an `owned`
+Noul and a `command` Choice over every generated job plus `none`. The TypeSafe adapter supports both this multi-question
+request and typed decision batches. The launcher requires the official model/answers/usage envelope, matching types, complete normalized option probabilities, a selected maximum and finite confidence. The reason comes from catalog purpose text.
+
+The `owned` Noul asks whether the command performs a catalog job on an
+object supported by the named `managed_objects` inventory. Its true/false
+criteria distinguish recorded managed work from ordinary unrelated shell work.
+An empty inventory cannot establish ownership. The inventory is evidence for
+advice, not refusal authority.
+
+Catalog results always remain advisory, including an explicit legacy
+`jobs_refuse_threshold`. At or above `warn_threshold`, a non-`none` choice
+adds a catalog-derived recommendation when Choice confidence is at least 0.5.
+Below that confidence floor it adds an uncertainty notice, with no chosen
+route and `flagged: false`. The floor is a conservative application default
+requiring domain evaluation, not a measured accuracy guarantee. `none` adds
+no route even with owned probability 0.99. Low owned probabilities add nothing.
+Receipts retain `guard.jobs`, including band, outcome, judge, owned
+probability, Choice confidence, the full option `probabilities` and managed
+target evidence. The log records no raw command text.
+
+Org policy runs first. A call it denies never reaches either advisory judge.
+A stale catalog, unreachable judge, malformed/partial output or timeout adds a
+`Baseline only` notice to an allowed call. Missing guide settings use org
+policy; invalid settings warn with the field to repair. Ordinary guidance
+cannot introduce a refusal by threshold or unavailability.
+
+The managed-object inventory is built lazily once per configuration within one hook invocation. All inspected commands
+use that snapshot, and repeated inventory requests reuse it, including a read failure. A new hook builds a fresh snapshot
+and rechecks process liveness. This cache does not persist across separate tool calls or renew the guard deadline.
+
+The whole job ask, including owner/log locks and egress handling, gets `min(10 seconds, remaining guard budget)`;
+its subprocess also honors a shorter configured timeout. Three seconds inside the ask budget are reserved for process
+cleanup and outcome logging, so a lone slow job process may stop around seven seconds. Managed-record lookup and catalog
+validation remain within the parent 30-second context. A held log lock returns a timeout notice rather than renewing the
+budget. HJ6 exercises the slow process, HJ13 the ten-second job-lock budget, and HJ14 combines a 24-second decision
+judge, a slow job judge and a real held judges-directory lock. HJ14 requires an actual timeout receipt, elapsed below
+33 seconds and below the rendered 60-second timeout. G18/G19 cover decision timeout and lock outcomes.
+
+Run `sh e2e-rows/check-job-hook.sh` on the authorized disposable Linux machine, or supply its absolute release and
+fault-build paths as the two arguments. It retains source bytes, both binaries and hashes, inputs, callback and egress
+records, transcripts and the exit code. Require exit 0 and `PASS: job hook rows`. The adapter is a stand-in using the
+actual request and random row markers, matching the catalog's existing stand-in approach. These rows do not measure
+TypeSafe model accuracy and use no service credentials. Setup first requires a plain allow with jobs off, with
+`fixture: the bypass input must pass the baseline` as its failure message. HJ1–3/5/6/8/10 use adapter-covered `printf`
+carrying a recorded lane marker, so their assertions concern transport, generated choices and bands. HJ15 retains a
+real supported tmux form as a blacklist integration control; the stand-in still supplies no model-accuracy evidence.
+
+| Row | What makes it fail |
+|---|---|
+| HJ1 high probability | A high owned probability denies ordinary work, loses its advisory catalog route, or omits the actual request/egress outcome. |
+| HJ2 warn | The inclusive warning band denies, adds no warning, or omits the generated command. |
+| HJ3 nothing | A score below warn changes the baseline reason or adds context. |
+| HJ4 control | An unrelated shell call is flagged, its whole actual command never reaches the adapter, or a `none` choice with owned 0.99 on a recorded target changes the plain allow. |
+| HJ5 stale catalog | Changed org/role sources or a stale syntax hash reach the judge, lose the baseline notice, or rendering does not restore scoring. |
+| HJ6 timeout | A longer configured timeout defeats the fixed cap, missing scoring changes the baseline, the timeout outcome is lost, or the judge leader survives. |
+| HJ7 acceptance | Enabling jobs changes a baseline refusal's decision or complete reason, adds context, or makes a judge request for that refusal. |
+| HJ8 unavailable | Erroring, unreachable or malformed judging changes the baseline, an out-of-catalog Choice is trusted, or `unavailable = "refuse"` blocks solely for a missing job score. |
+| HJ9 generation | The built CLI's catalog differs from the standalone generator, omits source hashes, or a new syntax job needs a hand-maintained list. |
+| HJ10 configured dial | A fixed probability ignores the inclusive warning cutoff, or a legacy refusal cutoff introduces a denial. |
+| HJ11 advisory policy | A high probability refuses a managed job with default settings or either explicit legacy refusal setting. |
+| HJ12 natural controls | Supported unrelated tmux, Git, curl and explicit-PID kill calls fail their baseline control; high probabilities refuse or lose advice, low probabilities warn, or legacy catalog thresholds deny unrecorded targets. |
+| HJ13 job lock | A real held judges-directory lock renews the budget, exceeds the job cap or loses its timeout outcome. |
+| HJ14 combined deadline | Both actual slow judges fail to receive their marker-bearing requests, a held log lock renews the shared deadline, the job loses its timeout receipt, the response exceeds the rendered timeout, or the slow job leader survives. |
+| HJ15 tmux integration | A supported real tmux form fails its baseline control, fails to reach the adapter or stops warning under default catalog policy. Broader forms remain blacklist integration work. |
+
+| HJ16 official response and uncertainty | Missing distributions/answers are accepted, low Choice confidence still recommends a route, or the valid control loses advice. |
+
+The acceptance assertion is HJ7's unchanged `deny`, byte-identical `permissionDecisionReason`, absent
+`additionalContext`, and unchanged judge-request count. The `jobs-relax-baseline` mutation is compiled only with
+`laneboss_faults`. It deliberately asks after a baseline refusal and replaces that refusal when the judge allows.
+The mutation harness requires HJ7 to fail at `HJ7 baseline refusal must remain unchanged`, a real reach marker, and
+the unchanged row to pass on the release with the same fault request ignored and no marker. Runtime RED/GREEN evidence
+must be collected on Linux before acceptance; static checks alone are insufficient.
+
+### Decided questions
+
+A lane asks its recorded supervisor with `report`; `--ask` marks the file as a question. A permitted lane message can
+also carry a question:
+
+```sh
+laneboss report --config NAME --file question.md --ask
+laneboss lane send --config NAME --lane PERMITTED_LANE --file question.md --ask
+```
+
+The decisions considered are those of the authenticated asking lane's recorded project and level. A sender label or
+an environment label cannot select another lane's scope. For `lane send`, a supervisor without a sending lane uses the
+receiving lane's scope, after the normal message-access check. For `report`, a supervisor uses its recorded level across
+projects. The caller identity gate applies before either lookup. The lookup probability is a binary already-answered judgment; its cutoff requires domain calibration.
+
+1. **The same question.** The text is compared with the question of each decision after its lines are joined, its case is
+   folded and its closing `?`, `!` and `.` are dropped. A match is answered at once and needs no judge:
+   `{"lane": "...", "decided": true, "sent": false, "match": "exact", "score": 1, "judge": "not-asked", "related": [],
+   "decision": {"id": "D-22", "kind": "...", "project": "...", "answered_at": "...", "question": "...", "answer": "..."}}`.
+2. **Another wording.** When `guide.toml` names a judge, one typed request asks `decision.answers` for each of at most
+   `max_decisions` candidates over named `decisions` and `texts` state. A yes probability at or above the legacy lookup cutoff `refuse_threshold`
+   answers the question the same way, with `"match": "judge"` and the score; the highest score wins.
+3. **Not decided.** The message is sent as `lane send` always sends it, and its result gains `"decided": false`,
+   `"related"` (the decisions that scored from `warn_threshold` up to `refuse_threshold`, each with its id and score) and
+   `"judge"`, which says what became of the judge: `answered`, `unavailable` (at least one ask got no answer),
+   `unconfigured`, `settings-error`, `store-error` or `no-org`. A question that went unchecked is never taken for one that
+   was checked.
+
+An answered question is not sent: `lane send` writes no mail or `lane.mailed` event, and `report` calls no channel or
+`report.sent` event. When no answer exists, `report --ask` prints a question-check object (`decided`, `judge`, `related`)
+followed by its usual per-channel outcomes and preserves the report command's delivery exit codes. Without `--ask`,
+both commands keep their ordinary delivery behavior and never consult the guide.
+
+Before either `--ask` command returns a recorded answer, the guide and the caller's credential detector screen
+its full question, answer and metadata. If either text looks like a credential, both texts become
+`[withheld: looks like a credential]` and the result adds `"withheld": true`. The result still says
+`"decided": true` and `"sent": false`: the unsafe text is not echoed or forwarded. Ask the supervisor for a usable,
+non-secret rendering of that decision. Clean responses keep their original text and report `"withheld": false`.
+Related decision ids are screened as well.
+
+### Proof
+
+The rows in `e2e-rows/test_decision_guide.py` (run `sh e2e-rows/check-decision-guide.sh` on the disposable Linux
+machine) drive the installed CLI, real lanes in tmux, the real hook and the real store. Only the vendor program and the
+judge are stand-ins. The judge stands in for the TypeSafe service the way rows J4 and J5 of
+`test_laneboss_jobs.py` do: the stand-in emits the official model/answers/usage envelope and answers from marker rules applied to the actual named state. G3 includes incomplete and legacy-shape negative controls. These rows prove wiring and policy; they measure no model accuracy.
+
+| Row | What makes it fail |
+|---|---|
+| G1 brief | The section is missing, is after the task, lacks a decision that applies, carries one that does not (another project or level, superseded, expired, not a decision), lists more than twelve, hides how many it left out, quotes a long answer whole, or a lane without a project gets no section or ignores the `projects` setting. |
+| G2 follow-up and turn | A turn or a follow-up is composed without the section, or with the decisions of the lane's start. |
+| G3 dial | High/uncertain probabilities fail to warn, low probabilities alter a fully covered call, questions split into separate requests, raw state/reference paths are lost, or batch egress loses individual answers. |
+| G4 thresholds | A fixed score does not move between the bands when the thresholds change, or a threshold is not inclusive. |
+| G5 no answer | Failed/unknown judging loses its notice, a legacy unavailable setting stops warning, or invalid settings lose their field and receipt. |
+| G6 decided question | Recorded-answer lookup loses its answer/scope, unchecked questions appear checked, or question tools are judged as actions, refused by guidance, or lose the recorded advice. |
+| G7 controls | The guard acts with no decision recorded, judges a read, ignores `enabled = false` or `projects`, asks about a decision of another level, a superseded, an expired or a non-decision record, an agent that can write the whole org folder can still write `guide.toml`. |
+| G8 mutants | A fault build that ignores the thresholds (always allow), drops the warning, omits the section, never echoes a decided question, lets the guard's answer override a refusal of the org's rules, leaves the guard's inputs unprotected, drops the decisions that `max_decisions` left out, judges a long call by its head, takes the answer about a withheld placeholder for a score, or keeps the text of a multiple edit from the judge is not caught by the row that names it, or its restored row does not pass. |
+| G9 the guard only adds | An installed-rule or actual L3 lane-boundary refusal (unlisted tool, push, out-of-scope write, uninspectable call, write inside `writable_repos` but outside the recorded worktree, raw curl) is allowed, loses its first line or complete text, carries context or reaches either judge. The matrix runs ten guide states with jobs off and on. |
+| G10 the guard's inputs | An agent that can write the whole org folder can remove, move, replace or create `guide.toml`, `history.toml`, the decision store or its journal files, or remove the folder or its parent (by the write tool or by `rm`, `mv`, `truncate` and a redirection), or the guard stops judging after the attempts. |
+| G11 left out | Omitted decisions disappear, legacy unavailable settings deny ordinary work, or the selected comparisons stop sharing one bounded request. |
+| G12 long calls | Tail content loses its advice, windows create separate requests, complete low-probability controls warn, or beyond-limit text loses its partial notice. |
+| G13 withheld text | Credential-shaped state reaches the adapter or passes as scored, the unscored notice disappears, or legacy unavailability denies ordinary work. |
+| G14 multiple edit | What a multiple edit writes stays out of what the judge reads. |
+| G15 no judge | With a `guide.toml` that names no judge the hook asks anybody, refuses, lists more than the newest three decisions or does not say how many more apply; or it adds anything when there is no `guide.toml`, no decision applies, the guard is off or the call is a read. |
+| G16 report ask | A decided report question is delivered, loses its exact answer, uses another lane's project/level, ignores the shared judge dial, or ordinary reports stop delivering. |
+| G17 missing/unreadable guide | A missing guide changes the baseline, or an unreadable guide refuses by default or loses its config-invalid warning and settings-error receipt. |
+| G18 decision deadline | Slow judging loses its timeout outcome, exceeds the shared deadline, or introduces an ordinary-work refusal. |
+| G19 decision lock | A held judges-directory lock exceeds the shared deadline or loses its timeout notice. |
+| G20 missing store | An enabled guide loses its store without the unavailable/no-store receipt. |
+| G21 scoped cap | More than 1,000 newer records in another project/level hide an applicable decision. |
+| G22 judge definition | A broad write scope permits replacing the configured judge definition, or the ordinary-write control fails. |
+| G23 default guidance | A high decision probability refuses ordinary work with defaults or either explicit legacy threshold. |
+| G24 invalid settings | Malformed guide/history settings block reads or ordinary work, lose their field notice or normalized warning receipt, or query a judge. The fault-only `guide-settings-refuse-all` row must fail its read-exemption assertion and reach its marker before the restored release passes. |
+| G25 judge configuration | A launcher binding hides a different judge configuration selected directly by the guide or inherited through history settings; either definition is writable, or the ordinary broad-scope write control fails. |
+| G26 independent judge sources | With no binding, an org-only configuration loses protection when the effective resolver is overridden or the guide is malformed; readable guide keys before/after a parse error are lost; or an unrelated configuration is protected, including a name appearing only inside a string. The fault-only `judge-drop-org-source` mutant must fail the first org-source assertion and reach its marker, then the restored release must pass. |
+
+`TestManagedCache` and `TestManagedCacheError` require one inventory load per configuration per hook, fresh loads in a
+new hook, unchanged command matching, cancellation checks on cached reads, and reuse of inventory errors. Extra loads,
+stale inventories across hooks, changed matches, discarded cancellation or swallowed errors fail these unit checks.
+These rows, the new mutant and unit checks require Linux execution; source/static checks are not runtime evidence.
+`TestRawJudgeNames` covers valid, quoted and multiline names, recovery before/after errors, and comment/string/table
+controls. `TestJudgeSourceBounds` requires exact regular-file bytes and refusal to follow symlinks or read directories,
+missing files and oversized sources. Lost/extra names, altered bytes or an accepted unsupported source fail these checks.
+
+### Limits
+
+- The decision judge does not receive the resolved working directory (P2-6). A directory-sensitive decision needs human review; the deterministic baseline still inspects resolved paths.
+- Catalog refusal requires recorded target evidence. Unregistered dashboard addresses and targets not represented by those records remain advice-only even at a high score. Judge programs and their external dependency files still require operator-controlled write permissions; the configuration definition is protected.
+
+- The hook does not know a lane's project, so it considers the decisions of every project unless `projects` narrows it.
+- A judge's answer is a probability, not a proof: a conflict can score low and a harmless call can score high. The
+  thresholds trade one error for the other, and the egress log and the callback receipts show what each call scored.
+- Only the call's own text is judged. A command that builds its arguments at run time is judged by what the hook can
+  read, which is the same text the org rules inspect.
+- The decisions' texts go to the judge, and so do the calls' texts, after the credential screen of the judge
+  machinery; a judge that sends them over a network sends them there. Use a judge that suits the data.
+- Each judged call costs one judge ask for each decision asked about and each window of the call (one window up to 3,500
+  characters, at most three), so the cost and the latency of a call grow with `max_decisions` and with the call's length.
+- A call that is not scored (a judge that is down, a long call, a credential-shaped text, a decision left out) is warned
+  about by default, and a warning is advice: an agent that ignores it carries on. The legacy setting
+  `unavailable = "refuse"` is accepted as the same warn-only behavior. The maximum is 12; with more than 12 applicable
+  decisions, narrow `projects` or supersede decisions if the notice is too broad.
+- The guard reads at most 1,000 applicable in-force records after applying project, level and instance filters in SQL. Other scopes cannot consume this cap. A further applicable row is detected and the hook receipt records scope_capped; remaining records are not claimed to have been checked.
+
+- A store that `[history] db` puts outside `shared/services` is not covered by the protected set (see above).
+- Whoever can run `laneboss decisions` can supersede or withdraw a decision, which changes what the guard enforces. The
+  protected set stops an agent from editing the store's files; an org whose rules let an agent run that command lets it
+  change the decisions, so keep it out of agents' rules.
 
 ## Acceptance and publication checks
 

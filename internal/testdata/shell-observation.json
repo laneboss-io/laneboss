@@ -1,0 +1,1 @@
+{"at":null,"call":{"id":"fixture-call","record":{"item":0,"line":1,"offset":0,"path":"/fixture/raw.jsonl"}},"command":{"length":25,"sha256":"@COMMAND_SHA256@","text":"printf \"`printf fixture`\"","withheld":false},"how":["shell-substitution-in-text"],"paths":["(command)"],"refusal":null,"run":1,"similarity":null,"suspicion":"ws-ece5db9054c21df2128a6c6d","tool":"Bash"}

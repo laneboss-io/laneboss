@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -133,6 +135,52 @@ func jsonText(value any, indent bool) (string, error) {
 // The schemas have scalar/array fields and one level of tables. Explicit field
 // order keeps defaults last, so TOML additions stay in their intended table.
 func encodeTOML(value map[string]any, order []string) (string, error) {
+	inline := func(item any) (string, error) {
+		var encode func(any) (string, error)
+		encode = func(item any) (string, error) {
+			switch item := item.(type) {
+			case string:
+				encoded, err := jsonText(item, false)
+				return strings.TrimSuffix(encoded, "\n"), err
+			case bool:
+				return strconv.FormatBool(item), nil
+			case int:
+				return strconv.Itoa(item), nil
+			case int64:
+				return strconv.FormatInt(item, 10), nil
+			case float64:
+				return strconv.FormatFloat(item, 'g', -1, 64), nil
+			case []any:
+				parts := make([]string, len(item))
+				for i, child := range item {
+					var err error
+					parts[i], err = encode(child)
+					if err != nil {
+						return "", err
+					}
+				}
+				return "[" + strings.Join(parts, ", ") + "]", nil
+			case map[string]any:
+				keys := make([]string, 0, len(item))
+				for key := range item {
+					keys = append(keys, key)
+				}
+				sort.Strings(keys)
+				parts := make([]string, 0, len(keys))
+				for _, key := range keys {
+					child, err := encode(item[key])
+					if err != nil {
+						return "", err
+					}
+					parts = append(parts, key+" = "+child)
+				}
+				return "{" + strings.Join(parts, ", ") + "}", nil
+			default:
+				return "", fmt.Errorf("unsupported TOML value %T", item)
+			}
+		}
+		return encode(item)
+	}
 	var result strings.Builder
 	write := func(key string, item any) error {
 		encoded, err := jsonText(item, false)
@@ -165,6 +213,40 @@ func encodeTOML(value map[string]any, order []string) (string, error) {
 	}
 	for _, key := range order {
 		if table, ok := value[key].(map[string]any); ok {
+			if key == "hooks" {
+				mode, _ := table["mode"].(string)
+				if mode == "" {
+					mode = "blacklist"
+				}
+				result.WriteString("\n[hooks]\nmode = ")
+				encoded, err := inline(mode)
+				if err != nil {
+					return "", err
+				}
+				result.WriteString(encoded + "\n")
+				if rows, ok := array(table["blacklist"]); ok {
+					for _, rowValue := range rows {
+						row, ok := rowValue.(map[string]any)
+						if !ok {
+							return "", errors.New("hooks.blacklist must contain tables")
+						}
+						result.WriteString("\n[[hooks.blacklist]]\n")
+						keys := make([]string, 0, len(row))
+						for field := range row {
+							keys = append(keys, field)
+						}
+						sort.Strings(keys)
+						for _, field := range keys {
+							encoded, err := inline(row[field])
+							if err != nil {
+								return "", err
+							}
+							result.WriteString(field + " = " + encoded + "\n")
+						}
+					}
+				}
+				continue
+			}
 			result.WriteString("\n[" + key + "]\n")
 			var fields []string
 			if key == "secret_store" {

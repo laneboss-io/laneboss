@@ -1,23 +1,323 @@
 # Changelog
 
-Notable changes to Laneboss are recorded here. The project is pre-release: nothing has been released or
-tagged, so there is one entry, for what exists now.
+Notable changes to Laneboss are recorded here. Interfaces and file formats can still change.
 
-## Unreleased
+## Isolation-first v2 (development, not accepted)
 
-- Protocol 1.3.0 requires reporting refusals verbatim and taking exactly the refusal's own Instead route,
-  otherwise stopping. All brief producers now consume the canonical protocol package. Stores carrying
-  earlier protocol versions retain their recorded bytes and hashes.
-- Literal read-only sed scripts and common reader options are inspected for file effects. In-place sed,
-  script files, execution and write commands, and uncertain forms remain refused. Codex hook trust also
-  refuses unvetted permission profiles, automatic approval review, MCP servers and managed worktree flags.
+- Contract draft.3 consolidates the first feature-lane requests: installed
+  binding/lifetime identity, atomic proof and request receipts, typed helper
+  gate control, retained org/turn/candidate snapshots, outbox completion and
+  deployment coordination. Consumer stubs and composition change together;
+  Linux implementation and independent review remain required.
+- Publication scanning exempts only long-token matches contained in quoted
+  own-module Go import specs. A retained temporary-tree regression workload
+  checks imports against secret-like literals, lookalikes and other rules.
 
-- Removed the unused `scripts/make_charts.py` generator; the chart and its source CSV remain.
+- The command entry uses typed service routes with no legacy state-writer
+  fallback. Common file-backed requests enforce structural JSON validation,
+  intent digests and one explicit matching configuration. Integration record
+  ports preserve observation provenance and durable replay receipts; canonical
+  decisions require human proof or approved L6 D6 changes.
+- R108 selects self-hosted Clef-flash as the default judge immediately; its
+  corpus calibrates thresholds. TypeSafe Jev stays pluggable, with no comparison
+  or two-week shadow requirement before using Clef.
+- Composition checks installed service ownership/artifact pins and requires
+  complete owned RPC registrations plus runtime/watchdog wiring. Missing
+  dependencies and confined record/cloud workers fail explicitly. Unit/E2E,
+  OS/vendor/human verification and independent release reviews remain pending.
 
-- Laneboss is now a single Go binary; the Python launcher and packaging have been removed.
+## 1.0.0 (cancelled draft, retained port history)
+
+The following entries describe the cancelled implementation. They are not v2
+behavior or release evidence; isolation.md §8 and the v2 parity ledger govern
+the port. No publication is authorized by these historical claims.
+
+- New orgs ship a narrow blacklist for raw agent sessions, tmux session control and test-box creation, with Laneboss command routes; existing orgs opt in through an explicit source edit, and protected mail/report refusals name `lane send` or `report`.
+
+### Security
+
+- Vetted org-instance Codex lanes render and admit exactly their configuration's state directory as an extra writable root, rejecting path aliases, Git metadata and additional roots while retaining the org hook's protection against direct state edits.
+
+### Changed
+
+- File owner channels now append under the configuration state directory and only for human-addressed reports; 0.7.0 orgs relying on the old configuration-directory location must move their existing queue to the state directory.
+
+- Org hooks now default to blacklist plus observe. Calls that do not match an
+  org blacklist entry are allowed and recorded, including programs and file
+  effects the hook cannot inspect. Writes to Laneboss's own policy and record
+  files remain deterministic refusals. Existing org blacklist entries and
+  legacy refusal patterns keep their scopes and descriptions; `mode = "strict"`
+  preserves the previous whitelist and fail-closed behavior.
+### Known limits
+- The OS writable-root grant over the state directory does not isolate the store from a same-account process that bypasses the org hook. Per-lane and per-record integrity of reports, decisions, events and other lanes' files is enforced by the org hook plus the authentic laneboss CLI. A child spawned by an allowed command that the hook does not individually gate can still write under the state directory. Launch Codex lanes with a PATH that contains no lane-writable directory; laneboss refuses a Codex lane start, resume or turn whose PATH holds one.
 
 ### Added
 
+- Lane briefs point to `org blacklist list`, which detects the calling lane and shows its effective org and inherited role rules, source paths, alternatives and built-in refusals.
+
+- Per-role blacklist sources with org-wide unique IDs, inherited by every lower level across roles and attributed to their defining `(level, role)` in refusals.
+
+- Layered settings with one typed resolver: org defaults, role/instance settings,
+  and repeatable lane `--set` overrides. `settings get` and `settings list` explain
+  every defining layer and its file/line or start event. Each run retains its
+  values, provenance and exact source bytes; resume and turns resolve new file
+  settings while retaining `--set` and non-account launch choices. `--account`
+  selects one run, so later unnamed turns or resumes can choose by room;
+  `--set account` stays selected. Optional `lane start --instance`
+  selects an instance overlay. Credential-shaped settings fail validation.
+- Tool allow/deny additions use the same resolver and the authenticated lane's
+  recorded snapshot. Denies form a union across layers, and lane environment/tool
+  grants are bounded by the starter's own effective allowlist. Settings files
+  join the protected policy inputs. Missing role settings contribute no layer,
+  and instance names use one grammar across org creation, validation, hooks,
+  caller identity, settings, lane history, ledger selection and lane send senders.
+  Built-CLI rows
+  cover precedence, snapshots, resume, validation and environment names, with a
+  tagged full-inheritance mutant that must fail the deny row.
+- Resume and turn re-derive grant limits from the recorded starter: a human or
+  configured supervisor from the current org, an instance from its current files
+  and tool rules, and a starter lane from its latest recorded run. Under a
+  starter lane, widening and revocation follow that lane's next recorded run.
+  An unresolvable starter supplies no past authority: resume and turn refuse
+  delegated names without independent current owner grants and record the
+  refusal. Re-attach the starter instance, or have the owner grant the names at
+  org, role or instance level, then resume. Own-instance state writes and work
+  without delegated names retain their existing permissions. New adoptions
+  record the actual adopter's identity and apply the same starter check on turns.
+  Final-component settings symlinks are refused by the shared source reader.
+  Instance-name validation also covers lane history, ledger selection and
+  explicit lane send sender IDs.
+- Known limitation: protected settings paths enumerate existing instance
+  directories. A settings file under a future instance directory is not covered
+  by that expansion; malformed new sources can still block org-wide validation.
+  Keep instance-directory creation outside agent write scopes until that
+  residual is fixed. See [Layered settings](docs/configuration.md#layered-settings).
+- Refusal scans observe `shell-substitution-in-text`: double-quoted backticks,
+  scoped dollar expansions in code or text arguments, and expanding interpreter
+  heredocs. Org-owned policy identifies positional prose; `lane refusals` lists
+  observations separately, without an acceptance hold. All store readers accept
+  the independent event ([refusal detection](docs/architecture.md#suspected-workarounds)).
+
+- **The decision guide** ([Guiding agents](docs/decisions.md#guiding-agents)): the org's recorded decisions now steer
+  its agents. Every lane brief and every follow-up or turn message carries the decisions that apply to its project and
+  level in a short headed section. The org hook asks a judge whether a tool call conflicts with a decision and, by
+  `warn_threshold` in `.laneboss/shared/services/guide.toml`, guides by default. An explicitly set `refuse_threshold`
+  enables refusal (quoting the decision and an `Instead:` route); otherwise it allows with `additionalContext`, or
+  says nothing; a call that cannot be scored is warned about by default and refused with `unavailable = "refuse"`, never
+  allowed silently. `laneboss lane send --ask` answers a question that a recorded decision already answers instead of
+  sending it. The guard only ever adds to the org's own rules: a call that they refuse keeps its refusal to the letter,
+  a missing `guide.toml` leaves baseline policy, invalid settings warn by default with `config invalid: FIELD`, and with one that names
+  no judge the hook adds a short warn-only notice listing the decisions. What an agent writes cannot make a call pass as
+  scored: a long call is judged whole in windows (one longer than the windows is reported as not read), a decision that
+  `max_decisions` leaves out and a text that the credential screen withheld are reported as not scored, what a multiple
+  edit writes reaches the judge, and the whole `shared/services` folder (`guide.toml`, `history.toml`, the decision store)
+  is protected from every instance. Read-only tools stay exempt even with invalid guide/history settings; other calls
+  honour a valid explicit `unavailable = "refuse"` setting. Judge-definition protection takes the union of the launcher,
+  resolver, independent org history and recoverable guide/history source names, so overrides and malformed guides
+  cannot discard another candidate. Managed-object inventory is cached within each hook, refreshed in the next.
+  Rows G1 to G26 in `e2e-rows/test_decision_guide.py`, with thirteen mutant cases, await
+  disposable-Linux RED/GREEN evidence.
+
+### Changed
+
+- The org workspace scan no longer flags identifiers or expressions on the right-hand side in source code; quoted literals, including backtick and Python prefixed strings, remain flagged.
+- Org file scans report every flagged line with its absolute line number and rule, including files read through streaming windows.
+- Source-file credential checks recognize raw and interpolated string prefixes and quoted values inside grouping, casts, constructors, await and unary signs.
+
+### Breaking changes
+
+- Lane runners now receive the fixed environment base and only names in resolved
+  `env_allow`. `SHELL`, `USER`, `LOGNAME`, `SSH_AUTH_SOCK`, `LC_*`, vendor homes
+  and proxies no longer arrive through broad inheritance. Declare required names
+  at the org or starter instance and record a new start/resume snapshot; values
+  never belong in settings. See the [1.0.0 migration note](docs/configuration.md#migrating-runners-to-100).
+
+### Fixed
+
+- A refused supervisor briefing keeps its exact refusal as the first stderr
+  line. The no-service R25 notice is printed on stderr only after a successful
+  briefing has been written.
+- **1.0.0 R25 scope:** enforcement ships for Linux identity-service deployments.
+  Without a service, registration stays open with its one-line notice; macOS
+  service registration is not yet supported. Plugin/shell-tool parents retain
+  a refusal naming owner-terminal ticket issuance and the supported direct
+  dedicated-session route. The plugin accepts at most two words (configuration
+  and optional role), retains its exact argument refusals, and accepts no level
+  or ticket-file argument.
+- **Current policy bounds authority:** pending tickets and live supervisor
+  registrations refuse after policy lowers/removes their role, with issued and
+  current scope plus a new-ticket route. Policy is reloaded per check, policy
+  refusals do not consume pending tickets, and a higher policy still grants only
+  the issued level. Persistent binding selection prevents volatile runtime loss
+  from reopening registration. Service rows use a real attested human and separate
+  role controllers. Linux RED/GREEN and mutation controls remain required.
+- Instance identity resolution now honors explicit `org_dir`, so ticket issue
+  and service trust checks read the same protected instance source. Ticket rows
+  model quiet adoption records, exercise the adopted session's first turn and
+  recorded-starter delegation, and emit actual runner output for archive
+  collection. Failures retain bearer-redacted stderr. Linux verification remains
+  required before claiming T1–T8 or their mutants pass.
+- Ticket service selection refuses malformed configuration instead of selecting
+  legacy identity files. Issue and redemption recheck protected org-instance
+  policy through the actual instance file, and registration requires a dedicated
+  parent that leads its OS session. Shared-org fixtures use separate copies so
+  T1–T8 reach their assertions. The lane human-principal gate restores its legacy
+  `refused: Instead:` stderr without changing the exact-stderr row or setup and
+  service recovery formatting. Security canaries await disposable-Linux evidence.
+- **R39 registration scope:** human-issued tickets now fix configuration, level
+  and role at issue. Both issue and ticket-based start require an explicit
+  `--level` and `--role`; there is no level or role default. Registration grants
+  the stored issued level and role even after protected policy changes, refuses
+  level/role mismatches separately, and reports an already-used ticket before
+  either mismatch on replay. The `lbt2` token and digest bind the level; old
+  tickets without an issued level require fresh issuance. CLI identity,
+  WrongLevel, WrongRole and replay rows plus the `ticket-level-unchecked` mutant
+  await disposable-Linux evidence ([contract](docs/TICKET.md)).
+- Resume and turn refuse a settings edit that changes the recorded runner.
+  Launch and account choices are credential-screened, orphan overrides fail
+  snapshot validation, and hook settings/boundary checks share one caller read.
+- Command observations use shared payload construction and contract checks across
+  the event readers. Replay tests consume identical canonical SQLite payload
+  bytes and preserve integer record positions. The org observation-policy loader
+  validates TOML and UTF-8 with the scanner's credential screen, instead of
+  requiring Markdown role headings. CLI rows retain their named count assertion
+  and the mutant driver rejects failures that stop at prerequisites.
+
+- `laneboss judge` and every judge ask now accept `org_dir` in `config.toml`, as every other schema of the launcher
+  already did since the role templates: a configuration bound to an org could not ask a judge at all.
+
+### Known limits
+
+- **Service registration:** no shipped harness can register a supervisor in
+  service mode. Plugin and shell-tool agents are refused; only a custom
+  persistent process that leads its own OS session and invokes the CLI directly
+  can register with the human-issued ticket. No-service registration remains
+  open with its notice, and macOS service registration is unsupported.
+- **Policy changes:** demoting or removing a role refuses its registrations at
+  their next use, but lanes already started under it retain their level and
+  starter and run until they end. Existing supervising lanes can still start
+  lower-level lanes. The human stops affected lanes with
+  `laneboss lane stop --config NAME --lane LANE`. During a service/binding outage
+  that command also refuses; restore the service or stop the supervised
+  processes by their verified PIDs through OS tools. The suspension is not
+  journaled: restoring policy reinstates still-running sessions without a new
+  ticket, and an already-authorized command may finish. Policy refusals and
+  reinstatements also have no service-journal transition audit line; one
+  actor/registration record per transition remains unimplemented.
+  See [ticket limits](docs/TICKET.md).
+
+### Upgrading
+
+- `event append` now refuses launcher-owned run lifecycle records for every caller and directs callers to the
+  lane commands. Identity uses the first recorded start of each run and retains the original report line across
+  resumes. Legacy mail uses the same permission function at send and turn delivery, and the delivered prompt
+  carries its legacy marker. Unnumbered historical lanes cannot start higher-level children. Recorded parent
+  traffic stays unmarked, and Discord legacy reports show their marker.
+- Lanes recorded before 0.7.0 keep communicating with their configuration's supervisors (marked as legacy
+  relationships). An identified supervisor in the same configuration may message a historical lane below its
+  level; missing historical lane levels use the protocol's L3 default for that check. Reports from lanes without
+  a recorded starter reach the configuration's supervisors. Each delivery records `legacy_relationship: true`
+  in events and the dashboard. No starter is adopted automatically. Current lanes keep the strict recorded
+  report line, and unidentified callers and sender impersonation remain refused.
+  Registration remains open: an unidentified process can register a configured role and then use that identity's
+  permissions. Legacy reports still reach all configured supervisors, irrespective of level; org instances can
+  send qualifying legacy mail but are not extra broadcast recipients.
+
+- A lane start or adoption by a caller that nothing identifies (no recorded lane, session or ticket, and not the
+  human at a terminal) is now refused at every level. The first line is `the caller has no recorded identity`, and
+  the `Instead:` line gives both ways out: register with `laneboss start --role ROLE` from the persistent session
+  that will issue the commands, or run the command from a terminal as the human. `laneboss start --role` itself is
+  not refused: it stays open as the headless bootstrap ([docs/configuration.md](docs/configuration.md)).
+- Limits, stated plainly: the caller identity is a record kept in files of the account that runs the launcher, so
+  it does not defend against a process of the same account, which can write those records by hand. And because
+  registration stays open, a process of the same account can register any configured supervisor role (or any org
+  instance) and then start and adopt lanes below that role's level.
+
+## 1.0.0 - Unreleased
+
+### Added
+
+- Configuration-bound, append-only `store.record` history for lane reports, decisions, owner words, ledger rows and
+  receipts, with keyword search, source names, timestamps and SHA-256. Credential-shaped text is refused without
+  echoing it; private settings retain only names and hashes, and binary record input is refused.
+- `lane archive` and `archive daily` preserve reports and log summaries, write a tar and SHA-256 manifest, read both
+  back and require a saved receipt before existing, unforced lane cleanup. Optional `archive_command` uploaders must
+  return the hash read from their stored copy. Dry and real runs share the exact worktree/log removal plan. Dirty,
+  running and unfinished lanes are refused; events, raw records and ledger rows remain, with a launcher-owned Archive
+  ledger. Built-CLI archive rows include a tagged clean-before-read-back mutation ([contract](docs/architecture.md#searchable-records-and-lane-archives)).
+
+### Fixed
+
+- Daily archive reports refused lanes and continues with later lanes, then returns the aggregate nonzero result.
+  Ordinary report commands remain searchable text. Full removal lists live in hashed manifests; all record/event
+  limits are checked before ingest, and verification precedes ledger rows. Raw `output.log` and configured lane
+  records remain available for later history ingest. Repeated archive calls recheck completion under the lifecycle
+  lock, and the Archive ledger grows by append without a total-file size cap.
+- Upload failures halt daily after one attempt, and unchanged verified attempts are re-read and collected without
+  duplicate tar/upload/ingest work. Public records retain a narrow sensitive-assignment backstop without widening
+  shared hook policy. Plain lane clean now archives first; recorded lane supervisors may collect lower-level descendants.
+  Report selection respects lane reuse, unusable-report errors name the file remedy, and run logs open nonblocking.
+- Lane collection requires recorded starter ancestry within four hops as well as a lower level. Missing, off-branch
+  and unclaimed worktrees are retained while reports/logs are archived; real symlink paths still refuse collection.
+  Status lines and Go `:=` remain public under the record backstop. Unavailable old-attempt artifacts refuse only
+  that lane, with a fresh `--to` recovery; reuse excludes target-actor receipts and respects newly required uploads.
+- Collection binds every recorded ancestry hop, including the caller, to start/adoption event order. Reusing a
+  starter or caller name no longer grants authority over the previous life's children; the refusal names the
+  descendant/life requirement. The uppercase-colon backstop exclusion is documented under Known limits.
+- Plain clean preserves pending cleanup ordering when the event store is temporarily read-only: it completes
+  the verified file archive, queues its index and cleanup events durably, and drains them before a reused start.
+
+## 0.7.0 - 2026-10-14
+
+Supervised agent work from installation through dispatch, reporting and review, with portable binaries,
+org-owned roles, decision guidance and a local dashboard.
+
+### Added
+
+- **Prebuilt releases:** deterministic Linux/macOS archives for amd64 and arm64, with `SHA256SUMS` checked before extraction or execution ([release and install guide](docs/install.md)).
+- **claudock-cli by default:** the installer includes checksum-verified claudock-cli 0.1.0, with `--without-claudock` and explicit upgrade controls ([companion installation](docs/install.md)).
+- **Real-agent runner guides:** portable claudock profiles and direct Claude Code/Codex configuration, including session/resume and raw-record coverage requirements ([runner setup](docs/getting-started.md#use-a-real-agent), [claudock setup](docs/claudock.md#portable-cli-setup)).
+- **One-command setup:** `laneboss init` creates a configuration, projects, an L3–L6 org, supervisor instances and rendered hooks, selecting an installed runner without starting it ([quick start](docs/getting-started.md#quick-start)).
+- **Org role library:** embedded executor, reviewer, tester, docs, researcher and supervisor templates, editable responsibilities and exact `(level, role)` driver lists, retained source hashes and start/adopt/resume/turn checks ([roles and migration](docs/org.md#role-library-and-lane-roles)).
+- **Report lines and peers:** start/adopt records retain level and starter, rendered briefs explain reporting and allowed peers, and peer messages require the same recorded level and supervisor ([lane roles and report lines](docs/org.md#role-library-and-lane-roles)).
+- **Upward reports:** `laneboss report` sends a screened file to the recorded supervisor, or to the human without a recorded line, and records outcomes for every installed channel ([report instructions](README.md#commands), [message rules](docs/dashboard.md)).
+- **Caller identity:** kernel process ancestry, recorded headless sessions and terminal tickets identify callers independently of environment labels ([identity setup](docs/configuration.md#supervisorsname)).
+- **Local web dashboard:** human-only, token-authenticated graph, lifecycle, activity, refusals, messages, logs, analytics, decisions and judge views, with English/Traditional Chinese and light/dark themes ([dashboard guide](docs/dashboard.md)).
+- **Discord gateway:** a Node 22+ receive-only service filters registered L5/L6 channels and allowed senders, preserves authority and handles reconnect/resume ([gateway guide](docs/org-discord.md#run-the-gateway)).
+- **Owner decision sheet:** a standalone bilingual `.xlsx` queue for synced folders preserves answers and notes by ID, retains closed questions and supports explicit acknowledgement ([sheet guide](integrations/owner-sheet/README.md)).
+- **Decision history and guidance:** applicable decisions open briefs and turns; TypeSafe-compatible scores warn at 0.5 by default. Explicit `refuse_threshold` opts the org into decision-score refusal; decided questions still return recorded answers ([guidance](docs/decisions.md#guiding-agents)).
+- **TypeSafe job catalog at the hook:** org rendering and `scripts/laneboss_jobs.py` generate matching catalogs from CLI syntax, levels and role sources. Baseline-allowed shell calls use the decision judge and default warning threshold; refusal separately requires `jobs_refuse_threshold` and a recorded managed target. Stale catalogs and unavailable judges retain baseline policy with a notice. Decision and catalog asks share a 30-second deadline, each job ask gets at most ten remaining seconds including log locks, and rendered hooks have a 60-second timeout. HJ1–HJ15 include baseline fixture assertions, high-score ordinary controls and a combined slow-judge/held-lock row; runtime evidence is still owed ([hook jobs](docs/decisions.md#laneboss-jobs-at-the-hook)).
+- **Credential-free walkthrough:** file-backed inputs, output assertions, run/resume review and retained evidence exercise a stand-in runner ([getting started](docs/getting-started.md#run-the-walkthrough-as-an-e2e-check)).
+
+### Changed
+
+- **Installation defaults:** the root installer uses prebuilt binaries without Go; source builds require `--from-source`, including when source-selection variables are set ([install guide](docs/install.md#build-from-source)).
+- **Go launcher:** the installed program is one Go binary with SQLite included; the Python launcher and packaging are removed ([architecture](docs/architecture.md), [source installation](docs/install.md#build-from-source)).
+- **Caller policy:** a caller with no recorded identity is read-only; state changes, including start, resume, adoption, event append and reports, require `laneboss start --config NAME --role ROLE` first from the persistent session, or a controlling terminal identified as the human ([identity setup](docs/configuration.md#supervisorsname)).
+- **Lane dispatch:** every start and adoption needs an org with role templates and an explicit role; resume and turn recheck the recorded role's current driver policy ([role requirements](docs/org.md#role-library-and-lane-roles)).
+- **Shared protocol:** protocol 1.3.0 requires verbatim refusal reporting and only the refusal's own `Instead:` route; earlier recorded protocol bytes and hashes remain intact ([protocol](internal/protocol/protocol.md)).
+- **Hook inspection:** literal reader commands are inspected for file effects, while unsupported write/execute forms and unvetted Codex hook settings are refused ([hook guide](docs/org-hooks.md), [Codex settings](docs/codex-config-vetting.md)).
+
+### Known limits
+
+- **Same-account identity:** identity records prevent accidental misattribution, not forgery by mutually untrusted processes sharing an OS account; use separate accounts or containers for that boundary ([identity setup](docs/configuration.md#supervisorsname), [scope and limits](README.md#what-is-built)).
+- **Headless bootstrap:** a same-account process without a recorded lane/supervisor identity can register any configured supervisor role with `laneboss start --role`; recorded lanes cannot register roles, and recorded supervisors cannot raise their level ([identity setup](docs/configuration.md#supervisorsname)).
+- **External services and runners:** installation does not authenticate a vendor, and the demo is not an authenticated AI-service test. Job-hook stand-in rows establish wiring and bands, not TypeSafe model accuracy; live judging requires owner-configured service access ([runner guide](docs/getting-started.md#use-a-real-agent), [hook jobs](docs/decisions.md#laneboss-jobs-at-the-hook)).
+- **Gateway continuity:** reconnect/resume can replay missed dispatches, but a process restart or an expired Discord session can leave a gap; channel history is not fetched on restart ([gateway limits](docs/org-discord.md#run-the-gateway)).
+- **Review and publication:** runner success is not acceptance, release checksums are not signatures, and the owner sheet needs one writer and an external sync client ([review](docs/getting-started.md#7-review-mark-and-clean), [installation trust](docs/install.md), [sheet workflow](integrations/owner-sheet/README.md)).
+
+## Pre-release development history
+
+The entries below preserve earlier implementations and compatibility notes. They describe development history;
+the 0.7.0 section above is the release summary and the current installation entry point.
+
+### Added
+
+- `laneboss box` starts spot test machines on AWS or GCP, runs a suite and brings
+  the results back. It records launches in its own ledger and waits for evidence
+  that the machine is gone, with commands to inspect and collect old orphans. On GCP
+  a strict fence reads the live machine before every deletion, command and harvest
+  and refuses one whose name prefix or labels are not provably its own.
 - **The generic rules files** (`src/laneboss/protocol/executor.md` and `supervisor.md`), one for executor lanes
   and one for a supervisor's briefing: the rules a lane and its supervisor are held to, shipped with the launcher
   and naming no company, no host and no user, so any configuration installs them as they are written. A lane brief
@@ -529,9 +829,8 @@ tagged, so there is one entry, for what exists now.
     `[supervisors]` entry, chosen with `--role`.
   - `examples/minimal` uses `level = 5`. The launcher names the levels and enforces only the landing authority's
     level; what a level may decide is an organisation's own rule, written in its rules files.
-- The launcher is version 0.6.0-dev4 (it was 0.5.0; each installed build of this work gets the next `-devN`, because
-  an installed version is never replaced), so that an installed copy of this code is never mistaken for 0.5.0; 0.5.0's installer and store grammar accept that string, and the plugin's `version` is the package's. What
-  0.5.0 cannot read of what this version writes, each a trigger of its own (checked against 919af68):
+- The pre-release turn-based lane design changed configuration and event formats relative to 0.5.0.
+  Compatibility review against that version (919af68) identified these separate triggers:
   - **The configuration.** 0.5.0's runner table has no `prompt` and no `stream` key, its placeholder lists lack `session`
     and its table of top-level keys has no `turns`, so it refuses a configuration in which a runner has `prompt` or
     `stream` or uses `{session}` (in `command`, `resume` or a `records` path), or that has the table `[turns]`, when the

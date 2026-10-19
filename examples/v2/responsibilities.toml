@@ -1,0 +1,29 @@
+# Optional policy examples. These are not installed baseline rules.
+# Apply through an exact L6-plus-human D6 change and resolve scopes with policy.
+
+[[blacklist]]
+id = "non-tester-cloud"
+text = "Do not provision cloud test resources under the executor role."
+instead = "Report the test plan to the testing role; use laneboss box with a delegated capability."
+band = "refuse"
+critical = false
+levels = [3]
+roles = ["executor"]
+
+[[blacklist]]
+id = "non-publisher-pr"
+text = "Do not open or publish a pull request under the reviewer role."
+instead = "Report the reviewed diff to the publishing role."
+band = "refuse"
+critical = false
+levels = [3]
+roles = ["reviewer"]
+
+[[blacklist]]
+id = "restricted-plugin"
+text = "Do not invoke the optional example-publisher plugin under the reviewer role."
+instead = "Send the requested publication to the publishing role through the report line."
+band = "refuse"
+critical = false
+levels = [3]
+roles = ["reviewer"]

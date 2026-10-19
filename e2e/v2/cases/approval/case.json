@@ -1,0 +1,22 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "approval",
+  "owner": "lb-v2-approval",
+  "platforms": [
+    "linux"
+  ],
+  "requires": [
+    "service",
+    "identity",
+    "approval",
+    "grants",
+    "templates",
+    "dashboard"
+  ],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": [
+    "ORG-APPROVAL"
+  ]
+}

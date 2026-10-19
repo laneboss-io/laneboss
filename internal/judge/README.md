@@ -17,8 +17,9 @@ after the sent line is durable. The state lock is held only to create a missing 
 
 `LANEBOSS_JUDGE_MAX_EGRESS_BYTES` optionally sets a stricter log cap. It must be an
 integer from 1 through 67108864 bytes; the default is 67108864 bytes. Both the reader
-and writer use the selected bound, and every unfinished ask reserves 1024 bytes for
-its outcome. The setting cannot raise the published 64 MiB limit, and it is removed
+and writer use the selected bound. Each unfinished scalar ask reserves 1024 bytes;
+each guide batch reserves 4096 bytes, persisted as `outcome_reserve` on its sent
+record. Only its matching outcome releases that reserve. The setting cannot raise the published 64 MiB limit, and it is removed
 from the external judge's environment with every other `LANEBOSS_` variable.
 
 Before sending another ask, Go validates every existing nonblank log line and counts

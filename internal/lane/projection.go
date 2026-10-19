@@ -7,6 +7,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/rolepolicy"
+	"laneboss.io/laneboss/internal/settings"
 )
 
 var timeKinds = strings.Fields("planned started ended timeout stuck resumed lost cleaned")
@@ -119,7 +123,27 @@ func validatePayload(kind, lane string, p object) error {
 		return refuse("kind or lane is not a documented lane event")
 	}
 	keys := strings.Fields(fields)
-	for _, pair := range [][2]string{{"lane.started", "session_id"}, {"lane.ended", "prompt"}, {"lane.state", "not_covered"}, {"lane.state", "held"}} {
+	if kind == "lane.started" || kind == "lane.adopted" {
+		if err := settings.ValidateEvent(p); err != nil {
+			return refuse("%s", err)
+		}
+		if _, exists := p["settings"]; exists {
+			keys = append(keys, "settings")
+		}
+		if err := lanesandbox.ValidateEvent(p); err != nil {
+			return refuse("%s", err)
+		}
+		if _, exists := p["runner_sandbox"]; exists {
+			keys = append(keys, "runner_sandbox")
+		}
+		if err := rolepolicy.ValidateEvent(p); err != nil {
+			return refuse("%s", err.Error())
+		}
+		if _, exists := p["role_context"]; exists {
+			keys = append(keys, "role", "role_context")
+		}
+	}
+	for _, pair := range [][2]string{{"lane.started", "session_id"}, {"lane.ended", "prompt"}, {"lane.state", "not_covered"}, {"lane.state", "held"}, {"lane.mailed", "legacy_relationship"}} {
 		if kind == pair[0] {
 			if _, ok = p[pair[1]]; ok {
 				keys = append(keys, pair[1])
@@ -129,6 +153,13 @@ func validatePayload(kind, lane string, p object) error {
 	if kind == "lane.started" {
 		if _, ok = p["mail"]; ok {
 			keys = append(keys, "mail", "idle_seconds")
+		}
+	}
+	if kind == "lane.started" || kind == "lane.adopted" {
+		for _, key := range []string{"level", "level_source", "starter"} {
+			if _, ok := p[key]; ok {
+				keys = append(keys, key)
+			}
 		}
 	}
 	if !exactKeys(p, keys) {
@@ -251,7 +282,7 @@ func validatePayload(kind, lane string, p object) error {
 				if part == nil && (name == "effort" || name == "account") {
 					continue
 				}
-				if !contains(strings.Fields("routing supervisor default previous room"), str(part)) {
+				if !contains(strings.Fields("routing supervisor default previous room settings"), str(part)) {
 					return fail(k)
 				}
 			}
@@ -269,6 +300,9 @@ func validatePayload(kind, lane string, p object) error {
 				return fail(k)
 			}
 		case "refusal":
+			if kind == "lane.workaround_suspected" && v == nil {
+				continue
+			}
 			if !match(`rf-[0-9a-f]{24}`, str(v)) {
 				return fail(k)
 			}
@@ -357,6 +391,10 @@ func unreviewed(found object) []any {
 	open := map[string][]string{}
 	for id, v := range obj(found["suspected"]) {
 		m := obj(v)
+		// Independent command observations do not hold the acceptance gate.
+		if m["refusal"] == nil {
+			continue
+		}
 		for _, path := range stringsOf(m["paths"]) {
 			if !reviewed[id+"\x00"+path] {
 				key := str(m["refusal"]) + "\x00" + path
@@ -461,7 +499,10 @@ func checkTransition(row object, e object) error {
 	if contains([]string{"lane.refusal", "lane.workaround_suspected"}, kind) && (integer(p["run"]) < 1 || integer(p["run"]) > run) {
 		return refuse("a refusal must belong to a started run")
 	}
-	if kind == "lane.workaround_suspected" || kind == "lane.refusal_reviewed" {
+	if kind == "lane.workaround_suspected" && obj(found["suspected"])[str(p["suspicion"])] != nil {
+		return refuse("lane.workaround_suspected: this suspicion is recorded already")
+	}
+	if kind == "lane.workaround_suspected" && p["refusal"] != nil || kind == "lane.refusal_reviewed" {
 		original := obj(obj(found["recorded"])[str(p["refusal"])])
 		if original == nil {
 			return refuse("lane has no recorded refusal")

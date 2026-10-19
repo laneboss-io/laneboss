@@ -93,6 +93,9 @@ func openStore(path string, readonly bool, timeout time.Duration) (*sql.DB, erro
 	}
 	q.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", timeout.Milliseconds()))
 	q.Add("_pragma", "foreign_keys(1)")
+	if !readonly {
+		q.Add("_pragma", "secure_delete(ON)")
+	}
 	u.RawQuery = q.Encode()
 	db, e := sql.Open("sqlite", u.String())
 	if e != nil {

@@ -1,0 +1,49 @@
+--- a/internal/v2/admin/initial_commit.go
++++ b/internal/v2/admin/initial_commit.go
+@@ -9,6 +9,7 @@
+ 
+ 	"laneboss.io/laneboss/internal/v2/api"
+ 	"laneboss.io/laneboss/internal/v2/grants/manifest"
++	"laneboss.io/laneboss/internal/v2/objectread"
+ )
+ 
+ // InitialCommitter is an installed service/store capability, never a public
+@@ -118,10 +119,15 @@
+ 	})
+ }
+ 
++func initialReadObject(ctx context.Context, store api.StateStore, scope api.Scope, ref api.BlobRef) (result []byte, resultErr error) {
+-func initialReadObject(ctx context.Context, store api.StateStore, scope api.Scope, ref api.BlobRef) ([]byte, error) {
+ 	if !initialRef(ref) {
+ 		return nil, initialFailure("object pin")
+ 	}
++	scope, release, err := objectread.Bind(ctx, store, scope)
++	if err != nil {
++		return nil, err
++	}
++	defer release(&resultErr)
+ 	data := make([]byte, 0, int(ref.Bytes))
+ 	for int64(len(data)) < ref.Bytes {
+ 		part, err := store.Blob(ctx, scope, api.BlobReadRequest{ObjectID: ref.ID, Offset: int64(len(data)), Limit: int(min(int64(api.MaxChunkBytes), ref.Bytes-int64(len(data))))})
+@@ -145,8 +151,20 @@
+ 	})
+ }
+ 
++func readInitialState(ctx context.Context, b initialBundle, store api.StateStore, scope api.Scope, marker api.ObjectMetadata, channel *enrollmentChannel) (result InitialReceipt, resultErr error) {
+-func readInitialState(ctx context.Context, b initialBundle, store api.StateStore, scope api.Scope, marker api.ObjectMetadata, channel *enrollmentChannel) (InitialReceipt, error) {
+ 	var empty InitialReceipt
++	scope, release, err := objectread.Bind(ctx, store, scope)
++	if err != nil {
++		return empty, err
++	}
++	defer release(&resultErr)
++	actualMarker, err := store.ObjectMetadata(ctx, scope, marker.Ref.ID)
++	if err != nil {
++		return empty, err
++	}
++	if !reflect.DeepEqual(actualMarker, marker) {
++		return empty, initialFailure("receipt metadata")
++	}
+ 	if marker.Ref.ID != initialReceiptID(scope.Config) || marker.Ref.Class != "manifest" || marker.ACL.Config != scope.Config || marker.Origin != "service" || marker.SourceOperationID == "" || marker.CommittedAt == "" {
+ 		return empty, initialFailure("receipt metadata")
+ 	}

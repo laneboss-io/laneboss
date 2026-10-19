@@ -1,0 +1,1935 @@
+{
+  "status": "Run-8 merged StateStore fixture ports and refusal controls prepared; Linux candidate/red verification remains pending.",
+  "controls": [
+    {
+      "id": "d8-cred-read",
+      "package": "dashboard",
+      "test": "TestDashFixturePorts/cred_read",
+      "diagnostic": "unimplemented fixture returned success or wrong owner",
+      "file": "dashboard/fixture_contract_test.go",
+      "edits": [
+        [
+          "return api.CredentialProjectionRecord{}, api.NotImplemented(\"lb-v2-service\", \"store.CredentialProjection\")",
+          "return api.CredentialProjectionRecord{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "d8-cred-reserve",
+      "package": "dashboard",
+      "test": "TestDashFixturePorts/cred_reserve",
+      "diagnostic": "unimplemented fixture returned success or wrong owner",
+      "file": "dashboard/fixture_contract_test.go",
+      "edits": [
+        [
+          "return api.CredentialProjectionRecord{}, api.NotImplemented(\"lb-v2-service\", \"store.ReserveCredentialProjection\")",
+          "return api.CredentialProjectionRecord{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "d8-cred-commit",
+      "package": "dashboard",
+      "test": "TestDashFixturePorts/cred_commit",
+      "diagnostic": "unimplemented fixture returned success or wrong owner",
+      "file": "dashboard/fixture_contract_test.go",
+      "edits": [
+        [
+          "return api.CredentialProjectionRecord{}, api.NotImplemented(\"lb-v2-service\", \"store.CommitCredentialProjection\")",
+          "return api.CredentialProjectionRecord{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "d8-cred-fence",
+      "package": "dashboard",
+      "test": "TestDashFixturePorts/cred_fence",
+      "diagnostic": "unimplemented fixture returned success or wrong owner",
+      "file": "dashboard/fixture_contract_test.go",
+      "edits": [
+        [
+          "return api.CredentialProjectionRecord{}, api.NotImplemented(\"lb-v2-service\", \"store.FenceCredentialProjection\")",
+          "return api.CredentialProjectionRecord{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "d8-cred-withdraw",
+      "package": "dashboard",
+      "test": "TestDashFixturePorts/cred_withdraw",
+      "diagnostic": "unimplemented fixture returned success or wrong owner",
+      "file": "dashboard/fixture_contract_test.go",
+      "edits": [
+        [
+          "return api.CredentialProjectionRecord{}, api.NotImplemented(\"lb-v2-service\", \"store.CompleteCredentialWithdrawal\")",
+          "return api.CredentialProjectionRecord{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "d8-current-policy",
+      "package": "dashboard",
+      "test": "TestDashFixturePorts/current_policy",
+      "diagnostic": "unimplemented fixture returned success or wrong owner",
+      "file": "dashboard/fixture_contract_test.go",
+      "edits": [
+        [
+          "return api.EffectivePolicy{}, api.NotImplemented(\"lb-v2-service\", \"store.CurrentApprovedPolicy\")",
+          "return api.EffectivePolicy{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "d7-proof-operation",
+      "package": "dashboard",
+      "test": "TestDashProofBinding/lane.stop",
+      "diagnostic": "operation proof rotated the authenticated connection",
+      "file": "dashboard/fixture_runtime_test.go",
+      "edits": [
+        [
+          " && challenge.Method == \"human.session\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d7-proof-session",
+      "package": "dashboard",
+      "test": "TestDashProofBinding/human.session",
+      "diagnostic": "session proof reused the authenticated connection",
+      "file": "dashboard/fixture_runtime_test.go",
+      "edits": [
+        [
+          "challenge.Method == \"human.session\"",
+          "challenge.Method == \"lane.stop\""
+        ]
+      ]
+    },
+    {
+      "id": "d7-tree-static",
+      "package": "dashboard",
+      "test": "TestDashTreeBounds/policy/since",
+      "diagnostic": "filtered tree included an untimed configured row",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if request.LifeID != \"\" || request.Run != 0 || request.Driver != \"\" || request.Since != \"\" || request.Until != \"\" {",
+          "if request.LifeID != \"\" || request.Run != 0 || request.Driver != \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d7-tree-membership",
+      "package": "dashboard",
+      "test": "TestDashTreeBounds/bootstrap/both",
+      "diagnostic": "filtered live lane lost configured membership",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "cfgByID[cn.InstanceID] = true",
+          "cfgByID[cn.InstanceID] = request.Since == \"\" && request.Until == \"\""
+        ]
+      ]
+    },
+    {
+      "id": "d7-resource-time",
+      "package": "dashboard",
+      "test": "TestDashResourceTimes/applied_script",
+      "diagnostic": "resource observation differs from retained history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "current.ObservedAt, observedVersions[resource.Path] = resource.ObservedAt, generation",
+          "observedVersions[resource.Path] = generation"
+        ]
+      ]
+    },
+    {
+      "id": "d7-resource-latest",
+      "package": "dashboard",
+      "test": "TestDashResourceTimes/latest_plugin",
+      "diagnostic": "resource observation differs from retained history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "generation >= observedVersions[resource.Path]",
+          "current.ObservedAt == \"\""
+        ]
+      ]
+    },
+    {
+      "id": "d7-resource-hash",
+      "package": "dashboard",
+      "test": "TestDashResourceTimes/digest_script",
+      "diagnostic": "resource observation differs from retained history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "sameContent := exists && validDigest(current.SHA256) && current.SHA256 == resource.SHA256",
+          "sameContent := exists && validDigest(current.SHA256)"
+        ]
+      ]
+    },
+    {
+      "id": "d7-resource-published",
+      "package": "dashboard",
+      "test": "TestDashResourceTimes/published_script",
+      "diagnostic": "resource observation differs from retained history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "\t\t\tresource.ObservedAt = current.ObservedAt\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d7-resource-default",
+      "package": "dashboard",
+      "test": "TestDashResourceTimes/unknown_script",
+      "diagnostic": "resource observation differs from retained history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "versions[resource.Path], byPath[resource.Path], simulatedPaths[resource.Path] = generation, resource, simulated",
+          "resource.ObservedAt = api.Timestamp(s.now().UTC().Format(\"2006-01-02T15:04:05Z07:00\"))\n\t\tversions[resource.Path], byPath[resource.Path], simulatedPaths[resource.Path] = generation, resource, simulated"
+        ]
+      ]
+    },
+    {
+      "id": "d7-lane-ahead",
+      "package": "dashboard",
+      "test": "TestDashLaneTimes/ahead",
+      "diagnostic": "lane observation differs from actual service history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if lifeID == \"\" || ev.Seq < lastTimeSeq[lifeID] {",
+          "if lifeID == \"\" || ev.Seq < lastTimeSeq[lifeID] || ev.Seq < byID[lifeID].LastSeq {"
+        ]
+      ]
+    },
+    {
+      "id": "d7-lane-payload",
+      "package": "dashboard",
+      "test": "TestDashLaneTimes/prepared",
+      "diagnostic": "lane observation differs from actual service history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "\t\t\t\tobserveLaneTime(le.Lane.LifeID, ev)\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d7-lane-valid",
+      "package": "dashboard",
+      "test": "TestDashLaneTimes/bad_latest",
+      "diagnostic": "lane observation differs from actual service history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if _, err := parseTimestamp(ev.RecordedAt); err != nil {",
+          "if _, err := parseTimestamp(ev.RecordedAt); err != nil && ev.RecordedAt == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d7-lane-order",
+      "package": "dashboard",
+      "test": "TestDashTimeOrder",
+      "diagnostic": "lane observation regressed by event order",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if lifeID == \"\" || ev.Seq < lastTimeSeq[lifeID] {",
+          "if lifeID == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d7-lane-default",
+      "package": "dashboard",
+      "test": "TestDashLaneTimes/unknown",
+      "diagnostic": "lane observation differs from actual service history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "\t\"sort\"\n",
+          "\t\"sort\"\n\t\"time\"\n"
+        ],
+        [
+          "if _, err := parseTimestamp(ev.RecordedAt); err != nil {\n\t\t\treturn\n\t\t}",
+          "if _, err := parseTimestamp(ev.RecordedAt); err != nil {\n\t\t\tlastTime[lifeID] = api.Timestamp(time.Now().UTC().Format(time.RFC3339Nano))\n\t\t\treturn\n\t\t}"
+        ]
+      ]
+    },
+    {
+      "id": "d6-review-principal",
+      "package": "dashboard",
+      "test": "TestHTTPControlsAndSSE",
+      "diagnostic": "fixture review acceptance",
+      "file": "dashboard/fixture_runtime_test.go",
+      "edits": [
+        [
+          "Reviewer: api.Actor{Kind: \"human\", ID: stored.PrincipalID}",
+          "Reviewer: api.Actor{Kind: \"human\", ID: m.httpConnection.principal}"
+        ]
+      ]
+    },
+    {
+      "id": "d6-review-original",
+      "package": "dashboard",
+      "test": "TestHTTPControlsAndSSE/retained",
+      "diagnostic": "fixture review lost original resume bytes",
+      "file": "dashboard/fixture_review_test.go",
+      "edits": [
+        [
+          "m.putBlob(\"fixture-resume-request\", \"launch_request\", scope.Frame.Bytes())",
+          "m.putBlob(\"fixture-resume-request\", \"launch_request\", []byte(\"{}\"))"
+        ]
+      ]
+    },
+    {
+      "id": "d6-review-sources",
+      "package": "dashboard",
+      "test": "TestHTTPControlsAndSSE",
+      "diagnostic": "fixture launch plan",
+      "file": "dashboard/fixture_review_test.go",
+      "edits": [
+        [
+          "api.LaunchSources{ReservationID: r.ID, Project: source, Runtime: runtime}",
+          "api.LaunchSources{ReservationID: r.ID, Project: api.ProjectLaunchSource{}, Runtime: runtime}"
+        ]
+      ]
+    },
+    {
+      "id": "d6-review-recovery",
+      "package": "dashboard",
+      "test": "TestHTTPControlsAndSSE",
+      "diagnostic": "fixture launch recovery",
+      "file": "dashboard/fixture_review_test.go",
+      "edits": [
+        [
+          "Recovery: &api.LaunchRecovery{PlanID: r.ID, OriginalRequest: r.OriginalRequest,",
+          "Recovery: &api.LaunchRecovery{PlanID: r.ID, OriginalRequest: api.BlobRef{},"
+        ]
+      ]
+    },
+    {
+      "id": "d6-review-actor-gate",
+      "package": "dashboard",
+      "test": "TestHTTPControlsAndSSE/reviewer",
+      "diagnostic": "mark accepted a review from the staging principal",
+      "file": "dashboard/fixture_service_test.go",
+      "edits": [
+        [
+          "api.ValidateReviewAcceptance(scope, stored, stored.Evidence.Subject, nil)",
+          "api.ValidateReviewAcceptance(api.Scope{Actor: stored.Reviewer}, stored, stored.Evidence.Subject, nil)"
+        ]
+      ]
+    },
+    {
+      "id": "d6-mark-state",
+      "package": "dashboard",
+      "test": "TestHTTPControlsAndSSE",
+      "diagnostic": "mark accepted failed",
+      "file": "dashboard/dashboard_test.go",
+      "edits": [
+        [
+          "l.State = req.State",
+          "l.State = from"
+        ]
+      ]
+    },
+    {
+      "id": "dash-fixture-capture",
+      "package": "dashboard",
+      "test": "TestDashFixturePorts/capture",
+      "diagnostic": "unimplemented fixture returned success or wrong owner",
+      "file": "dashboard/fixture_contract_test.go",
+      "edits": [
+        [
+          "return api.CaptureAppendReceipt{}, api.NotImplemented(\"lb-v2-service\", \"store.AppendCapture\")",
+          "return api.CaptureAppendReceipt{}, nil"
+        ]
+      ]
+    },
+    {
+      "id": "dash-live-snapshot",
+      "package": "dashboard",
+      "test": "TestDashLiveSnapshot",
+      "diagnostic": "dashboard used a stale read snapshot",
+      "file": "dashboard/validate.go",
+      "edits": [
+        [
+          "if scope.Connection != nil {",
+          "if scope.Connection == nil {"
+        ]
+      ]
+    },
+    {
+      "id": "dash-store-revision",
+      "package": "dashboard",
+      "test": "TestDashStoreRevision",
+      "diagnostic": "dashboard admitted a changed session revision",
+      "file": "dashboard/validate.go",
+      "edits": [
+        [
+          "stored.Revoked || api.ReadAuthorityFromSession(stored) != authority || authority.Generation == 0",
+          "stored.Revoked || authority.Generation == 0"
+        ]
+      ]
+    },
+    {
+      "id": "dash-current-policy",
+      "package": "dashboard",
+      "test": "TestDashCurrentPolicy",
+      "diagnostic": "dashboard replaced current or historical policy",
+      "file": "dashboard/validate.go",
+      "edits": [
+        [
+          "scoped.PolicyGeneration = verified.PolicyGeneration",
+          "scoped.PolicyGeneration = scope.PolicyGeneration"
+        ]
+      ]
+    },
+    {
+      "id": "dash-policy-event",
+      "package": "dashboard",
+      "test": "TestDashPolicyEvent",
+      "diagnostic": "dashboard ignored a committed policy advance",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "case \"lane.policy\":",
+          "case \"dashboard.unused\":"
+        ]
+      ]
+    },
+    {
+      "id": "dash-strict-query",
+      "package": "dashboard",
+      "test": "TestDashStrictBodies",
+      "diagnostic": "dashboard strict decode was bypassed",
+      "file": "dashboard/validate.go",
+      "edits": [
+        [
+          "return api.DecodeObject(raw, target)",
+          "return json.Unmarshal(raw, target)"
+        ]
+      ]
+    },
+    {
+      "id": "dash-http-params",
+      "package": "dashboard",
+      "test": "TestDashHTTPParams",
+      "diagnostic": "HTTP method params escaped strict decode",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "api.DecodeObject(req.Params, reflect.New(spec.Request).Interface())",
+          "json.Unmarshal(req.Params, reflect.New(spec.Request).Interface())"
+        ]
+      ]
+    },
+    {
+      "id": "dash-transport-owner",
+      "package": "dashboard",
+      "test": "TestDashMissingTransport",
+      "diagnostic": "missing human transport lost its owning failure",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "api.NotImplemented(\"lb-v2-service\", \"dashboard installed human transport\")",
+          "api.NotImplemented(\"lb-v2-identity\", \"dashboard installed human transport\")"
+        ]
+      ]
+    },
+    {
+      "id": "dash-service-replay",
+      "package": "dashboard",
+      "test": "TestDashServiceDispatch",
+      "diagnostic": "dashboard bypassed service authorization on replay",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "\t\tresponse, err = s.deps.Transport.Dispatch(dispatchCtx, scope, req)\n\t}\n\tif err != nil {\n\t\twriteErrorResponse(w, req.RequestID, err)\n\t\treturn\n\t}",
+          "\t\tresponse, err = s.deps.Transport.Dispatch(dispatchCtx, scope, req)\n\t}\n\tif err != nil {\n\t\tresponse = api.Response{Protocol: api.Protocol, Schema: api.SchemaVersion, RequestID: req.RequestID, Result: json.RawMessage(\"{}\")}\n\t}"
+        ]
+      ]
+    },
+    {
+      "id": "dash-presence-proof",
+      "package": "dashboard",
+      "test": "TestDashPresence/proof",
+      "diagnostic": "simulated result was reported as human approval",
+      "file": "dashboard/presence.go",
+      "edits": [
+        [
+          "ok && mark {",
+          "ok && !mark {"
+        ]
+      ]
+    },
+    {
+      "id": "dash-presence-array",
+      "package": "dashboard",
+      "test": "TestDashPresence/aggregate",
+      "diagnostic": "simulated result was reported as human approval",
+      "file": "dashboard/presence.go",
+      "edits": [
+        [
+          "case []any:",
+          "case []string:"
+        ]
+      ]
+    },
+    {
+      "id": "dash-human-approval",
+      "package": "dashboard",
+      "test": "TestDashPresence/application",
+      "diagnostic": "simulated result was reported as human approval",
+      "file": "dashboard/presence.go",
+      "edits": [
+        [
+          "w.Header().Set(\"X-Laneboss-Human-Approval\", \"not_proven\")",
+          "w.Header().Set(\"X-Laneboss-Human-Approval\", \"proven\")"
+        ]
+      ]
+    },
+    {
+      "id": "dash-session-mark",
+      "package": "dashboard",
+      "test": "TestDashSessionPresence",
+      "diagnostic": "session reply lost verified simulated presence",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          " || hs.SimulatedPresence != authority.SimulatedPresence",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "dash-start-route",
+      "package": "dashboard",
+      "test": "TestDashControlsOwner/start",
+      "diagnostic": "lane control did not reach its service owner",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "case \"lane.start\", \"lane.input\", \"lane.stop\",",
+          "case \"lane.input\", \"lane.stop\","
+        ]
+      ]
+    },
+    {
+      "id": "dash-input-route",
+      "package": "dashboard",
+      "test": "TestDashControlsOwner/input",
+      "diagnostic": "lane control did not reach its service owner",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "case \"lane.start\", \"lane.input\", \"lane.stop\",",
+          "case \"lane.start\", \"lane.stop\","
+        ]
+      ]
+    },
+    {
+      "id": "dash-capture-refusal",
+      "package": "dashboard",
+      "test": "TestDashCaptureRefusal",
+      "diagnostic": "refused capture disappeared from raw coverage",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "binding.Status != \"refused\"",
+          "binding.Status == \"refused\""
+        ]
+      ]
+    },
+    {
+      "id": "dash-review-coverage",
+      "package": "dashboard",
+      "test": "TestDashReviewCoverage",
+      "diagnostic": "historical review was shown as verified coverage",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "(rr.Coverage != api.CoverageComplete || rr.Evidence == nil ||\n\t\t\t\trr.Evidence.Coverage != api.CoverageComplete || rr.Evidence.Inventory.ToolCoverage != api.CoverageComplete)",
+          "rr.Coverage != api.CoverageComplete"
+        ]
+      ]
+    },
+    {
+      "id": "dash-launch-plan",
+      "package": "dashboard",
+      "test": "TestDashLaunchPlanView",
+      "diagnostic": "launch plan projection changed visibility",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "for _, ev := range events {\n\t\tif ev.Seq > maxSeq {",
+          "for _, ev := range events {\n\t\tif ev.Seq > maxSeq && ev.Kind != \"launch.planned\" {"
+        ]
+      ]
+    },
+    {
+      "id": "dash-e2e-positive",
+      "package": "python",
+      "test": "CaseTests.test_no_positive",
+      "diagnostic": "refusal-only evidence passed an action",
+      "file": "e2e/v2/cases/dashboard/case.py",
+      "edits": [
+        [
+          "return bool(red_denied and positive_ok)",
+          "return bool(red_denied)"
+        ]
+      ]
+    },
+    {
+      "id": "dash-e2e-pending",
+      "package": "python",
+      "test": "CaseTests.test_pending",
+      "diagnostic": "pending operation passed as completed control",
+      "file": "e2e/v2/cases/dashboard/case.py",
+      "edits": [
+        [
+          "result.get(\"status\") != \"succeeded\"",
+          "result.get(\"status\") not in (\"pending\", \"succeeded\")"
+        ]
+      ]
+    },
+    {
+      "id": "dash-e2e-readback",
+      "package": "python",
+      "test": "CaseTests.test_readback",
+      "diagnostic": "stale lane projection passed a control",
+      "file": "e2e/v2/cases/dashboard/case.py",
+      "edits": [
+        [
+          "        and readback.get(\"generation\", 0) > params.get(\"expected_generation\", 0)\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "dash-e2e-presence",
+      "package": "python",
+      "test": "CaseTests.test_presence",
+      "diagnostic": "simulated action passed without presence reporting",
+      "file": "e2e/v2/cases/dashboard/case.py",
+      "edits": [
+        [
+          "if marked_presence([request.get(\"proof\"), result, readback]):",
+          "if False and marked_presence([request.get(\"proof\"), result, readback]):"
+        ]
+      ]
+    },
+    {
+      "id": "dash-web-aggregate",
+      "package": "web",
+      "test": "dashboard_presence",
+      "diagnostic": "aggregate hid simulated presence",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "presenceText(Array.from(viewPresence.values()).some(Boolean))",
+          "presenceText(false)"
+        ]
+      ]
+    },
+    {
+      "id": "dash-web-row",
+      "package": "web",
+      "test": "dashboard_presence",
+      "diagnostic": "dependent resource lost simulated presence",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "presenceText(viewPresence.get(targetId) === true)",
+          "presenceText(false)"
+        ]
+      ]
+    },
+    {
+      "id": "dash-cookie-idle",
+      "package": "dashboard",
+      "test": "TestDashCookieRefresh",
+      "diagnostic": "cached idle deadline expired a live session",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "if !now.Before(bs.expiresAt) {",
+          "if !now.Before(bs.expiresAt) || !now.Before(bs.idleExpiresAt) {"
+        ]
+      ]
+    },
+    {
+      "id": "dash-session-replay",
+      "package": "dashboard",
+      "test": "TestDashSessionReplay",
+      "diagnostic": "retained session reply lost current authority",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "replyIdle.After(currentIdle)",
+          "!replyIdle.Equal(currentIdle)"
+        ]
+      ]
+    },
+    {
+      "id": "dash-sse-dispatch",
+      "package": "dashboard",
+      "test": "TestDashSSEDispatch",
+      "diagnostic": "SSE bypassed the event service dispatcher",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "page, err := poller.PollEvents(ctx, bound, tail)",
+          "page, err := s.deps.Lifecycle.EventTail(ctx, bound, tail)\n\t_ = poller"
+        ]
+      ]
+    },
+    {
+      "id": "d2-decision-doc",
+      "package": "dashboard",
+      "test": "TestDashDecisionJSON",
+      "diagnostic": "decision fixture violated strict document shape",
+      "file": "dashboard/fixture_runtime_test.go",
+      "edits": [
+        [
+          "json.Marshal(doc)",
+          "json.Marshal(map[string]any{\"id\": id, \"text\": doc.Text, \"effective_at\": doc.EffectiveAt, \"binding\": doc.Binding})"
+        ]
+      ]
+    },
+    {
+      "id": "d2-idle-five",
+      "package": "dashboard",
+      "test": "TestDashIdleBoundary",
+      "diagnostic": "passive SSE survived the committed idle deadline",
+      "file": "dashboard/validate.go",
+      "edits": [
+        [
+          "!now.Before(idle)",
+          "now.After(idle)"
+        ]
+      ]
+    },
+    {
+      "id": "d2-absolute-cap",
+      "package": "dashboard",
+      "test": "TestDashAbsoluteCap",
+      "diagnostic": "read session exceeded its thirty-minute absolute cap",
+      "file": "dashboard/validate.go",
+      "edits": [
+        [
+          "defaultMaxSessionTTL  = 30 * time.Minute",
+          "defaultMaxSessionTTL  = 31 * time.Minute"
+        ]
+      ]
+    },
+    {
+      "id": "d2-cookie-refresh",
+      "package": "dashboard",
+      "test": "TestDashSSEIdle/passive",
+      "diagnostic": "passive SSE refreshed durable read authority",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "s.snapshotHumanScope(ctx, clone.Scope)",
+          "s.currentHumanScope(ctx, clone.Scope)"
+        ]
+      ]
+    },
+    {
+      "id": "d2-sse-refresh",
+      "package": "dashboard",
+      "test": "TestDashSSEIdle/passive",
+      "diagnostic": "passive SSE refreshed durable read authority",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "page, err := poller.PollEvents(ctx, bound, tail)",
+          "page, err := func() (api.EventPage, error) {\n\t\tresponse, callErr := s.deps.Transport.Dispatch(ctx, bound, bound.Request)\n\t\tif callErr != nil { return api.EventPage{}, callErr }\n\t\tvar decoded api.EventPage\n\t\tcallErr = api.DecodeObject(response.Result, &decoded)\n\t\treturn decoded, callErr\n\t}()\n\t_ = poller"
+        ]
+      ]
+    },
+    {
+      "id": "d2-poll-owner",
+      "package": "dashboard",
+      "test": "TestDashPollCapability",
+      "diagnostic": "missing non-refreshing poll lost its owning failure",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "api.NotImplemented(\"lb-v2-service\", \"dashboard non-refreshing event liveness\")",
+          "api.NotImplemented(\"lb-v2-identity\", \"dashboard non-refreshing event liveness\")"
+        ]
+      ]
+    },
+    {
+      "id": "d2-canary-control",
+      "package": "dashboard",
+      "test": "TestDashSSERefreshCanary",
+      "diagnostic": "refreshing canary did not demonstrate idle extension",
+      "file": "dashboard/fixture_runtime_test.go",
+      "edits": [
+        [
+          "if !staging {",
+          "if !staging && req.Method != \"event.tail\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d2-web-background",
+      "package": "web",
+      "test": "dashboard_presence",
+      "diagnostic": "SSE background event performed foreground fetch",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "if (frame.event) applyLiveEvent(frame.event);",
+          "if (frame.event) {\n        applyLiveEvent(frame.event);\n        apiGet('/api/v2/lifecycle', 'lifecycle').then(renderLifecycle);\n      }"
+        ]
+      ]
+    },
+    {
+      "id": "d2-web-convergence",
+      "package": "web",
+      "test": "dashboard_presence",
+      "diagnostic": "SSE event did not update lifecycle",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "next.state = payload.to;",
+          "next.state = current.state;"
+        ]
+      ]
+    },
+    {
+      "id": "d2-stream-refresh",
+      "package": "dashboard",
+      "test": "TestDashStreamIdle",
+      "diagnostic": "SSE stream refreshed durable read authority",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "s.snapshotHumanScope(ctx, clone.Scope)",
+          "s.currentHumanScope(ctx, clone.Scope)"
+        ]
+      ]
+    },
+    {
+      "id": "d3-public-claim",
+      "package": "dashboard",
+      "test": "TestDashPublicTransport",
+      "diagnostic": "public transport lost cookie claim across connections",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "s.deps.Transport.Scope(ctx, r, req, raw, claim)",
+          "s.deps.Transport.Scope(ctx, r, req, raw, nil)\n\t_ = claim"
+        ]
+      ]
+    },
+    {
+      "id": "d3-service-event",
+      "package": "dashboard",
+      "test": "TestDashServiceEvent",
+      "diagnostic": "cookie SSE lost the service state event",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "\t\t\tevCopy := ev\n",
+          ""
+        ],
+        [
+          "Event:     &evCopy,",
+          "Event:     nil,"
+        ]
+      ]
+    },
+    {
+      "id": "d3-default-pins",
+      "package": "dashboard",
+      "test": "TestDashUnconfiguredPins",
+      "diagnostic": "unconfigured HTTP pins admitted a request",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "if !configured {",
+          "if !configured { pinnedHost, pinnedOrigin = r.Host, r.Header.Get(\"Origin\") }\n\tif false && !configured {"
+        ]
+      ]
+    },
+    {
+      "id": "d3-https-pins",
+      "package": "dashboard",
+      "test": "TestDashHTTPSPins",
+      "diagnostic": "HTTP pins accepted an insecure or ambiguous origin",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "parsed.Scheme != \"https\"",
+          "(parsed.Scheme != \"https\" && parsed.Scheme != \"http\")"
+        ]
+      ]
+    },
+    {
+      "id": "d3-poll-rate",
+      "package": "dashboard",
+      "test": "TestDashPollRate",
+      "diagnostic": "passive SSE exceeded its bounded polling rate",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "time.NewTicker(ssePollInterval)",
+          "time.NewTicker(50 * time.Millisecond)"
+        ]
+      ]
+    },
+    {
+      "id": "d3-expired-dispatch",
+      "package": "dashboard",
+      "test": "TestDashExpiredDispatch",
+      "diagnostic": "expired proof reached normal mutation dispatch",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "expiredProof = !s.now().Before(expires)",
+          "expiredProof = false\n\t\t\t_ = expires"
+        ]
+      ]
+    },
+    {
+      "id": "d3-expired-replay",
+      "package": "dashboard",
+      "test": "TestDashExpiredReplay",
+      "diagnostic": "completed receipt was lost at proof expiry",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "if expiredProof {",
+          "if expiredProof { writeErrorResponse(w, req.RequestID, forbiddenErr(\"expired proof\", \"Confirm again.\")); return }\n\tif expiredProof {"
+        ]
+      ]
+    },
+    {
+      "id": "d3-token-replace",
+      "package": "dashboard",
+      "test": "TestDashTokenLifecycle/replacement",
+      "diagnostic": "replaced session retained its old cookie token",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "delete(s.sessionsByToken, current.CookieToken)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-session-sweep",
+      "package": "dashboard",
+      "test": "TestDashTokenLifecycle/sweep",
+      "diagnostic": "absolute-expired session or revocation survived sweep",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "s.sweepSessionsLocked(s.now())",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-scope-count",
+      "package": "dashboard",
+      "test": "TestDashScopeCount",
+      "diagnostic": "dashboard view repeated its human scope round trip",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "scope, err := s.httpScope(r.Context(), r, readReq, raw, sess)",
+          "_, _ = s.httpScope(r.Context(), r, readReq, raw, sess)\n\tscope, err := s.httpScope(r.Context(), r, readReq, raw, sess)"
+        ]
+      ]
+    },
+    {
+      "id": "d3-unknown-route",
+      "package": "dashboard",
+      "test": "TestDashUnknownRoute",
+      "diagnostic": "unknown route reached the human transport",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "if !strings.HasPrefix(r.URL.Path, \"/api/v2/\") || method != \"event.tail\" && !isAllowedDashboardRead(method) {",
+          "if false && (!strings.HasPrefix(r.URL.Path, \"/api/v2/\") || method != \"event.tail\" && !isAllowedDashboardRead(method)) {"
+        ]
+      ]
+    },
+    {
+      "id": "d3-cookie-only",
+      "package": "dashboard",
+      "test": "TestDashCookieOnly",
+      "diagnostic": "SSE accepted the cookieless helper path",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "if cookie == \"\" {",
+          "if false && cookie == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d3-cursor-mac",
+      "package": "dashboard",
+      "test": "TestDashCursorMAC",
+      "diagnostic": "SSE cursor did not use HMAC-SHA256",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "mac := hmac.New(sha256.New, h.cursorKey[:])",
+          "mac := sha256.New()\n\t_, _ = mac.Write(h.cursorKey[:])"
+        ]
+      ]
+    },
+    {
+      "id": "d3-cursor-reconnect",
+      "package": "dashboard",
+      "test": "TestDashCursorReconnect",
+      "diagnostic": "EventSource reconnect rejected its original since offset",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "\t\ttailReq.Since = 0 // EventSource reconnect supersedes its original URL offset.\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-filter-progress",
+      "package": "dashboard",
+      "test": "TestDashFilteredPage",
+      "diagnostic": "filtered event page stalled the SSE read position",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "\t\t\tsinceSeq = ev.Seq\n\t\t\tif tailReq.LifeID != \"\" && ev.LifeID != tailReq.LifeID {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tif tailReq.Run != 0 && ev.Run != tailReq.Run {\n\t\t\t\tcontinue\n\t\t\t}\n",
+          "\t\t\tif tailReq.LifeID != \"\" && ev.LifeID != tailReq.LifeID {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tif tailReq.Run != 0 && ev.Run != tailReq.Run {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tsinceSeq = ev.Seq\n"
+        ]
+      ]
+    },
+    {
+      "id": "d3-csp-header",
+      "package": "dashboard",
+      "test": "TestDashCSPHeader",
+      "diagnostic": "HTTP script CSP permitted unpinned inline code",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "webv2.ScriptSources()",
+          "\"'unsafe-inline'\""
+        ]
+      ]
+    },
+    {
+      "id": "d3-script-hash",
+      "package": "webgo",
+      "test": "TestScriptCSP",
+      "diagnostic": "CSP did not authenticate exact embedded script bytes",
+      "file": "web/v2/embed.go",
+      "edits": [
+        [
+          "scriptHash(\"\\n\"+dashboardScript+\"\\n\")",
+          "scriptHash(dashboardScript)"
+        ]
+      ]
+    },
+    {
+      "id": "d3-e2e-terminal",
+      "package": "python",
+      "test": "CaseTests.test_service_event",
+      "diagnostic": "terminal SSE frame passed without a service event",
+      "file": "e2e/v2/cases/dashboard/case.py",
+      "edits": [
+        [
+          "if not isinstance(event, dict):\n            continue",
+          "if not isinstance(event, dict):\n            return True"
+        ]
+      ]
+    },
+    {
+      "id": "d3-e2e-origin",
+      "package": "python",
+      "test": "CaseTests.test_service_event",
+      "diagnostic": "foreign or uncommitted SSE event passed provenance checks",
+      "file": "e2e/v2/cases/dashboard/case.py",
+      "edits": [
+        [
+          "            and event.get(\"origin\") == \"service\"\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-e2e-poll-headers",
+      "package": "python",
+      "test": "CaseTests.test_poll_headers",
+      "diagnostic": "operation poll reused initial presence headers",
+      "file": "e2e/v2/cases/dashboard/case.py",
+      "edits": [
+        [
+          "        response_headers = poll_headers\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-owner",
+      "package": "dashboard",
+      "test": "TestDashEnrollmentOwner",
+      "diagnostic": "unwired browser enrollment lost its protected owner failure",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "api.NotImplemented(\"lb-v2-service\", \"protected browser enrollment ceremony\")",
+          "api.NotImplemented(\"lb-v2-identity\", \"protected browser enrollment ceremony\")"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-pins",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/pins",
+      "diagnostic": "browser ceremony accepted foreign installation pins",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "if challenge.Origin != endpoint.Origin || challenge.RPID != endpoint.RPID || challenge.InstallationGeneration != endpoint.InstallationGeneration {",
+          "if false && (challenge.Origin != endpoint.Origin || challenge.RPID != endpoint.RPID || challenge.InstallationGeneration != endpoint.InstallationGeneration) {"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-options",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/valid",
+      "diagnostic": "browser options lost protected enrollment pins",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "}{challenge.Challenge, endpoint.Origin, endpoint.RPID, userHandle[:]}",
+          "}{challenge.Challenge, endpoint.Origin, \"foreign.example\", userHandle[:]}"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-bytes",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/valid",
+      "diagnostic": "browser registration did not reach identity verification",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "ClientDataJSON: body.ClientDataJSON, AttestationObject: body.AttestationObject",
+          "ClientDataJSON: nil, AttestationObject: body.AttestationObject"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-marker",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/marker",
+      "diagnostic": "browser enrollment admitted unverified or software registration",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "\"crypto/sha256\"",
+          "\"crypto/sha256\"\n\t\"encoding/json\""
+        ],
+        [
+          "api.DecodeObject(raw, &body)",
+          "json.Unmarshal(raw, &body)"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-origin",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/origin",
+      "diagnostic": "browser enrollment admitted unverified or software registration",
+      "file": "identity/enrollment.go",
+      "edits": [
+        [
+          " || client.Origin != challenge.Origin",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-uv",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/uv",
+      "diagnostic": "browser enrollment admitted unverified or software registration",
+      "file": "identity/enrollment.go",
+      "edits": [
+        [
+          "flags&0x45 != 0x45",
+          "flags&0x41 != 0x41"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-aaguid",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/aaguid",
+      "diagnostic": "browser enrollment admitted unverified or software registration",
+      "file": "api/human_presence.go",
+      "edits": [
+        [
+          "c.AAGUID == SoftwareAuthenticatorAAGUID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-cookie",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/cookie",
+      "diagnostic": "browser enrollment admitted unverified or software registration",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "enrollment, ok := s.enrollments[cookie.Value]",
+          "enrollment, ok := s.enrollments[cookie.Value]\n\tif !ok { for _, candidate := range s.enrollments { enrollment, ok = candidate, true; break } }"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-grant",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/grant",
+      "diagnostic": "browser enrollment admitted unverified or software registration",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "ceremony, err := transport.AuthorizeEnrollment(r.Context(), r)",
+          "ceremony, err := transport.AuthorizeEnrollment(r.Context(), r)\n\tif err != nil { if cookie, cookieErr := r.Cookie(\"laneboss_enrollment\"); cookieErr == nil { s.mu.Lock(); ceremony = s.enrollments[cookie.Value].challenge.Ceremony; s.mu.Unlock(); err = nil } }"
+        ]
+      ]
+    },
+    {
+      "id": "d3-enroll-expiry",
+      "package": "identity",
+      "test": "TestBrowserEnrollment/expiry",
+      "diagnostic": "browser enrollment admitted unverified or software registration",
+      "file": "api/enrollment.go",
+      "edits": [
+        [
+          " || !now.Before(expires)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-real-attestation",
+      "package": "web",
+      "test": "dashboard_enrollment",
+      "diagnostic": "browser omitted direct attestation",
+      "file": "web/v2/enrollment.js",
+      "edits": [
+        [
+          "attestation: 'direct'",
+          "attestation: 'none'"
+        ]
+      ]
+    },
+    {
+      "id": "d3-production-software",
+      "package": "api",
+      "test": "TestCredentialBuild",
+      "diagnostic": "production admitted software credential",
+      "file": "api/human_presence.go",
+      "edits": [
+        [
+          "if marked && !softwareAuthenticatorBuild {",
+          "if marked && softwareAuthenticatorBuild {"
+        ]
+      ]
+    },
+    {
+      "id": "d3-browser-rp",
+      "package": "web",
+      "test": "dashboard_enrollment",
+      "diagnostic": "browser replaced the installed RP ID",
+      "file": "web/v2/enrollment.js",
+      "edits": [
+        [
+          "rp: {id: options.rp_id, name: 'Laneboss'}",
+          "rp: {id: 'foreign.example', name: 'Laneboss'}"
+        ]
+      ]
+    },
+    {
+      "id": "d3-browser-origin",
+      "package": "web",
+      "test": "dashboard_enrollment",
+      "diagnostic": "browser accepted a foreign installed origin",
+      "file": "web/v2/enrollment.js",
+      "edits": [
+        [
+          "      if (options.origin !== window.location.origin) throw new Error('The installed enrollment origin does not match this page.');\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d3-browser-refusal",
+      "package": "web",
+      "test": "dashboard_enrollment",
+      "diagnostic": "browser reported refused registration as enrolled",
+      "file": "web/v2/enrollment.js",
+      "edits": [
+        [
+          "if (!response.ok || result.error)",
+          "if (false && (!response.ok || result.error))"
+        ],
+        [
+          "if (receipt.SimulatedPresence || !receipt.CommittedSeq)",
+          "if (false && (receipt.SimulatedPresence || !receipt.CommittedSeq))"
+        ]
+      ]
+    },
+    {
+      "id": "d3-browser-simulated",
+      "package": "web",
+      "test": "dashboard_enrollment",
+      "diagnostic": "browser admitted a simulated enrollment receipt",
+      "file": "web/v2/enrollment.js",
+      "edits": [
+        [
+          "if (receipt.SimulatedPresence || !receipt.CommittedSeq)",
+          "if (false && (receipt.SimulatedPresence || !receipt.CommittedSeq))"
+        ]
+      ]
+    },
+    {
+      "id": "d4-poll-half-second",
+      "package": "dashboard",
+      "test": "TestDashPollRate/follow",
+      "diagnostic": "passive SSE exceeded its bounded polling rate",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "time.NewTicker(ssePollInterval)",
+          "time.NewTicker(500 * time.Millisecond)"
+        ]
+      ]
+    },
+    {
+      "id": "d4-deadline-frame",
+      "package": "dashboard",
+      "test": "TestDashPollRate/initial",
+      "diagnostic": "SSE deadline lost its typed terminal frame",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "code = api.CodeDeadline",
+          "code = api.CodeCancelled"
+        ]
+      ]
+    },
+    {
+      "id": "d5-reauth-stage",
+      "package": "dashboard",
+      "test": "TestDashReauth",
+      "diagnostic": "stale cookie blocked the new authentication ceremony",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "if !staging || asAPIError(err).Code != api.CodeUnauthenticated {",
+          "if true || !staging || asAPIError(err).Code != api.CodeUnauthenticated {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-reauth-cookie",
+      "package": "dashboard",
+      "test": "TestDashReauth",
+      "diagnostic": "stale cookie blocked the new authentication ceremony",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "\t\t\tclearSessionCookie(w, err)\n",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-reauth-forward",
+      "package": "dashboard",
+      "test": "TestDashReauth/idle",
+      "diagnostic": "stale cookie blocked the new authentication ceremony",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "r.Header.Del(\"Cookie\")",
+          "r.Header.Del(\"X-Unused-Cookie\")"
+        ]
+      ]
+    },
+    {
+      "id": "d5-policy-reload",
+      "package": "dashboard",
+      "test": "TestDashPolicyReload",
+      "diagnostic": "policy advance stranded the existing browser session",
+      "file": "dashboard/validate.go",
+      "edits": [
+        [
+          "target.PolicyGeneration = policy.Generation",
+          "target.PolicyGeneration = 0"
+        ]
+      ]
+    },
+    {
+      "id": "d5-history-lane",
+      "package": "dashboard",
+      "test": "TestDashViewHistory",
+      "diagnostic": "run filter hid newer lifecycle history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "// Reconcile current lane state across every run before filtering.\n\tevents, err := s.readAllEvents(ctx, scope, \"\", 0)",
+          "// Reconcile current lane state across every run before filtering.\n\tevents, err := s.readAllEvents(ctx, scope, request.LifeID, request.Run)"
+        ]
+      ]
+    },
+    {
+      "id": "d5-history-raw",
+      "package": "dashboard",
+      "test": "TestDashViewHistory",
+      "diagnostic": "raw filters used stale lane metadata",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "// Reconcile raw-view metadata across every run before filtering.\n\tevents, err := s.readAllEvents(ctx, scope, \"\", 0)",
+          "// Reconcile raw-view metadata across every run before filtering.\n\tevents, err := s.readAllEvents(ctx, scope, request.LifeID, request.Run)"
+        ]
+      ]
+    },
+    {
+      "id": "d5-history-refusal",
+      "package": "dashboard",
+      "test": "TestDashViewHistory",
+      "diagnostic": "refusal filters used stale lane metadata",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "// Resolve refusal metadata across every run before filtering.\n\tevents, err := s.readAllEvents(ctx, scope, \"\", 0)",
+          "// Resolve refusal metadata across every run before filtering.\n\tevents, err := s.readAllEvents(ctx, scope, request.LifeID, request.Run)"
+        ]
+      ]
+    },
+    {
+      "id": "d5-resource-history",
+      "package": "dashboard",
+      "test": "TestDashResourcePresence",
+      "diagnostic": "resource response lost simulated approval provenance",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "// Resolve org approval and worker history before display filters.\n\tevents, err := s.readAllEvents(ctx, scope, \"\", 0)",
+          "// Resolve org approval and worker history before display filters.\n\tevents, err := s.readAllEvents(ctx, scope, request.LifeID, request.Run)"
+        ]
+      ]
+    },
+    {
+      "id": "d5-decision-scope",
+      "package": "dashboard",
+      "test": "TestDashDecisionScope",
+      "diagnostic": "display filters resurrected a superseded decision",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "applyDecisionRec := func(rec api.Record) error {",
+          "applyDecisionRec := func(rec api.Record) error {\n\t\tif request.Run != 0 && rec.Run != request.Run || request.Level != 0 && rec.Actor.Level != request.Level { return nil }"
+        ]
+      ]
+    },
+    {
+      "id": "d5-decision-canonical",
+      "package": "dashboard",
+      "test": "TestDashDecisionCanonical",
+      "diagnostic": "decision view trusted noncanonical projection fields",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if !reflect.DeepEqual(cand, decoded) {",
+          "if false && !reflect.DeepEqual(cand, decoded) {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-pages-mail",
+      "package": "dashboard",
+      "test": "TestDashAllPages/mail",
+      "diagnostic": "mail inventory truncated at a store page",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "all = append(all, page.Messages...)\n\t\tif page.Cursor == \"\" {",
+          "all = append(all, page.Messages...)\n\t\tif true || page.Cursor == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-pages-decisions",
+      "package": "dashboard",
+      "test": "TestDashAllPages/decisions",
+      "diagnostic": "decision inventory truncated at a store page",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "all = append(all, page.Records...)\n\t\tif page.Cursor == \"\" {",
+          "all = append(all, page.Records...)\n\t\tif true || page.Cursor == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-pages-refusals",
+      "package": "dashboard",
+      "test": "TestDashAllPages/refusals",
+      "diagnostic": "refusal inventory truncated at a store page",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "all = append(all, page.Records...)\n\t\tif page.Cursor == \"\" {",
+          "all = append(all, page.Records...)\n\t\tif true || page.Cursor == \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-page-cycle",
+      "package": "dashboard",
+      "test": "TestDashPageCycle",
+      "diagnostic": "repeated store cursor passed as complete inventory",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "return nil, integrityErr(\"mail pagination did not advance\", \"Inspect the pinned store inventory.\")",
+          "return all, nil"
+        ]
+      ]
+    },
+    {
+      "id": "d5-event-cycle",
+      "package": "dashboard",
+      "test": "TestDashEventCycle",
+      "diagnostic": "repeated event page passed as complete history",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if maxSeq <= since {\n\t\t\treturn nil, integrityErr(\"event pagination did not advance\", \"Inspect the pinned event inventory.\")\n\t\t}",
+          "if maxSeq <= since { break }"
+        ]
+      ]
+    },
+    {
+      "id": "d5-resource-snapshot",
+      "package": "dashboard",
+      "test": "TestDashSnapshotWins",
+      "diagnostic": "historical bootstrap regressed current resources",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if generation < versions[resource.Path] {",
+          "if false && generation < versions[resource.Path] {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-mail-snapshot",
+      "package": "dashboard",
+      "test": "TestDashSnapshotWins",
+      "diagnostic": "historical queue event regressed terminal mail",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if status := terminalMail[m.ID]; status != \"\" {",
+          "if status := terminalMail[m.ID]; false && status != \"\" {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-time-tree",
+      "package": "dashboard",
+      "test": "TestDashMissingTimes",
+      "diagnostic": "unknown tree timestamp bypassed time bounds",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if ts := lastTime[l.LifeID]; !matchesTimeBounds(ts, request) {\n\t\t\tcontinue\n\t\t}\n\t\tinstID := api.ID(\"\")",
+          "if ts := lastTime[l.LifeID]; ts != \"\" && !matchesTimeBounds(ts, request) {\n\t\t\tcontinue\n\t\t}\n\t\tinstID := api.ID(\"\")"
+        ]
+      ]
+    },
+    {
+      "id": "d5-time-lane",
+      "package": "dashboard",
+      "test": "TestDashMissingTimes",
+      "diagnostic": "unknown lane timestamp bypassed time bounds",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if ts := lastTime[l.LifeID]; !matchesTimeBounds(ts, request) {\n\t\t\tcontinue\n\t\t}\n\t\tmatched = append(matched, l)",
+          "if ts := lastTime[l.LifeID]; ts != \"\" && !matchesTimeBounds(ts, request) {\n\t\t\tcontinue\n\t\t}\n\t\tmatched = append(matched, l)"
+        ]
+      ]
+    },
+    {
+      "id": "d5-time-mail",
+      "package": "dashboard",
+      "test": "TestDashMissingTimes",
+      "diagnostic": "unknown mail timestamp bypassed time bounds",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if ts := mailTime[id]; !matchesTimeBounds(ts, request) {",
+          "if ts := mailTime[id]; ts != \"\" && !matchesTimeBounds(ts, request) {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-time-resource",
+      "package": "dashboard",
+      "test": "TestDashMissingTimes",
+      "diagnostic": "unknown resource timestamp bypassed time bounds",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if !matchesTimeBounds(r.ObservedAt, request) {",
+          "if r.ObservedAt != \"\" && !matchesTimeBounds(r.ObservedAt, request) {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-change-probe",
+      "package": "dashboard",
+      "test": "TestDashChangeErrors/empty",
+      "diagnostic": "approvals hid an unavailable change store",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "if len(changeOrder) == 0 {",
+          "if false && len(changeOrder) == 0 {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-change-error",
+      "package": "dashboard",
+      "test": "TestDashChangeErrors/known",
+      "diagnostic": "approvals hid an unavailable change store",
+      "file": "dashboard/views.go",
+      "edits": [
+        [
+          "updated, err := s.deps.Store.Change(ctx, scope, cid)\n\t\tif err != nil {\n\t\t\tvar typed *api.Error\n\t\t\tif !errors.As(err, &typed) || typed.Code != api.CodeNotFound {\n\t\t\t\treturn empty, wrapStoreErr(err, \"change store is unavailable\")\n\t\t\t}\n\t\t} else {\n\t\t\tif updated.ID != cid {\n\t\t\t\treturn empty, integrityErr(\"change projection differs from its event\", \"Verify the pinned change inventory.\")\n\t\t\t}\n\t\t\tif updated.Files == nil {\n\t\t\t\tupdated.Files = []api.ResourceDelta{}\n\t\t\t}\n\t\t\tif updated.Derived == nil {\n\t\t\t\tupdated.Derived = []api.ResourceDelta{}\n\t\t\t}\n\t\t\tch = updated\n\t\t}",
+          "updated, err := s.deps.Store.Change(ctx, scope, cid)\n\t\tif err != nil {\n\t\t\tvar typed *api.Error\n\t\t\tif !errors.As(err, &typed) || typed.Code != api.CodeNotFound {\n\t\t\t\t_ = err\n\t\t\t}\n\t\t} else {\n\t\t\tif updated.ID != cid {\n\t\t\t\treturn empty, integrityErr(\"change projection differs from its event\", \"Verify the pinned change inventory.\")\n\t\t\t}\n\t\t\tif updated.Files == nil {\n\t\t\t\tupdated.Files = []api.ResourceDelta{}\n\t\t\t}\n\t\t\tif updated.Derived == nil {\n\t\t\t\tupdated.Derived = []api.ResourceDelta{}\n\t\t\t}\n\t\t\tch = updated\n\t\t}"
+        ]
+      ]
+    },
+    {
+      "id": "d5-resource-presence",
+      "package": "dashboard",
+      "test": "TestDashResourcePresence",
+      "diagnostic": "resource response lost simulated approval provenance",
+      "file": "dashboard/presence.go",
+      "edits": [
+        [
+          "p.simulated = p.simulated || p.paths[resource.Path]",
+          "p.simulated = p.simulated || (false && p.paths[resource.Path])"
+        ]
+      ]
+    },
+    {
+      "id": "d5-presence-required",
+      "package": "dashboard",
+      "test": "TestDashResourceMetadata",
+      "diagnostic": "resource provenance silently failed open",
+      "file": "dashboard/presence.go",
+      "edits": [
+        [
+          "if (method == \"dashboard.plugins\" || method == \"dashboard.resources\") && !p.known {",
+          "if false && (method == \"dashboard.plugins\" || method == \"dashboard.resources\") && !p.known {"
+        ]
+      ]
+    },
+    {
+      "id": "d5-sse-presence",
+      "package": "dashboard",
+      "test": "TestDashResourcePresence",
+      "diagnostic": "SSE lost simulated event provenance",
+      "file": "dashboard/http.go",
+      "edits": [
+        [
+          "presenceHeaders(w, map[string]any{\"simulated_presence\": simulated, \"events\": initialEvents})",
+          "presenceHeaders(w, map[string]any{\"simulated_presence\": simulated})"
+        ]
+      ]
+    },
+    {
+      "id": "d5-enroll-consume",
+      "package": "dashboard",
+      "test": "TestDashEnrollConsume",
+      "diagnostic": "enrollment challenge was forwarded more than once",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "\tif valid {\n\t\tdelete(s.enrollments, cookie.Value)\n\t}",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-enroll-failure",
+      "package": "dashboard",
+      "test": "TestDashEnrollFailure",
+      "diagnostic": "failed enrollment completion remained reusable",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "\tif valid {\n\t\tdelete(s.enrollments, cookie.Value)\n\t}",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-enroll-retry",
+      "package": "dashboard",
+      "test": "TestDashEnrollRetry",
+      "diagnostic": "enrollment retries exhausted browser ceremony capacity",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "\t\tfor existing, entry := range s.enrollments {\n\t\t\tif prior != nil && existing == prior.Value || entry.challenge.Ceremony.CeremonyID == ceremony.CeremonyID {\n\t\t\t\tdelete(s.enrollments, existing)\n\t\t\t}\n\t\t}",
+          "\t\t_ = prior"
+        ]
+      ]
+    },
+    {
+      "id": "d5-receipt-operation",
+      "package": "dashboard",
+      "test": "TestDashEnrollReceipt/operation",
+      "diagnostic": "enrollment accepted an invalid receipt binding",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "!validID(receipt.OperationID) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-receipt-event",
+      "package": "dashboard",
+      "test": "TestDashEnrollReceipt/event",
+      "diagnostic": "enrollment accepted an invalid receipt binding",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "!validID(receipt.EventID) || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-receipt-blob",
+      "package": "dashboard",
+      "test": "TestDashEnrollReceipt/blob",
+      "diagnostic": "enrollment accepted an invalid receipt binding",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "!validID(receipt.Evidence.ID) ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-receipt-class",
+      "package": "dashboard",
+      "test": "TestDashEnrollReceipt/class",
+      "diagnostic": "enrollment accepted an invalid receipt binding",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          " || receipt.Evidence.Class != \"artifact\"",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-receipt-size",
+      "package": "dashboard",
+      "test": "TestDashEnrollReceipt/size",
+      "diagnostic": "enrollment accepted an invalid receipt binding",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          " || receipt.Evidence.Bytes > api.MaxObjectBytes",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-receipt-simulated",
+      "package": "dashboard",
+      "test": "TestDashEnrollReceipt/simulated",
+      "diagnostic": "enrollment accepted an invalid receipt binding",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "receipt.SimulatedPresence || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-enroll-presence",
+      "package": "dashboard",
+      "test": "TestDashEnrollConsume",
+      "diagnostic": "enrollment completion lost presence reporting",
+      "file": "dashboard/enrollment.go",
+      "edits": [
+        [
+          "\"crypto/sha256\"",
+          "\"crypto/sha256\"\n\t\"encoding/json\""
+        ],
+        [
+          "writeJSONResult(w, receipt)",
+          "w.Header().Set(\"Content-Type\", \"application/json; charset=utf-8\")\n\t_ = json.NewEncoder(w).Encode(receipt)"
+        ]
+      ]
+    },
+    {
+      "id": "d5-web-overflow",
+      "package": "web",
+      "test": "dashboard_review",
+      "diagnostic": "SSE overflow disabled browser reconnect",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "if (frame.end && frame.error && ['unauthenticated', 'forbidden', 'deadline', 'deadline_exceeded'].includes(frame.error.code)) es.close();",
+          "if (frame.end) es.close();"
+        ]
+      ]
+    },
+    {
+      "id": "d5-web-stopping",
+      "package": "web",
+      "test": "dashboard_review",
+      "diagnostic": "stopping frame without to was dropped",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "case 'lane.stopping':\n        if (!next) return;\n        next.state = 'stopping';",
+          "case 'lane.stopping':\n        if (!next || !payload.to) return;\n        next.state = 'stopping';"
+        ]
+      ]
+    },
+    {
+      "id": "d5-web-generation",
+      "package": "web",
+      "test": "dashboard_review",
+      "diagnostic": "stopping frame erased the current generation",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "case 'lane.stopping':\n        if (!next) return;\n        next.state = 'stopping';\n        if (typeof payload.generation === 'number' && payload.generation > 0) next.generation = payload.generation;",
+          "case 'lane.stopping':\n        if (!next) return;\n        next.state = 'stopping';\n        next.generation = payload.generation;"
+        ]
+      ]
+    },
+    {
+      "id": "d5-web-policy",
+      "package": "web",
+      "test": "dashboard_review",
+      "diagnostic": "browser admitted a nonadvancing policy event",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          " ||\n            !(payload.to_generation > payload.from_generation) || payload.lane_generation !== next.generation + 1",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "d5-web-empty-id",
+      "package": "web",
+      "test": "dashboard_review",
+      "diagnostic": "empty approval identifier tainted an unrelated resource view",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "(Boolean(value.approval_id) && simulatedApprovals.has(value.approval_id))",
+          "simulatedApprovals.has(value.approval_id)"
+        ],
+        [
+          "approval.simulated_presence && approval.id",
+          "approval.simulated_presence"
+        ],
+        [
+          "receipt.simulated_presence && receipt.approval_id",
+          "receipt.simulated_presence"
+        ]
+      ]
+    },
+    {
+      "id": "d5-web-live-mark",
+      "package": "web",
+      "test": "dashboard_review",
+      "diagnostic": "live service event lost simulated provenance",
+      "file": "web/v2/app.js",
+      "edits": [
+        [
+          "if (hasSimulatedPresence(event)) viewPresence.set('events', true);",
+          "if (false && hasSimulatedPresence(event)) viewPresence.set('events', true);"
+        ],
+        [
+          "provenance.approval && provenance.approval.simulated_presence && provenance.approval.id",
+          "false && provenance.approval && provenance.approval.simulated_presence && provenance.approval.id"
+        ]
+      ]
+    },
+    {
+      "id": "d5-web-refusal",
+      "package": "web",
+      "test": "dashboard_enrollment",
+      "diagnostic": "browser hid the identity attestation refusal",
+      "file": "web/v2/enrollment.js",
+      "edits": [
+        [
+          "? result.error.message :",
+          "? 'The service refused this enrollment.' :"
+        ]
+      ]
+    },
+    {
+      "id": "d5-reauth-label",
+      "package": "dashboard",
+      "test": "TestDashReauthLabels",
+      "diagnostic": "reauthentication accepted a header identity label",
+      "file": "dashboard/transport.go",
+      "edits": [
+        [
+          "if r.Header.Get(header) != \"\" {",
+          "if false && r.Header.Get(header) != \"\" {"
+        ]
+      ]
+    }
+  ]
+}

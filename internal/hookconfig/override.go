@@ -9,7 +9,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-func vetOverride(value string) error {
+func vetOverride(value string, laneSandbox ...bool) error {
 	key, raw, ok := strings.Cut(value, "=")
 	key = strings.TrimFunc(key, unicode.IsSpace)
 	raw = strings.TrimFunc(raw, unicode.IsSpace)
@@ -27,6 +27,9 @@ func vetOverride(value string) error {
 		// Codex retains an unparsable right-hand value as a plain string.
 		document["value"] = raw
 	}
+	if len(laneSandbox) == 1 && laneSandbox[0] && strings.Trim(key, "\"'") == "sandbox_mode" && document["value"] == "danger-full-access" {
+		return nil
+	}
 	for _, part := range strings.Split(key, ".") {
 		part = strings.Trim(part, " \t\"'")
 		var partValue any
@@ -43,8 +46,8 @@ func vetOverride(value string) error {
 	return nil
 }
 
-func vetConfigArgs(args []string) error {
-	if err := vetSandboxArgs(args); err != nil {
+func vetConfigArgs(args []string, laneSandbox ...bool) error {
+	if err := vetSandboxArgs(args, laneSandbox...); err != nil {
 		return err
 	}
 	for i := 0; i < len(args); i++ {
@@ -72,7 +75,7 @@ func vetConfigArgs(args []string) error {
 			if i >= len(args) {
 				return errors.New("Codex command config is incomplete")
 			}
-			if err := vetOverride(args[i]); err != nil {
+			if err := vetOverride(args[i], laneSandbox...); err != nil {
 				return err
 			}
 		} else if strings.HasPrefix(word, "--config=") || (strings.HasPrefix(word, "-c") && len(word) > 2) {
@@ -80,7 +83,7 @@ func vetConfigArgs(args []string) error {
 			if strings.HasPrefix(word, "-c") {
 				value = strings.TrimPrefix(word[2:], "=")
 			}
-			if err := vetOverride(value); err != nil {
+			if err := vetOverride(value, laneSandbox...); err != nil {
 				return err
 			}
 		}

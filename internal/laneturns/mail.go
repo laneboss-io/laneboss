@@ -6,6 +6,12 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"laneboss.io/laneboss/internal/authorship"
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/caller/records"
+	"laneboss.io/laneboss/internal/faults"
+	"laneboss.io/laneboss/internal/report"
 )
 
 func checkMessage(data []byte) error {
@@ -21,15 +27,23 @@ func checkMessage(data []byte) error {
 	return nil
 }
 func sendCommand(c *configuration, a arguments, stdin io.Reader) (object, error) {
-	sender := "supervisor"
+	sender, err := report.Resolve(c.name)
+	if err != nil {
+		return nil, refused("%s\nInstead: report up with laneboss report.", err.Error())
+	}
 	if v, ok := a.values["from"]; ok {
-		if !senderPattern.MatchString(v) {
-			return nil, refused("--from must match [A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+		if authorship.Reserved(v) {
+			return nil, refused("human sender names are reserved for the dashboard; use your lane, instance, supervisor or cli identity\nInstead: omit --from, so the launcher records who you are, or report up with laneboss report.")
+		}
+		if !records.ValidSender(v) {
+			return nil, refused("--from must be a valid sender ID (instance names contain 1 to 96 safe characters)")
 		}
 		if rule, _ := findCredential(v); rule != "" {
 			return nil, refused("--from: looks like a credential (%s); nothing was stored", rule)
 		}
-		sender = v
+		if v != sender.ID {
+			return nil, refused("--from must equal the resolved principal ID; a lane cannot supply another sender\nInstead: omit --from and report up with laneboss report.")
+		}
 	}
 	file, hasFile := a.values["file"]
 	if hasFile && a.source != nil {
@@ -42,7 +56,6 @@ func sendCommand(c *configuration, a arguments, stdin io.Reader) (object, error)
 		return nil, refused("lane send needs the message: give --file PATH, or - to read it from standard input")
 	}
 	var data []byte
-	var err error
 	if hasFile {
 		data, err = c.readExternal(file, "--file", maxBrief)
 	} else {
@@ -54,12 +67,42 @@ func sendCommand(c *configuration, a arguments, stdin io.Reader) (object, error)
 	if err != nil {
 		return nil, err
 	}
+	if a.flags["ask"] {
+		// The message is a question. One that a recorded decision already answers gets the recorded answer back and is
+		// not stored; any other is stored as usual, with the decisions that the judge found related (docs/decisions.md,
+		// "Guiding agents").
+		if err = checkMessage(data); err != nil {
+			return nil, err
+		}
+		if _, err = report.CheckMessage(c.name, sender, a.get("lane")); err != nil {
+			return nil, refused("%s\nInstead: report up with laneboss report.", err.Error())
+		}
+		decided, check := decidedQuestion(c, a, data, sender)
+		if decided != nil {
+			return decided, nil
+		}
+		result, err := sendMessage(c, a.get("lane"), sender, data)
+		if err != nil {
+			return nil, err
+		}
+		result["decided"] = false
+		result["judge"] = check["judge"]
+		result["related"] = check["related"]
+		return result, nil
+	}
 	return sendMessage(c, a.get("lane"), sender, data)
 }
 func mailTarget(s *laneSession, lane string) (object, error) {
-	row, err := s.known(lane)
+	row, err := s.recordedRow(lane)
 	if err != nil {
 		return nil, err
+	}
+	if row == nil {
+		// report.CheckMessage authorizes this observation by name alone.
+		row, err = s.known(lane)
+		if err != nil {
+			return nil, err
+		}
 	}
 	m := obj(row["mail"])
 	if !flag(m["turn_based"]) {
@@ -75,22 +118,40 @@ func mailTarget(s *laneSession, lane string) (object, error) {
 	if err != nil {
 		return nil, err
 	}
+	// An observed runner may explain a refusal, but only a launcher-made run
+	// authorizes mail; no observed metadata reaches the queue.
+	runnerName := str(row["runner"])
+	if previous != nil {
+		runnerName = str(previous["runner"])
+	}
+	r, runnerErr := s.c.runner(runnerName)
+	if runnerErr != nil && previous != nil {
+		return nil, runnerErr
+	}
+	if runnerErr == nil {
+		if problems := turnProblems(runnerName, r); len(problems) > 0 {
+			return nil, refused("lane %s cannot take mail: runner %s cannot take turns, because %s", lane, runnerName, strings.Join(problems, "; "))
+		}
+	}
 	if previous == nil {
-		return nil, refused("lane %s has not run yet, so it takes no mail", lane)
-	}
-	r, err := s.c.runner(str(previous["runner"]))
-	if err != nil {
-		return nil, err
-	}
-	if problems := turnProblems(str(previous["runner"]), r); len(problems) > 0 {
-		return nil, refused("lane %s cannot take mail: runner %s cannot take turns, because %s", lane, str(previous["runner"]), strings.Join(problems, "; "))
+		return nil, refused("lane %s has not run yet, so it takes no mail\nInstead: lane adopt the running session, or lane start --turns", lane)
 	}
 	if queued(m) >= 1000 {
 		return nil, refused("lane %s already has 1000 messages that wait or have returned, the most a lane holds; a turn takes them", lane)
 	}
 	return row, nil
 }
-func sendMessage(c *configuration, lane, sender string, data []byte) (object, error) {
+func sendMessage(c *configuration, lane string, sender caller.Principal, data []byte) (object, error) {
+	return queueMessage(c, lane, sender, data, false)
+}
+
+// attached changes only the displayed sender. The resolved principal remains
+// the authority and event actor, including when a later turn takes the mail.
+func queueMessage(c *configuration, lane string, sender caller.Principal, data []byte, attached bool) (object, error) {
+	legacy, err := checkMailPermission(c, sender, lane, attached)
+	if err != nil {
+		return nil, refused("%s", err.Error())
+	}
 	if err := checkMessage(data); err != nil {
 		return nil, err
 	}
@@ -99,6 +160,9 @@ func sendMessage(c *configuration, lane, sender string, data []byte) (object, er
 		return nil, err
 	}
 	defer s.close()
+	if s.state == nil {
+		return nil, refused("lane %s is not known to configuration %s", lane, c.name)
+	}
 	if _, err = s.known(lane); err != nil {
 		return nil, err
 	}
@@ -118,12 +182,29 @@ func sendMessage(c *configuration, lane, sender string, data []byte) (object, er
 		return nil, err
 	}
 	defer lock.close()
+	// Lifecycle events and pending-event drains use this same lane-directory
+	// lock. Hold it from the life/permission recheck through the durable append,
+	// without taking the global lifecycle lock that a turn or stop may hold.
+	stateLock, err := lockRoot(dir, ".", c.setting("lanes", "lock_wait_seconds", 60), "lane directory lock", false, false)
+	if err != nil {
+		return nil, err
+	}
+	defer stateLock.close()
+	if err = s.drainLocked(lane, dir); err != nil {
+		return nil, err
+	}
 	if err = s.refresh(); err != nil {
 		return nil, err
 	}
 	row, err := mailTarget(s, lane)
 	if err != nil {
 		return nil, err
+	}
+	// Recheck the report line while the state and mail locks hold: a reused
+	// lane must not inherit authorization from its previous legacy life.
+	legacy, err = checkMailPermission(c, sender, lane, attached)
+	if err != nil {
+		return nil, refused("%s", err.Error())
 	}
 	sequence := integer(obj(row["mail"])["last"]) + 1
 	if sequence > 999999999 {
@@ -151,8 +232,28 @@ func sendMessage(c *configuration, lane, sender string, data []byte) (object, er
 	if err = syncDir(maildir); err != nil {
 		return nil, err
 	}
-	payload := object{"sequence": sequence, "sender": sender, "sha256": dig, "bytes": len(data)}
-	event, err := s.append("lane.mailed", lane, "supervisor", payload)
+	payload := object{"sequence": sequence, "sender": sender.ID, "sha256": dig, "bytes": len(data)}
+	if attached {
+		payload["sender"] = "attach"
+	}
+	if legacy {
+		payload["legacy_relationship"] = true
+	}
+	actor := sender.ID
+	if faults.Get("mail-actor-fixed-supervisor").Point != "" {
+		if err = faults.Reach("mail-actor-fixed-supervisor"); err != nil {
+			return nil, err
+		}
+		actor = "supervisor"
+	}
+	env, err := envelope("lane.mailed", lane, actor, payload)
+	if err != nil {
+		return nil, err
+	}
+	// The lane-directory lock is already held and its pending queue drained.
+	// append would try to take that lock again; use the normal transactional
+	// store writer directly, retaining its validation and transition checks.
+	event, err := s.store.append(env)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +270,30 @@ func sendMessage(c *configuration, lane, sender string, data []byte) (object, er
 	result["event"] = eventRef(event)
 	result["waiting"] = queued(obj(row["mail"]))
 	return result, nil
+}
+
+// SendReport delivers report's terminal channel through the same authorization
+// and durable queue as lane send. The principal comes from caller.Resolve.
+func SendReport(configName string, from caller.Principal, lane string, data []byte) error {
+	c, err := loadConfig(configName)
+	if err != nil {
+		return err
+	}
+	_, err = sendMessage(c, lane, from, data)
+	return err
+}
+
+// SendDashboard is for the authenticated dashboard compose handler. It is not
+// exposed as a CLI actor option; the dashboard owns token and Origin checks and
+// starts only for the human, so the message goes through sendMessage as the
+// human principal: sender and actor are "human", and the peer rule lets the
+// human reach a lane at any level.
+func SendDashboard(configName, lane, text string) (map[string]any, error) {
+	c, err := loadConfig(configName)
+	if err != nil {
+		return nil, err
+	}
+	return sendMessage(c, lane, caller.Principal{ID: "human"}, []byte(text))
 }
 func takeMail(s *laneSession, lane string, m object) ([]byte, []any, error) {
 	events, err := s.store.events(lane, "lane.mailed")
@@ -211,11 +336,29 @@ func takeMail(s *laneSession, lane string, m object) ([]byte, []any, error) {
 		if err = checkText(data, fmt.Sprintf("message %d", sequence), "message"); err != nil {
 			return nil, nil, err
 		}
+		from, err := mailedPrincipal(s.c, lane, e)
+		if err != nil {
+			return nil, nil, refused("the carried message's sender cannot be resolved: %s", err)
+		}
+		legacy, err := checkMailPermission(s.c, from, lane, p["sender"] == "attach")
+		if err != nil {
+			return nil, nil, refused("%s", err)
+		}
+		if legacy && faults.Get("legacy-turn-strict-only").Point != "" {
+			if err := faults.Reach("legacy-turn-strict-only"); err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, refused("the strict-only turn policy refused legacy mail")
+		}
 		again := ""
 		if returned[sequence] {
 			again = " (again)"
 		}
-		part := append([]byte(fmt.Sprintf("## Message %d from %s at %s%s\n\n", sequence, str(p["sender"]), str(eventTime(e)), again)), data...)
+		part := []byte(fmt.Sprintf("## Message %d from %s at %s%s\n\n", sequence, str(p["sender"]), str(eventTime(e)), again))
+		if legacy {
+			part = append(part, []byte("legacy_relationship: true\n\n")...)
+		}
+		part = append(part, data...)
 		if !bytes.HasSuffix(data, []byte{'\n'}) {
 			part = append(part, '\n')
 		}

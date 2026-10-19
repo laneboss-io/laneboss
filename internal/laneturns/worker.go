@@ -17,8 +17,13 @@ import (
 	"syscall"
 	"time"
 
+	"laneboss.io/laneboss/internal/caller"
 	"laneboss.io/laneboss/internal/hookconfig"
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/rolepolicy"
 	"laneboss.io/laneboss/internal/selfexec"
+	"laneboss.io/laneboss/internal/settings"
+	"laneboss.io/laneboss/internal/subreaper"
 )
 
 func hangupSignal() syscall.Signal { return syscall.SIGHUP }
@@ -212,6 +217,10 @@ func worker(kind, path string, stdout, stderr io.Writer) int {
 	if kind == "__turn_loop" {
 		return serveLoop(c, str(spec["loop"]), true, false, stdout, stderr)
 	}
+	c, err = c.turnConfiguration(obj(spec["started"]))
+	if err != nil {
+		return reportError(stderr, refused("%s", err))
+	}
 	s, err := openSession(c, false)
 	if err != nil {
 		return reportError(stderr, err)
@@ -294,10 +303,11 @@ func superviseTurn(s *laneSession, spec, record, environment object, watch io.Wr
 	if err = writeRecord(s, lane, record); err != nil {
 		return err
 	}
-	if _, err = s.append("lane.resumed", lane, "laneboss", obj(spec["resumed"])); err != nil {
+	actor := caller.LifecycleActor(str(spec["actor"]))
+	if _, err = s.append("lane.resumed", lane, actor, obj(spec["resumed"])); err != nil {
 		return err
 	}
-	if _, err = s.append("lane.started", lane, "laneboss", started); err != nil {
+	if _, err = s.append("lane.started", lane, actor, started); err != nil {
 		return err
 	}
 	recorder := newRecorder(s, lane, str(spec["launch"]), watch)
@@ -317,7 +327,17 @@ func superviseTurn(s *laneSession, spec, record, environment object, watch io.Wr
 		}
 		defer scanner.stop()
 	}
-	adopted := becomeSubreaper()
+	adopted, err := subreaper.Enable()
+	if err != nil {
+		fmt.Fprintf(watch, "%s run %d: %s; the runner was not started\n", nowStamp(), run, safeDetail(err))
+		record["finished"] = true
+		obj(record["log"])["end"] = offset
+		if err = writeRecord(s, lane, record); err != nil {
+			return err
+		}
+		progress := &promptProgress{length: int64(len(prompt))}
+		return recorder.ending(endedPayload(run, "exit", 125, nil, 0, nil, nil, 0, progress.fate()), started)
+	}
 	argv := texts(spec["argv"])
 	if len(argv) == 0 {
 		return refused("the turn has no runner command")
@@ -328,7 +348,11 @@ func superviseTurn(s *laneSession, spec, record, environment object, watch io.Wr
 	env["LANEBOSS_CONFIG"] = s.c.name
 	env["LANEBOSS_LANE"] = lane
 	env["LANEBOSS_RUN"] = strconv.Itoa(run)
-	cmd.Env = environmentList(env)
+	env["LANEBOSS_PRINCIPAL"] = "supervisor"
+	cmd.Env, err = settings.Environment(environmentList(env), started["settings"], map[string]string{"LANEBOSS_CONFIG": s.c.name, "LANEBOSS_LANE": lane, "LANEBOSS_RUN": strconv.Itoa(run), "LANEBOSS_PRINCIPAL": "supervisor"})
+	if err != nil {
+		return refused("runner environment settings are invalid")
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	cmd.Stdout = hookMonitor.Writer(log, false)
 	cmd.Stderr = hookMonitor.Writer(log, true)
@@ -340,7 +364,8 @@ func superviseTurn(s *laneSession, spec, record, environment object, watch io.Wr
 	cmd.Stdin = readPipe
 	began := time.Now()
 	progress := &promptProgress{length: int64(len(prompt)), done: make(chan struct{})}
-	if err = hookconfig.Revet(argv, cmd.Dir, cmd.Env); err != nil {
+	replaced := started["runner_sandbox"] == lanesandbox.RunnerReplaced
+	if err = hookconfig.Revet(argv, cmd.Dir, cmd.Env, replaced); err != nil {
 		readPipe.Close()
 		writePipe.Close()
 		marker, markerErr := hookconfig.Marker(hookconfig.DefaultPath(argv, cmd.Dir), run, false)
@@ -354,6 +379,38 @@ func superviseTurn(s *laneSession, spec, record, environment object, watch io.Wr
 		}
 		fmt.Fprintf(watch, "%s run %d: hook-config re-vetting refused before runner exec\n", nowStamp(), run)
 		return recorder.ending(endedPayload(run, "hook-config", hookconfig.ExitCode, nil, time.Since(began).Seconds(), nil, nil, 0, nil), started)
+	}
+	if err = rolepolicy.Revet(s.c.home, s.c.data, started, argv, screenRoleSource); err != nil {
+		readPipe.Close()
+		writePipe.Close()
+		record["finished"] = true
+		obj(record["log"])["end"] = offset
+		if recordErr := writeRecord(s, lane, record); recordErr != nil {
+			return recordErr
+		}
+		fmt.Fprintf(watch, "%s run %d: role policy refused before runner exec: %s\n", nowStamp(), run, err.Error())
+		return recorder.ending(endedPayload(run, "exit", 125, nil, time.Since(began).Seconds(), nil, nil, 0, nil), started)
+	}
+	sandbox := lanesandbox.Prepare(cmd, lanesandbox.Configuration{Home: s.c.home, StateHome: s.c.states, Directory: s.c.dir, StateDir: s.c.state, Data: s.c.data})
+	if replaced && !sandbox.Prepared {
+		readPipe.Close()
+		writePipe.Close()
+		record["finished"] = true
+		obj(record["log"])["end"] = offset
+		if err := writeRecord(s, lane, record); err != nil {
+			return err
+		}
+		fmt.Fprintf(watch, "%s run %d: lane sandbox could not be prepared; the full-access runner was not started\n", nowStamp(), run)
+		fmt.Fprintf(watch, "%s run %d: sandbox notice: %s\n", nowStamp(), run, sandbox.Notice)
+		return recorder.ending(endedPayload(run, "exit", 125, nil, time.Since(began).Seconds(), nil, nil, 0, nil), started)
+	}
+	if replaced {
+		fmt.Fprintf(watch, "%s run %d: %s\n", nowStamp(), run, lanesandbox.RunnerReplaced)
+	}
+	if sandbox.Notice != "" {
+		fmt.Fprintf(watch, "%s run %d: sandbox notice: %s\n", nowStamp(), run, sandbox.Notice)
+	} else if sandbox.Prepared {
+		fmt.Fprintf(watch, "%s run %d: runner sandbox prepared: %s (%d protected paths)\n", nowStamp(), run, sandbox.Backend, sandbox.ProtectedCount)
 	}
 	if err = cmd.Start(); err != nil {
 		readPipe.Close()
@@ -379,8 +436,16 @@ func superviseTurn(s *laneSession, spec, record, environment object, watch io.Wr
 		return err
 	}
 	identity := identityOf(*entry)
+	sessionIdentity, err := caller.RunnerSessionIdentity(cmd.Process.Pid)
+	if err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
+		writePipe.Close()
+		return err
+	}
 	known := []object{identity}
 	record["runner"] = identity
+	record["runner_session"] = sessionIdentity
 	record["processes"] = known
 	if err = writeRecord(s, lane, record); err != nil {
 		signalChecked(identity, syscall.SIGKILL)
@@ -611,7 +676,14 @@ func superviseTurn(s *laneSession, spec, record, environment object, watch io.Wr
 	if os.Getenv("LANEBOSS_INSTANCE") != "" {
 		fmt.Fprintf(watch, "%s run %d: automatic organisation history ingest is not yet ported; lane ingest is required\n", nowStamp(), run)
 	}
-	return recorder.ending(end, started)
+	endActor := "laneboss"
+	if reason == "stopped" {
+		endActor, err = caller.StopActor(s.c.callerConfig(), lane, str(spec["launch"]))
+		if err != nil {
+			return refused("%s", err)
+		}
+	}
+	return recorder.ending(end, started, endActor)
 }
 func endedPayload(run int, reason string, code, signal any, duration float64, pattern, classification any, survivors int, prompt object) object {
 	p := object{"run": run, "reason": reason, "exit_code": code, "signal": signal, "duration_seconds": math.Round(math.Max(duration, 0)*1000) / 1000, "pattern": pattern, "classification": classification, "survivors": survivors}

@@ -1,0 +1,375 @@
+# Installed serve case
+
+Run this harness only on the authorized disposable Ubuntu box. Its default
+installed-lifecycle mode now prepares a complete, explicit test-org publication
+before calling the administrator installer. The box suite needs no additional
+arguments for that input:
+
+```sh
+python3 -I -B scripts/v2-serve/run.py \
+  --source /test/candidate \
+  --evidence /test/evidence/lb-v2-serve-lifecycle
+```
+
+The existing root wrapper in e2e/v2/cases/serve/run.sh remains supported. The
+default suite is lifecycle; --suite state uses the same publication and its
+protected Codex launch proposal. These are declared software-authenticator and
+vendor-executable fixtures. Presence remains simulated and human approval
+remains not_proven. This is not an authenticated AI-service test.
+
+The `--item-case grants` preparation includes the late-stop item in
+`stopcont.py`. Its stand-in exits independently; the real Stop effect commits
+the native exit during Observe preflight before StopGate. The item requires
+a saved release fence with `stop arrived after natural exit`, an acknowledged
+Codex refresh, no rotation, and a new L3 child on the same enrolled profile.
+It retains `stop-before.input.json`, `stop-after.input.json`,
+`stop-next.input.json` and `stopcont.json`. A running or uncommitted exit
+continues to require rotation; the admin canaries exercise that twin.
+Queue-supplied trees without Git metadata use `--source-snapshot`; their
+source record says `git_revision: null` and preserves the actual source byte
+inventory. Ordinary checkout runs still require the revision command.
+
+The grants module leaves the initial lifecycle lanes on the ordinary Stop
+path. Before declining the Codex normal-exit hook it verifies the selected
+baseline profile and separate parent/child item profiles. The baseline's
+running Stop must quarantine that canonical seat: `item.grants.reuse` later
+requires its exact refusal. Successful actors use independently enrolled
+canonical logins, sources and accounts. The shared-seat regression must fail
+before Stop. The item-owned child still exits through relay mail and exercises
+the same-seat late-stop/refresh path in `stopcont.py`.
+
+Pass --egress-anthropic to enroll anthropic-api (api.anthropic.com, TCP 443)
+and delegate its issued network grant only to the Claudock lane. Codex keeps
+an empty network grant list. The protected bundle assembler adds the endpoint
+and approved root capability before hashing the publication; run.py binds the
+lane only to the member ID actually returned by grants.root. The stand-in
+executable and credential fixtures are unchanged. This option alone makes no
+authenticated API request and supplies no credential.
+
+The disposable root harness requires iproute2 and nftables, enables IPv4
+forwarding for this run, and restores its previous value after unit shutdown.
+The installed helper requires CAP_NET_ADMIN for veth/routing/nftables and
+CAP_NET_BIND_SERVICE for private TCP/UDP DNS on port 53. A missing tool,
+forwarding prerequisite or rule transaction fails networked launch. Every
+lane retains its own network namespace; no host-network fallback exists.
+
+The helper resolves only the enrolled hostname through its trusted resolver.
+It rejects a complete answer containing any private, reserved, link-local,
+loopback or host address, including mixed safe/unsafe answers. The host's
+interface addresses are inventoried on every refresh. Administrators with
+public NAT addresses absent from interfaces include those addresses in the
+endpoint's host_addresses inventory in their protected launch enrollment.
+Supplied --boot bundles must already contain the reviewed endpoint and root
+capability; the harness verifies their scope and preserves their exact bytes.
+
+The namespace receives a sealed, read-only /etc/resolv.conf pointing to its
+private resolver, which answers only the enrolled name from the current IPv4
+firewall pins. TCP and UDP DNS work; other names are refused, and AAAA queries
+receive no addresses. IPv6 traffic is denied. Both original and post-DNAT
+destinations must match the current pins on TCP 443. Host INPUT, other ports,
+metadata, other public hosts and redirected destinations are denied. Forwarded
+TLS stays encrypted end to end; the application validates the server certificate.
+
+DNS answers are pinned to the lease, with a 30-second DNS TTL and a refresh
+every 30 seconds. A refresh adds resolved addresses with bounded timeouts
+before publishing DNS answers, without flushing existing membership. Prior
+addresses expire through their kernel timeouts. Kernel pins expire within
+70 seconds even after helper failure,
+and never outlive the network grant. Resolution, rebinding or update failure
+withdraws the link and refuses further launch under that lease. There is no
+automatic reopen; a new authorized lease is required. A grantless lane keeps
+an empty private namespace and cannot use these routes or DNS listeners.
+
+## Real Claudock without credentials
+
+On that same authorized disposable Linux box, add --real-claudock to the
+default lifecycle command. It cannot be combined with --suite state or an
+external --boot bundle. The harness clones laneboss-io/claudock-cli at tag
+v0.1.0, builds its actual cmd/claudock, downloads the public Claude installer,
+and installs Claude Code 2.1.296 in a new isolated home. It checks both actual
+version outputs and measures both executable SHA-256 values. No sign-in or
+model request is performed. Public fetches occur only on the box.
+
+The protected runtime adds basename objects claudock and claude, each mode
+0555 and digest-bound. They appear as /runtime/claudock and /runtime/claude.
+The launch bundle selects the real wrapper only for claudock-cli; the Codex
+executable, model and stand-in path stay unchanged. Its existing fixture
+descriptor still describes only stand-in bytes and passes the same strict
+fixture loader. The initial real profile has metadata and an unavailable
+observation, with no credential material. No stand-in authenticator is used
+for that profile. Version, download, object-size and publication failures are
+still failures; the existing 64 MiB object bound is never relaxed.
+
+If provisioning and the earlier installed gates pass, the first expected stop
+is credential selection/acquisition for lane.claudock.start. Keep and report
+the actual first failed check, owner and code; a credential refusal is not a
+passing lifecycle run. The installed runner now measures the exact vendor's
+declared version and credential selection with `--version` and `auth status
+--json`, using a fresh private home and synthetic input. The native helper
+measures its actual bootstrap under the allocated UID and confinement, then
+performs home audits and sealing inside its existing credential-worker boundary.
+Wrong pins, missing bootstrap measurement and foreign home identities still
+refuse. These checks do not establish provider authentication or a model result;
+the separate installed lifecycle and credential-persistence gates still apply.
+
+The runner emits InnerSandbox=off, retaining the full Linux outer validator.
+Its only selectable environment name is the broker's run token name. The
+native helper supplies HOME (private lane home), PATH (fixed system/runtime
+search), TMPDIR (private tmp), XDG_CACHE_HOME, XDG_CONFIG_HOME and
+XDG_STATE_HOME (private lane subdirectories), CLAUDE_CONFIG_DIR (private
+vendor state), CLAUDOCK_CREDENTIAL_STORE (file backend) and
+CLAUDOCK_REGISTRY_DIR (private one-profile registry). None of these path or
+backend values comes from the lane or task-secret injection. Reserved-name
+checks remain in place; fixed helper names are not added to the selectable
+list. XDG_STATE_HOME and both CLAUDOCK path/backend names are additionally
+reserved against task-secret overrides, matching the helper's existing fixed
+environment. Runtime bytes, source revision, installer hash, versions and first-stop
+evidence are retained by the harness; no authenticated AI-service claim follows.
+Combine --real-claudock with --egress-anthropic to enroll the real wrapper and
+the API network grant in the same generated lifecycle run. Executable and
+endpoint pins remain independent; combining the options supplies no credential
+and does not authorize a model request.
+
+Add `--canary-api-key` to that pair only on the authorized disposable Linux
+box. The harness generates a fresh fake `sk-ant-` value in memory and exposes
+it over a private root-authenticated socket to the installed E2E publication
+adapter. The adapter checks the shape, stores and reads it through the actual
+encrypted backend, and enrolls `claude-api-key` through InstallProfile. The
+socket authenticates the installed service UID and executable digest; neither
+argv nor a file carries the fake value. This is declared test material, not
+proof that a provider accepted a key. All real runner compatibility, bootstrap
+and private-home gates still apply and the first refusal stops the run.
+
+The real-key run waits before stop within the smaller admitted/requested wall
+budget, measured from the original start command. Its reads and proof commands
+share that deadline. A service-origin zero-survivor `run.observed` for the exact
+handle permits one `lane.check` to commit the natural `lane.ended` with reason
+`exit`; a refusal propagates without retry. The stop row then exercises the
+documented ended-run path, verifying its exact end ID, sequence and payload,
+and unchanged lane generation/state. It remains a required stop proof.
+
+The fake-key diagnostic reaches `lane.claudock.reply` after the existing stop
+and quiescent rows. Quiescent records the actual terminal zero-survivor
+observation; reply uses that same run and handle without issuing `lane.check`.
+Its 90-second read window begins after quiescence, preserving the full window
+for the owner's reads. The service's containment rule is unchanged.
+It reads the bound capture through the owner's verified human `blob.read`,
+checking each chunk and whole-object hash. The row requires a sealed vendor
+result with `is_error: true` and either `api_error_status: 401` or a structured
+authentication class: `authentication_failed`, `authentication_error`,
+`invalid_api_key` or `token_expired`. A message class must belong to the same
+session and capture; quoted reply text supplies no authentication evidence.
+Other errors fail with a fixed class name. Spend or wrapper exit alone cannot
+pass. Real-key mode requires a successful billed capture result containing the
+heading read from the published fixture README. A stopped, fully drained capture
+without a vendor result fails immediately with `run stopped before its vendor
+result`. The reply read window remains 90 seconds and each command retains its
+full ten-second reservation.
+
+The observed row retains `is_error`, `subtype`, `api_error_status`, `num_turns`,
+`duration_ms` and `error_class`. Reply command output remains private in memory
+with `output_withheld: true`; neither raw reply text nor headers enter that
+row. The reader checks `identity.self` against the enrolled human, and the
+later collection path preserves this verified row. Key canary checks
+and withholding remain unchanged. An unreadable result cannot prove the fake
+key's authentication refusal, and the harness never reads the helper's spool
+as root. A fake-key refusal is not an authenticated AI-service test or a
+successful model result.
+
+After the Claudock lane stops, before collection removes its home, the harness
+reads the native helper's exact home binding and scans the home, Claude config,
+Claudock registry and credential store. Cleanup also scans helper state, all
+three owned unit journals and evidence for the whole key and its last eight
+characters. `api-key-canary.json` reports found/not-found and unreadable counts
+per place, without values. An absent lane measurement or empty journal fails
+the check. Material found in command output is withheld before evidence is
+written and remains an exposure failure. The vendor and its children inherit
+the key; this test measures any persistence by the real binaries. The API's
+refusal of the fake key is expected and does not establish authenticated
+AI-service compatibility. Laneboss runs this real-vendor box measurement.
+
+e2e/v2/cases/serve/PREWALK.md covers all 78 lifecycle catalog rows at source
+179f3f0. Its source-ready/blocked/unknown labels are static analysis, not runtime
+acceptance, and the harness never imports those labels. REQUESTS.md orders the
+remaining owner gaps by first affected step, including current session bootstrap,
+canonical org validation, root profiles, launch admission and archive/collection.
+
+admin.publication now includes a real org.validate using the committed receipt's
+generation. It requires valid=true and an empty problems array. human.session
+keeps its actual receipt checks and additionally requires a fresh CLI session
+prelude followed by identity.self on that same socket. A separately returned
+session ID is never reused as authority. These are additional measured gates;
+neither a cached session receipt nor a static prewalk row credits success.
+
+## Input preparation and authority
+
+provision.stage copies the reviewed sources and fixtures to protected root-owned
+staging and archives their exact bytes. During boot.inputs, run.py builds the
+standalone scripts/v2-serve/bundle assembler from that staged checkout. It runs
+the assembler with a protected input file containing the actual runtime bytes,
+executable pins, shipped sources, judge pins and a current one-hour expiry. The
+assembler is not linked into Laneboss, has no publication client or state writer,
+and is never invoked by the installed service. Generation happens in the harness
+before installation.
+
+The test org contains:
+
+* The unchanged shipped org prompt, org driver catalog and twelve-entry workflow
+  pack from templates/v2/org, plus the shipped L5 supervisor prompt/driver pair.
+  All twelve refusal rules apply to the only enabled role, L5 supervisor. There
+  are no skip entries, profile exclusions or capture-refusal approval.
+* An effective policy whose typed JSON hash is computed from its actual bytes,
+  using the real boot judge pins. The fixture judge is an unavailable reserved
+  local endpoint; it does not supply a model result or inference approval.
+* One project tree containing fixtures/README.md. Its launch base and data grant
+  select the exact tree manifest digest and history_scope=tree.
+* The actual runtime manifest and content, both declared driver enrollments and
+  the actual executable/version pins built by this case. The fixture task has
+  its own task-class object; the runtime's task artifact remains a separate pin.
+* One rw/copy tree at /work/main and two unpaid, nondelegating serve-fixture
+  profile selectors, one per driver. The root manifest has empty resource,
+  secret, network and channel arrays. These selectors contain no credential and
+  are enrolled by the dedicated fixture build's native administrator publication
+  through the real secrets.InstallProfile method. Its generated service evidence
+  explicitly records unavailable vendor room. The harness never writes those
+  encrypted records, and enrollment creates no credential material or lease.
+* A zero-spend budget: wall 60 seconds, CPU 30 seconds, memory 256 MiB, disk
+  32 MiB and at most 16 processes. Lane proposals initially have no issued grant
+  IDs or root ticket.
+
+The assembler calls the existing policy.ValidateInitial, templates.Resolve,
+templates.SeedRules, templates.ValidateInitialSources,
+api.ValidateLaunchEnrollment, manifest.Object, manifest.Root and
+manifest.RootInput validators. It returns their typed failures. It calculates
+object hashes and lengths from the exact bytes; no expected digest is used as a
+successful result. The installer still runs its real --validate-initial mode
+before staging the publication. Neither product defaults nor relaxed validators
+are introduced by the harness.
+
+New initial inputs live below a fresh root-owned 0700 directory under protected
+/opt. Every initial descriptor and object is a single-link root-owned 0444
+regular file, read back with no-follow metadata checks, exact hashes and byte
+counts. The boot, release and assembler input files are 0600. The native key
+stays in private provisioning/installed storage and is excluded from evidence.
+The default boot supplies the actual initial_publication, initial_objects and
+launch_enrollment references/files to the administrator installer.
+
+Evidence retains source.tar, source-files.json, harness.tar, the assembler binary,
+bundle-input.json.input, actual command stdout/stderr/exit records, all public
+initial-inputs bytes, launch-enrollment.json.input and native input path metadata.
+The exact root request and bound launch request are also retained when used.
+Protected staging remains on the disposable box until it is collected.
+
+## Publication, session and first launch gates
+
+The initial-bundle path on base a282b26 exposed an installer variable collision:
+initial-object iteration replaced the supplied native-key bytes with an object
+ID before the private key write. The installer now keeps those bytes in a
+separate native_key binding. All administrator input, immutable file, digest and
+pairing checks remain required. REQUESTS.md in the serve E2E case records exact
+source references and the remaining administrator version question.
+
+Installation must read back the supplied pins and report publication=pending.
+The harness also reads the actual protected initial-validation exit and stdout
+under the install evidence. A success must have exit zero, valid=true and the
+exact supplied initial manifest/ID; missing, malformed or mismatched evidence
+fails installation. Installer failure remains failure even when its earlier
+native validation succeeded. A typed native refusal is retained without reading
+argv or native-key contents, and no failed install is retried.
+After genuine enrollment, the harness calls the real native publication path
+twice and requires the same durable receipt, exact operation/event/sequence and
+generation. The publisher verifies current policy, snapshot, objects and marker
+bytes. Human-session reads independently verify the marker, initial descriptor,
+policy bytes and completed operation. A receipt alone never passes this gate.
+
+Those reads invoke the existing human.session.challenge/confirm path. The
+software device signs the actual operation-bound challenges; only the installed
+identity service can issue proofs and sessions. A challenge refusal stops all
+dependent reads and lanes, with the real owner/code and raw evidence retained.
+
+Green11 passed installation and enrollment, then reached a publication-handler
+deadline. The service adapter now separates ten seconds of work from an eleven-
+second transport lifetime, keeping its bounded refusal-write window after
+request cancellation; parent shutdown still closes the transport. The helper's
+earlier deadline was repaired by administrator d4fix17's bounded nested relay
+contract. Green13 returned the service-owned timeout through that relay. The
+remaining publication cost and next-step gaps are in REQUESTS.md; no publication
+pass is inferred from error delivery.
+
+Each failing step retains both owned unit journals before unit shutdown, using
+exact _SYSTEMD_UNIT or UNIT matches for each installed unit. There is one query per
+unit, without a glob or retry. Raw MESSAGE lines, stderr, actual exit, hash,
+line count and command elapsed milliseconds are retained. Empty and failed
+queries are explicit. Journal context is linked to the first failing step and
+printed as separate journal_verdict lines; it cannot replace the original RPC
+owner/code. Journal errors still fail the aggregate report. Publication-input
+object and byte counts are retained to support the deadline investigation.
+
+Initial publication additionally writes JSON journal records with exactly stage
+and elapsed_ms. Fixed initial_publish stages cover the native channel, protected
+reads, complete bundle load/validation, object hashing, policy/templates, the
+second validation, plan, seal, store commit, each read-back object, full read-back
+and total. These are monotonic wall durations. Parent stages include children;
+do not sum nested durations or interpret them as per-stage CPU measurements.
+Repeated protected_read/read_object records reveal costly work without printing
+any input value or object selector. A final total closes each serialized fixture
+attempt. Timings do not authorize work or change the ten-second service budget.
+
+Journal capture reads back the saved stdout bytes before accepting collection.
+Parsed timing records retain their exact journal line, stdout location and hash
+through cleanup and first-failure restoration. The summary emits initial_timing
+lines even on a successful run. Unknown stages, extra fields, invalid durations
+or missing required timing fail collection; no aggregate pass can omit timing
+evidence. A journal-write error also remains an actual publication error.
+REQUESTS.md records the quadratic whole-object read/hash gap for the store owner;
+stage timing must establish whether that stage was reached before attributing
+the measured timeout to it. No installed performance or publication pass is
+claimed from source inspection.
+
+After a genuine grants.root result, the default harness checks that its actual
+profile and data records exactly match the approved fixture scope. It fills the
+launch proposal only with the returned member IDs. It then obtains a separately
+issued ticket and calls the real lane.start. It never invents a grant, ticket,
+publication receipt or lane success. Lifecycle still requires the actual
+operation, process, status, events and collection read-backs.
+
+The current source has unresolved product boundaries; no installed pass is
+claimed by assembling these inputs:
+
+* Integrate fix 13 resolves the kind rule: Sources stay semantic, Derived uses
+  file and contains real generated output, and manifest-tree entries use file.
+  Full templates validation and the initial empty-Derived gate still need to
+  adopt that coordinated rule. The fixture preserves semantic source bytes;
+  templates.Resolve is not a replacement for full installed org.validate.
+* Full org validation requests the current snapshot without selectors, whereas
+  the store currently requires explicit org/generation selectors. Source,
+  TemplateSources and BriefingInput remain service-owned unimplemented ports.
+* grants.root currently returns lb-v2-grants not_implemented for nonempty profile
+  selections pending a protected enrollment resolver. The fixture manifest is
+  inert input, not a replacement for that resolver. Root/member profile IDs also
+  need the grants/lifecycle contract to agree with reservation-derived IDs.
+* Native credential/endpoint/worker projections and later lifecycle, capture and
+  recovery ports still require their owners' real implementations and Linux
+  controls. Unreached assertions remain FAIL/unrun.
+
+## Explicit external bundle
+
+The stand-in fixture retains its request files, partial prompt and transcript
+at /home/lane/serve-state in the lane's private home mount. Its enrollment
+descriptor pins that exact output path, and recorded CLI request paths are
+absolute within the same home. Normal completion, cancellation and hard kill
+therefore leave the project worktree untouched by fixture scratch. The normal
+archive retains private-home evidence. No worktree ignore rule or dirty-work
+cleanup exception is installed; real agent work remains subject to the same
+retention gate.
+
+--config and --boot remain a paired alternative. --boot names a complete protected
+administrator boot bundle as documented in scripts/v2-admin/README.md. Its exact
+publication, source and runtime bytes are consumed unchanged, and must match the
+actual trimpath builds, toolchain, dependencies and tags. In this mode, provide
+--root-grants and --lane-inputs for lifecycle, or --root-grants and --launch-request
+for state. The harness never repairs a rejected input or repins it to pass.
+
+Default installed mode requires no extra run.py arguments. Runtime acceptance of
+the new bundle, human.session.challenge and first lane.start must be measured by
+the next authorized Linux box run.

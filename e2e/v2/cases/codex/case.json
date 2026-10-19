@@ -1,0 +1,15 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "codex",
+  "owner": "lb-v2-codex",
+  "platforms": ["linux"],
+  "requires": ["secrets", "linux", "lifecycle", "service", "identity"],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": true,
+  "assertion_ids": [
+    "CODEX-TWO-TURN", "CODEX-CONCURRENT", "CODEX-REFRESH",
+    "CODEX-OUTER", "CODEX-SESSION", "CODEX-HELPER",
+    "CODEX-AUTH", "CODEX-COVERAGE", "CODEX-SUPERVISORS"
+  ]
+}

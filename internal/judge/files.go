@@ -2,14 +2,18 @@ package judge
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"laneboss.io/laneboss/internal/contextio"
 	"laneboss.io/laneboss/internal/faults"
+	"laneboss.io/laneboss/internal/guardtime"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 const markerName = ".laneboss-state"
@@ -188,6 +192,13 @@ func (d *directory) childDirectory(name string, create bool) (*directory, error)
 	return &directory{root: r, file: f, real: filepath.Join(d.real, name), logLimit: d.logLimit}, nil
 }
 func (d *directory) readFile(name, what string, limit int) ([]byte, error) {
+	return d.readFileContext(context.Background(), name, what, limit)
+}
+
+func (d *directory) readFileContext(ctx context.Context, name, what string, limit int) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	named, err := d.root.Lstat(name)
 	if err != nil {
 		return nil, refused(what + ": cannot inspect the file (" + safeOSMessage(err) + ")")
@@ -215,8 +226,11 @@ func (d *directory) readFile(name, what string, limit int) ([]byte, error) {
 	if info.Size() > int64(limit) {
 		return nil, refused(fmt.Sprintf("%s: larger than %d bytes", what, limit))
 	}
-	data, err := io.ReadAll(io.LimitReader(f, int64(limit)+1))
+	data, err := io.ReadAll(&contextio.Reader{Context: ctx, Source: io.LimitReader(f, int64(limit)+1)})
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, refused(what + ": cannot read the file (" + safeOSMessage(err) + ")")
 	}
 	if len(data) > limit {
@@ -225,9 +239,43 @@ func (d *directory) readFile(name, what string, limit int) ([]byte, error) {
 	return data, nil
 }
 
-func (d *directory) lock() (func(), error) {
-	if err := syscall.Flock(int(d.file.Fd()), syscall.LOCK_EX); err == nil {
+func lockUntil(ctx context.Context, fd int) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := syscall.Flock(fd, syscall.LOCK_EX|syscall.LOCK_NB)
+		if err == nil {
+			return nil
+		}
+		if err == syscall.EINTR {
+			continue
+		}
+		if err != syscall.EWOULDBLOCK && err != syscall.EAGAIN {
+			return err
+		}
+		timer := time.NewTimer(20 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func (d *directory) lock(parents ...context.Context) (func(), error) {
+	parent := context.Background()
+	if len(parents) > 0 {
+		parent = parents[0]
+	}
+	ctx, cancel := context.WithTimeout(parent, guardtime.Timeout)
+	defer cancel()
+	if err := lockUntil(ctx, int(d.file.Fd())); err == nil {
 		return func() { syscall.Flock(int(d.file.Fd()), syscall.LOCK_UN) }, nil
+	} else if err != syscall.EOPNOTSUPP && err != syscall.ENOSYS && err != syscall.EINVAL {
+		// A held lock is never bypassed by taking a different lock file.
+		return nil, err
 	}
 	if info, err := d.root.Lstat(".lock"); err == nil {
 		if !info.Mode().IsRegular() {
@@ -245,7 +293,7 @@ func (d *directory) lock() (func(), error) {
 		f.Close()
 		return nil, refused("the lock is not a regular file")
 	}
-	if err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	if err = lockUntil(ctx, int(f.Fd())); err != nil {
 		f.Close()
 		return nil, err
 	}
@@ -331,7 +379,7 @@ func validMarker(m map[string]any) bool {
 	store, ok := m["store"].(map[string]any)
 	return ok && exactKeys(store, "id created_at") && matchesString(store["id"], askPattern) && matchesString(store["created_at"], recordedPattern)
 }
-func (d *directory) recordOwner(c *configuration) error {
+func (d *directory) recordOwner(c *configuration, parents ...context.Context) error {
 	m, present, err := d.marker()
 	if err != nil {
 		return err
@@ -342,7 +390,7 @@ func (d *directory) recordOwner(c *configuration) error {
 		}
 		return nil
 	}
-	unlock, err := d.lock()
+	unlock, err := d.lock(parents...)
 	if err != nil {
 		return egressProblem(nothingAsked + ": the state directory cannot record its owner (" + safeFailure(err) + ")")
 	}
@@ -365,12 +413,19 @@ func (d *directory) recordOwner(c *configuration) error {
 }
 
 func (d *directory) readLog() ([]byte, error) {
+	return d.readLogContext(context.Background())
+}
+
+func (d *directory) readLogContext(ctx context.Context) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if _, err := d.root.Lstat("egress.jsonl"); os.IsNotExist(err) {
 		return []byte{}, nil
 	} else if err != nil {
 		return nil, err
 	}
-	return d.readFile("egress.jsonl", "the egress log", d.egressLimit())
+	return d.readFileContext(ctx, "egress.jsonl", "the egress log", d.egressLimit())
 }
 
 // Operators can choose a stricter cap. The published reader bound can never be
@@ -381,9 +436,18 @@ func (d *directory) egressLimit() int {
 	}
 	return maxEgressBytes
 }
-func (d *directory) writeLog(line []byte, sending bool, failure string) error {
-	unlock, err := d.lock()
+func (d *directory) writeLog(line []byte, sending bool, failure string, parents ...context.Context) error {
+	parent := context.Background()
+	if len(parents) > 0 {
+		parent = parents[0]
+	}
+	ctx, cancel := context.WithTimeout(parent, guardtime.Timeout)
+	defer cancel()
+	unlock, err := d.lock(ctx)
 	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		return egressProblem(failure + ": the egress log cannot be written (" + safeFailure(err) + ")")
 	}
 	defer unlock()
@@ -393,7 +457,7 @@ func (d *directory) writeLog(line []byte, sending bool, failure string) error {
 			return egressProblem(nothingAsked + ": the egress log " + where + " is full; move the file aside (rename it) and ask again")
 		}
 	}
-	data, err := d.readLog()
+	data, err := d.readLogContext(ctx)
 	if err != nil {
 		return egressProblem(failure + ": the egress log cannot be written (" + safeFailure(err) + ")")
 	}
@@ -401,8 +465,13 @@ func (d *directory) writeLog(line []byte, sending bool, failure string) error {
 		data = append(data, '\n')
 	}
 	if sending {
-		unfinished := 0
-		for _, raw := range bytes.Split(data, []byte{'\n'}) {
+		unfinished := map[string]int{}
+		// Include this send in the same validated, persisted accounting as
+		// earlier sends; a killed launcher leaves its own class in the log.
+		for _, raw := range append(bytes.Split(data, []byte{'\n'}), line) {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if blankLogLine(raw) {
 				continue
 			}
@@ -411,17 +480,21 @@ func (d *directory) writeLog(line []byte, sending bool, failure string) error {
 				return egressProblem(nothingAsked + ": the egress log " + where + " was not written by this version of the launcher; move the file aside (rename it) and ask again")
 			}
 			if record["event"] == "sent" {
-				unfinished++
+				unfinished[record["ask"].(string)] = sentOutcomeReserve(record)
 			} else {
-				unfinished--
+				delete(unfinished, record["ask"].(string))
 			}
 		}
-		if unfinished < 0 {
-			unfinished = 0
+		reserved := 0
+		for _, reserve := range unfinished {
+			reserved += reserve
 		}
-		if len(data)+len(line)+outcomeReserve*(unfinished+1) > d.egressLimit() {
+		if len(data)+len(line)+reserved > d.egressLimit() {
 			return egressProblem(nothingAsked + ": the egress log " + where + " is full; move the file aside (rename it) and ask again")
 		}
+	}
+	if len(data)+len(line) > d.egressLimit() {
+		return egressProblem(failure + ": the egress log " + where + " is full; move the file aside (rename it) and ask again")
 	}
 	if err = d.writeNew("egress.jsonl", append(data, line...), true); err == nil {
 		err = faults.Sync(d.file)
@@ -432,6 +505,13 @@ func (d *directory) writeLog(line []byte, sending bool, failure string) error {
 	return nil
 }
 func readEgress(c *configuration, o options, w io.Writer) error {
+	return readEgressContext(context.Background(), c, o, w)
+}
+
+func readEgressContext(ctx context.Context, c *configuration, o options, w io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	var sinceTime int64
 	var sinceNano int
 	if o.sinceSet {
@@ -457,12 +537,18 @@ func readEgress(c *configuration, o options, w io.Writer) error {
 		return refused("the egress log directory cannot be read (" + safeFailure(err) + ")")
 	}
 	defer d.close()
-	data, err := d.readLog()
+	data, err := d.readLogContext(ctx)
 	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	var output bytes.Buffer
 	for number, raw := range bytes.Split(data, []byte{'\n'}) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if blankLogLine(raw) {
 			continue
 		}

@@ -1,0 +1,274 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+
+	"laneboss.io/laneboss/internal/v2/api"
+	"laneboss.io/laneboss/internal/v2/client/wire"
+	"laneboss.io/laneboss/internal/v2/grants/manifest"
+)
+
+type channelLaunch struct {
+	ID         api.ID
+	Actor      api.Actor
+	Plan       api.WorkerPlan
+	Allocation api.HelperLease
+	Endpoint   *api.InstalledBinding    `json:",omitempty"`
+	Handoff    *api.PreparedSpecHandoff `json:",omitempty"`
+}
+
+func (s *Service) channelClaim(ctx context.Context, db queryer, scope api.Scope, lease api.EffectLease, writer bool) (channelStage, error) {
+	var stage channelStage
+	if err := s.scope(ctx, db, scope); err != nil {
+		return stage, err
+	}
+	if scope.Actor.Kind != "service" || scope.Connection != nil || scope.Frame != nil || scope.Request.Method != "" {
+		return stage, fault(api.CodeForbidden, "channel native control requires its service owner")
+	}
+	current, err := effectRow(ctx, db, lease.Record.Effect.ID)
+	if err != nil {
+		return stage, err
+	}
+	if !api.EffectLeaseClaimed(lease) || !sameValue(current, lease.Record) || current.Effect.Channel == nil || current.Outcome != nil ||
+		current.ClaimID != lease.ClaimID || current.ClaimExpiresAt != lease.ExpiresAt || !future(lease.ExpiresAt, s.deps.Clock.Now()) || writer && current.ClaimantID != scope.Actor.ID {
+		return stage, fault(api.CodeConflict, "channel native control lost its original current claim")
+	}
+	stage, err = channelStageFor(ctx, db, current.Effect.Channel.Lease.ID)
+	if err != nil {
+		return stage, err
+	}
+	if !sameValue(stage.Job, *current.Effect.Channel) || !future(stage.Job.Lease.ExpiresAt, s.deps.Clock.Now()) {
+		return stage, fault(api.CodeConflict, "channel native control changed its frozen job")
+	}
+	if err := s.checkEffectFence(ctx, db, current.Effect); err != nil {
+		return stage, err
+	}
+	var channel api.EnrolledChannel
+	if err := storedProjection(ctx, db, "channel", stage.Job.ChannelID, &channel); err != nil {
+		return stage, err
+	}
+	if channel.Revoked || channel.Generation != stage.Job.ChannelGeneration || !sameValue(channel.Runtime, stage.Job.Runtime) || !future(channel.ExpiresAt, s.deps.Clock.Now()) {
+		return stage, fault(api.CodePrerequisite, "channel native control requires its current enrollment")
+	}
+	return stage, nil
+}
+
+func saveChannel(ctx context.Context, tx *sql.Tx, stage channelStage) error {
+	id := channelKey(stage.Request.OperationID, stage.Request.DestinationID)
+	var generation api.Generation
+	if err := tx.QueryRowContext(ctx, "SELECT generation FROM projections WHERE kind='channel_stage' AND id=?", string(id)).Scan(&generation); err != nil {
+		return err
+	}
+	return put(ctx, tx, "channel_stage", id, generation+1, stage)
+}
+
+func (s *Service) ChannelWorkerID(ctx context.Context, scope api.Scope, lease api.EffectLease) (result api.ID, resultErr error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stage, err := s.channelClaim(ctx, s.db, scope, lease, true)
+	if err != nil {
+		return result, err
+	}
+	if stage.Native != nil {
+		return stage.Native.ID, nil
+	}
+	var lane api.Lane
+	if err := storedProjection(ctx, s.db, "lane", stage.Job.Lease.Target.LifeID, &lane); err != nil {
+		return result, err
+	}
+	budget := lane.BudgetRemaining
+	budget.WallMS, budget.CPUSeconds, budget.MemoryBytes = min(budget.WallMS, 30000), min(budget.CPUSeconds, 10), min(budget.MemoryBytes, 256<<20)
+	budget.Processes, budget.DiskBytes = min(budget.Processes, 64), min(budget.DiskBytes, 4<<20)
+	if err := manifest.Budget(budget); err != nil {
+		return result, err
+	}
+	id, err := wire.NewID()
+	if err != nil {
+		return result, err
+	}
+	actor, err := wire.NewID()
+	if err != nil {
+		return result, err
+	}
+	job := stage.Job
+	stage.Native = &channelLaunch{ID: id, Actor: api.Actor{Kind: "worker", ID: actor}, Plan: api.WorkerPlan{Schema: "laneboss.worker-plan.v2", Kind: "channel",
+		Executable: job.Runtime.Executable, Input: job.Lease.Input, GrantSetID: job.Lease.GrantSetID, Budget: budget,
+		Argv: []string{"laneboss", "internal", "channel", "--binding", "/runtime/laneboss-worker.json", "--lease", string(job.Lease.ID)}}}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return result, err
+	}
+	defer finish(tx, &resultErr)
+	if err := saveChannel(ctx, tx, stage); err != nil {
+		return result, err
+	}
+	return id, tx.Commit()
+}
+
+func (s *Service) ChannelPlan(ctx context.Context, scope api.Scope, lease api.EffectLease) (api.WorkerPlan, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	stage, err := s.channelClaim(ctx, s.db, scope, lease, false)
+	if err != nil {
+		return api.WorkerPlan{}, err
+	}
+	if stage.Native == nil {
+		return api.WorkerPlan{}, fault(api.CodePrerequisite, "channel has no frozen native worker plan")
+	}
+	return stage.Native.Plan, nil
+}
+
+func (s *Service) ChannelHandoff(ctx context.Context, scope api.Scope, lease api.EffectLease, allocation api.HelperLease, endpoint api.InstalledBinding, injection api.Injection) (handoff api.PreparedSpecHandoff, resultErr error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stage, err := s.channelClaim(ctx, s.db, scope, lease, true)
+	if err != nil {
+		return handoff, err
+	}
+	n := stage.Native
+	if n == nil {
+		return handoff, fault(api.CodePrerequisite, "channel has no writer-reserved native worker")
+	}
+	if n.Handoff != nil {
+		if n.Allocation != allocation || n.Endpoint == nil || !sameValue(*n.Endpoint, endpoint) || !sameValue(n.Handoff.Spec.Injection, injection) {
+			return handoff, fault(api.CodeConflict, "channel replay changed its original native handoff")
+		}
+		handoff = *n.Handoff
+		handoff.Cause.Actor = scope.Actor
+		return handoff, nil
+	}
+	job := stage.Job
+	var lane api.Lane
+	if err := storedProjection(ctx, s.db, "lane", job.Lease.Target.LifeID, &lane); err != nil {
+		return handoff, err
+	}
+	agent, err := s.launchBinding(ctx, s.db, lane.LaunchID)
+	if err != nil {
+		return handoff, err
+	}
+	if allocation.UID == 0 || allocation.GID == 0 || allocation.UID == agent.Record.HostUID || allocation.ID == agent.Record.UIDLeaseID || allocation.ContainmentID == agent.Record.ContainmentID ||
+		endpoint.Class != api.EndpointWorker || endpoint.LaunchID != n.ID || endpoint.WorkerLeaseID != job.Lease.ID || endpoint.Target == nil || *endpoint.Target != job.Lease.Target ||
+		endpoint.EndpointGeneration != allocation.EndpointGeneration || injection.Target != job.Lease.Target || injection.Outcome != "prepared" {
+		return handoff, fault(api.CodeConflict, "channel handoff changed its distinct native allocation or selected injection")
+	}
+	if err := api.ValidateBinding(endpoint, scope.Config, job.Runtime.Executable.Version); err != nil {
+		return handoff, err
+	}
+	var grants api.GrantSet
+	if err := storedProjection(ctx, s.db, "grants", job.Lease.GrantSetID, &grants); err != nil {
+		return handoff, err
+	}
+	if grants.Revoked || grants.ID != lane.GrantSetID || !future(grants.ExpiresAt, s.deps.Clock.Now()) {
+		return handoff, fault(api.CodeConflict, "channel worker grants changed")
+	}
+	id, err := wire.NewID()
+	if err != nil {
+		return handoff, err
+	}
+	spec := api.LaunchSpec{ID: id, Kind: "worker", LaunchID: n.ID, Target: job.Lease.Target, Worker: &n.Plan, RuntimeManifest: job.Lease.RuntimeManifest,
+		UIDLeaseID: allocation.ID, Backend: endpoint.Backend, EndpointGeneration: allocation.EndpointGeneration, PolicyGeneration: grants.PolicyGeneration,
+		Grants: grants, Budget: n.Plan.Budget, Injection: injection, Materialization: api.Materialization{GrantSetID: grants.ID, Objects: []api.MaterializedObject{}}}
+	raw, err := canonicalValue(spec)
+	if err != nil {
+		return handoff, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return handoff, err
+	}
+	defer finish(tx, &resultErr)
+	objectID, err := wire.NewID()
+	if err != nil {
+		return handoff, err
+	}
+	ref, err := s.retain(context.WithValue(ctx, dataObjectKey{}, s), tx, scope, api.ObjectWrite{ObjectKey: objectID, Class: "launch_spec", Bytes: raw,
+		SHA256: api.Digest(hash(raw)), Origin: "service", ACL: api.ObjectACL{Config: scope.Config, Owner: scope.Actor, LifeID: job.Lease.Target.LifeID, Audience: "private", Generation: 1}},
+		job.Lease.OperationID, api.Timestamp(s.deps.Clock.Now().UTC().Format(timeFormat)))
+	if err != nil {
+		return handoff, err
+	}
+	cause := *lease.Record.Effect.Context
+	cause.Kind, cause.Actor = api.InternalHelperRegister, scope.Actor
+	handoff = api.PreparedSpecHandoff{Config: scope.Config, Cause: cause, OperationID: job.Lease.OperationID, RequestID: stage.Frame.RequestID,
+		Original: ref, Spec: spec, SpecSHA256: ref.SHA256}
+	n.Handoff, n.Endpoint, n.Allocation = &handoff, &endpoint, allocation
+	worker := job.Lease
+	worker.ConsumedBy, worker.Generation = n.ID, worker.Generation+1
+	if err := put(ctx, tx, "worker_lease", worker.ID, worker.Generation, worker); err != nil {
+		return handoff, err
+	}
+	if err := saveChannel(ctx, tx, stage); err != nil {
+		return handoff, err
+	}
+	return handoff, tx.Commit()
+}
+
+func (s *Service) BindChannelWorker(ctx context.Context, scope api.Scope, lease api.EffectLease, prepared api.PreparedLaunch) (binding api.LaunchBindingRequest, resultErr error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stage, err := s.channelClaim(ctx, s.db, scope, lease, true)
+	if err != nil {
+		return binding, err
+	}
+	n := stage.Native
+	if n == nil || n.Handoff == nil || n.Endpoint == nil || prepared.SpecSHA256 != n.Handoff.SpecSHA256 || prepared.Target != stage.Job.Lease.Target ||
+		prepared.ContainmentID != n.Allocation.ContainmentID || prepared.EndpointGeneration != n.Allocation.EndpointGeneration || prepared.ID == "" || prepared.GateID == "" || prepared.ProcessGeneration == "" {
+		return binding, fault(api.CodeConflict, "channel identity differs from its original prepared native gate")
+	}
+	prior, err := s.launchBinding(ctx, s.db, n.ID)
+	if err == nil {
+		if prior.Prepared != prepared || prior.Record.Actor != n.Actor {
+			return binding, fault(api.CodeConflict, "channel worker identity was replaced")
+		}
+		return prior, nil
+	}
+	if !absent(err) {
+		return binding, err
+	}
+	var lane api.Lane
+	if err := storedProjection(ctx, s.db, "lane", stage.Job.Lease.Target.LifeID, &lane); err != nil {
+		return binding, err
+	}
+	grants := n.Handoff.Spec.Grants
+	record := api.LaunchRecord{Kind: "worker", ID: n.ID, Config: scope.Config, Target: stage.Job.Lease.Target, Actor: n.Actor,
+		RootLifeID: lane.RootLifeID, ParentLifeID: lane.ParentLifeID, StarterChain: append([]api.ID{}, lane.StarterChain...), StarterEventSeq: lane.StarterEventSeq,
+		UIDLeaseID: n.Allocation.ID, HostUID: n.Allocation.UID, ContainmentID: n.Allocation.ContainmentID, ProcessGeneration: prepared.ProcessGeneration,
+		GrantSetID: grants.ID, GrantsSHA256: grants.SHA256, PolicyGeneration: grants.PolicyGeneration, EndpointGeneration: n.Allocation.EndpointGeneration}
+	raw, err := canonicalValue(record)
+	if err != nil {
+		return binding, err
+	}
+	eventBytes, err := json.Marshal(record)
+	if err != nil {
+		return binding, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return binding, err
+	}
+	defer finish(tx, &resultErr)
+	id, err := wire.NewID()
+	if err != nil {
+		return binding, err
+	}
+	seq, err := appendPrivateEvent(ctx, tx, api.Event{Schema: api.SchemaVersion, ID: id, Config: scope.Config, Kind: "identity.bound", Actor: scope.Actor, RequestedBy: stage.Actor,
+		RequestID: stage.Frame.RequestID, OperationID: stage.Job.Lease.OperationID, LifeID: lane.LifeID, Run: stage.Job.Lease.Target.Run, RootLifeID: lane.RootLifeID,
+		ParentLifeID: lane.ParentLifeID, StarterChain: append([]api.ID{}, lane.StarterChain...), StarterEventSeq: lane.StarterEventSeq, Origin: "service", Payload: eventBytes},
+		api.Timestamp(s.deps.Clock.Now().UTC().Format(timeFormat)))
+	if err != nil {
+		return binding, err
+	}
+	binding = api.LaunchBindingRequest{Record: record, Prepared: prepared, Identity: api.IdentityCommit{LaunchID: record.ID, EventID: id, CommittedSeq: seq, RecordSHA256: api.Digest(hash(raw))}}
+	if err := put(ctx, tx, "launch", record.ID, 1, record); err != nil {
+		return binding, err
+	}
+	if err := put(ctx, tx, "launch_binding", record.ID, 1, binding); err != nil {
+		return binding, err
+	}
+	if err := put(ctx, tx, "endpoint", record.ID, 1, api.EndpointProjection{Binding: *n.Endpoint, Generation: 1}); err != nil {
+		return binding, err
+	}
+	return binding, tx.Commit()
+}

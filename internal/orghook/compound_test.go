@@ -1,6 +1,7 @@
 package orghook
 
 import (
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -76,10 +77,30 @@ func TestResolvedShellState(t *testing.T) {
 			if err != nil || resolved.name != name || !resolved.changesState {
 				t.Fatal("wrappers and assignments must retain the effective command state")
 			}
-			if _, err := inspectShell("if true; then "+prefix+name+" /fixture; else true; fi", "/fixture", 0); err == nil {
-				t.Fatal("compound state changes must refuse after command resolution")
+			if _, err := inspectShell("if true; then "+prefix+name+" /fixture; else true; fi", "/fixture", 0); err != nil {
+				t.Fatal("compound state changes must remain segment-inspectable")
 			}
 		}
+	}
+	directory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands, err := inspectShell("cd '"+directory+"' && git push origin main", "/", 0)
+	if err != nil || len(commands) == 0 || commands[len(commands)-1].directory != directory {
+		t.Fatal("a cd segment must carry its directory into the following command")
+	}
+	commands, err = inspectShell("cd /missing; printf x > /fixture/protected", "/fixture", 0)
+	if err != nil || len(commands) == 0 || !contains(commands[len(commands)-1].directories, "/fixture") {
+		t.Fatal("a possibly failing cd must retain the original candidate directory")
+	}
+	commands, err = inspectShell("true; export A=$B > /fixture/protected", "/fixture", 0)
+	_, writes, _, _ := compoundEffects(commands)
+	if err == nil || !contains(writes, "/fixture/protected") {
+		t.Fatal("a failed state segment must retain later literal redirect effects")
+	}
+	if commands, err := inspectShell("export A=1; git push origin main", "/fixture", 0); err != nil || len(commands) == 0 {
+		t.Fatal("an environment state segment must not make later argv opaque")
 	}
 	for _, arguments := range [][]string{{"-v", "LB_CANARY", "%s", "literal"}, {"%n", "LB_CANARY"}, {"--", "%5n", "LB_CANARY"}} {
 		if !printfState(arguments) {
@@ -89,6 +110,59 @@ func TestResolvedShellState(t *testing.T) {
 	for _, arguments := range [][]string{{"%s", "literal"}, {"%%n"}, {"%sn", "literal"}} {
 		if printfState(arguments) {
 			t.Fatal("ordinary printf output must not become a variable assignment")
+		}
+	}
+}
+
+func TestCompoundErrorKinds(t *testing.T) {
+	for _, body := range []string{"eval /fixture/unknown", "sh -c '/fixture/unknown'", "tmux new-session '/fixture/unknown'"} {
+		commands, err := inspectShell("true; "+body+" > /fixture/body-log; touch /fixture/after", "/fixture", 0)
+		_, writes, _, opaque := compoundEffects(commands)
+		if err != nil || !opaque || !contains(writes, "/fixture/body-log") || !contains(writes, "/fixture/after") {
+			t.Fatalf("a literal nested-body gap must stay opaque and retain every segment's effects: %s: %v", body, err)
+		}
+	}
+	for _, body := range []string{"export A=$B", "cd $D", ". $F", "LANEBOSS_LANE=b1 true", "env LANEBOSS_ROLE=mini-b true",
+		"eval /fixture/unknown > $TARGET", "source /dev/stdin <<< literal"} {
+		if _, err := inspectShell("true; "+body, "/fixture", 0); err == nil {
+			t.Fatalf("an enclosing argv or redirect error must stay fatal: %s", body)
+		}
+	}
+	commands, err := inspectShell("true; cd /fixture > $TARGET > /fixture/protected", "/fixture", 0)
+	_, writes, _, _ := compoundEffects(commands)
+	if err == nil || !contains(writes, "/fixture/protected") {
+		t.Fatal("a nonliteral redirect must not discard the following literal redirect")
+	}
+}
+
+func TestCompoundChainErrors(t *testing.T) {
+	_, first := inspectShell("true; cd \"$DIR\"", "/fixture", 0)
+	if first == nil {
+		t.Fatal("the failing state segment must keep its inspection error")
+	}
+	for _, link := range []string{" && ", " || ", " | "} {
+		script := "cd \"$DIR\"" + link + "eval 'git push origin main'" + link + "cd \"$NEXT\"" + link + "printf x > /fixture/protected"
+		commands, err := inspectShell(script, "/fixture", 0)
+		if err == nil || err.Error() != first.Error() {
+			t.Fatalf("the chain must return its first link's error: %s: %v", link, err)
+		}
+		push, write := false, false
+		for _, cmd := range commands {
+			if reflect.DeepEqual(cmd.argv, []string{"git", "push", "origin", "main"}) {
+				push = true
+				if !cmd.directoryUncertain {
+					t.Fatal("a nested push after a failed link must keep uncertain directory state")
+				}
+			}
+			if contains(cmd.writes, "/fixture/protected") {
+				write = true
+				if !cmd.directoryUncertain || !contains(cmd.directories, "/fixture") {
+					t.Fatal("a later write must keep uncertainty and the original directory candidate")
+				}
+			}
+		}
+		if !push || !write {
+			t.Fatalf("failed links must not discard later nested commands or redirects: %s", link)
 		}
 	}
 }

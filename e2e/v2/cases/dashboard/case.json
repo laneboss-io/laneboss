@@ -1,0 +1,32 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "dashboard",
+  "owner": "lb-v2-dashboard",
+  "platforms": ["linux"],
+  "requires": [
+    "service",
+    "identity",
+    "lifecycle",
+    "messaging",
+    "approval",
+    "integrate"
+  ],
+  "entry": "run.sh",
+  "timeout_seconds": 1800,
+  "live_auth": false,
+  "assertion_ids": [
+    "DASH-DECISIONS",
+    "DASH-RAW",
+    "DASH-TREE",
+    "DASH-REFUSALS",
+    "DASH-PLUGINS",
+    "DASH-RESOURCES",
+    "DASH-LIFECYCLE",
+    "DASH-APPROVALS",
+    "DASH-STOP",
+    "DASH-RESUME",
+    "DASH-MERGED",
+    "DASH-ABANDONED",
+    "HUMAN-SEND"
+  ]
+}

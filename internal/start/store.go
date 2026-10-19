@@ -326,7 +326,7 @@ func checkEnvelope(event map[string]any) error {
 	if where, rule := credentialInValue(envelope); rule != "" {
 		return integrity(where + ": looks like a credential (" + rule + ")")
 	}
-	fields := map[string]validator{"id": textCheck(`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`, 128), "kind": textCheck(`[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}`, 131), "lane": nullable(textCheck(`[a-z0-9][a-z0-9._-]{0,63}`, 64)), "actor": textCheck(`[A-Za-z0-9][A-Za-z0-9._:@/+-]{0,127}`, 128), "occurred_at": nullable(timestampCheck), "protocol_version": textCheck(`[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}`, 14)}
+	fields := map[string]validator{"id": textCheck(`[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`, 128), "kind": textCheck(`[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}`, 131), "lane": nullable(textCheck(`[a-z0-9][a-z0-9._-]{0,63}`, 64)), "actor": textCheck(`[A-Za-z0-9][A-Za-z0-9._:@/+() -]{0,127}`, 128), "occurred_at": nullable(timestampCheck), "protocol_version": textCheck(`[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}`, 14)}
 	for key, check := range fields {
 		if err := check("event", envelope[key], key); err != nil {
 			return integrity(err.Error())

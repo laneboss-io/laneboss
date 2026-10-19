@@ -585,12 +585,12 @@ func (s *laneSession) known(lane string) (object, error) {
 	return row, nil
 }
 func (s *laneSession) latest(lane string) (object, error) {
-	e, err := s.store.last(lane, "lane.started")
+	e, err := s.last(lane, "lane.started")
 	if err != nil {
 		return nil, err
 	}
 	if e == nil {
-		e, err = s.store.last(lane, "lane.adopted")
+		e, err = s.last(lane, "lane.adopted")
 	}
 	if err != nil || e == nil {
 		return nil, err

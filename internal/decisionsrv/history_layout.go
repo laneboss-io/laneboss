@@ -1,0 +1,65 @@
+package decisionsrv
+
+// HistorySchemaObject describes one object in the version-4 decision-store contract.
+// Lane hooks and org inspection share this definition; decision commands own migrations.
+type HistorySchemaObject struct {
+	Kind, Name, Table, Statement string
+	NullSQL                      bool
+}
+
+var historySchema = []HistorySchemaObject{
+	{"table", "records", "records", "CREATE TABLE records (\n    row_id INTEGER PRIMARY KEY,\n    id TEXT NOT NULL UNIQUE,\n    record_json TEXT NOT NULL,\n    record_sha256 TEXT NOT NULL,\n    verbatim BLOB NOT NULL,\n    verbatim_sha256 TEXT NOT NULL,\n    q_text TEXT NOT NULL,\n    d_text TEXT NOT NULL,\n    q_sha256 TEXT NOT NULL,\n    d_sha256 TEXT NOT NULL,\n    project TEXT NOT NULL,\n    area TEXT NOT NULL,\n    kind TEXT NOT NULL,\n    status TEXT NOT NULL,\n    answered_utc TEXT NOT NULL\n, level INTEGER, instance TEXT)", false},
+	{"table", "models", "models", "CREATE TABLE models (\n    model TEXT PRIMARY KEY,\n    provider TEXT NOT NULL,\n    dimension INTEGER NOT NULL CHECK(dimension > 0),\n    entry_sha256 TEXT NOT NULL\n)", false},
+	{"table", "vectors", "vectors", "CREATE TABLE vectors (\n    record_id TEXT NOT NULL REFERENCES records(id),\n    which_text TEXT NOT NULL CHECK(which_text IN ('q_text', 'd_text')),\n    model TEXT NOT NULL REFERENCES models(model),\n    dimension INTEGER NOT NULL CHECK(dimension > 0),\n    text TEXT NOT NULL,\n    text_sha256 TEXT NOT NULL,\n    vector BLOB NOT NULL,\n    vector_sha256 TEXT NOT NULL,\n    created_at TEXT NOT NULL,\n    entry_sha256 TEXT NOT NULL,\n    PRIMARY KEY(record_id, which_text, model)\n)", false},
+	{"table", "egress_log", "egress_log", "CREATE TABLE egress_log (\n    id INTEGER PRIMARY KEY,\n    record_id TEXT REFERENCES records(id),\n    which_text TEXT NOT NULL CHECK(which_text IN ('q_text', 'd_text', 'query')),\n    text TEXT NOT NULL,\n    text_sha256 TEXT NOT NULL,\n    model TEXT NOT NULL,\n    at TEXT NOT NULL,\n    endpoint_host TEXT NOT NULL,\n    input_type TEXT NOT NULL CHECK(input_type IN ('document', 'query')),\n    previous_entry_sha256 TEXT NOT NULL,\n    entry_sha256 TEXT NOT NULL\n)", false},
+	{"table", "first_written", "first_written", "CREATE TABLE first_written (\n    record_id TEXT PRIMARY KEY REFERENCES records(id),\n    record_sha256 TEXT NOT NULL\n) WITHOUT ROWID", false},
+	{"table", "lane_records", "lane_records", "CREATE TABLE lane_records (\n    row_id INTEGER PRIMARY KEY,\n    id TEXT NOT NULL UNIQUE,\n    config TEXT NOT NULL,\n    lane TEXT NOT NULL,\n    part TEXT NOT NULL CHECK(part IN ('report', 'events', 'attachment')),\n    source_path TEXT NOT NULL,\n    source_sha256 TEXT NOT NULL,\n    text TEXT NOT NULL,\n    created_utc TEXT NOT NULL,\n    ingested_utc TEXT NOT NULL\n, level INTEGER, instance TEXT)", false},
+	{"table", "feedback", "feedback", "CREATE TABLE feedback (\n    id INTEGER PRIMARY KEY,\n    case_id TEXT NOT NULL,\n    event TEXT NOT NULL CHECK(event IN ('merged', 'accepted', 'abandoned', 'refusal', 'cited')),\n    at TEXT NOT NULL,\n    source TEXT NOT NULL,\n    entry_sha256 TEXT NOT NULL UNIQUE,\n    UNIQUE(case_id, event, source)\n)", false},
+	{"index", "exact_metadata", "records", "CREATE INDEX exact_metadata ON records(project, area, status, kind, answered_utc)", false},
+	{"table", "keyword_index", "keyword_index", "CREATE VIRTUAL TABLE keyword_index USING fts5(id, q_text, d_text, tokenize='trigram')", false},
+	{"table", "lane_keyword_index", "lane_keyword_index", "CREATE VIRTUAL TABLE lane_keyword_index USING fts5(id, text, tokenize='trigram')", false},
+	{"trigger", "immutable_answer", "records", "CREATE TRIGGER immutable_answer BEFORE UPDATE OF verbatim ON records\nWHEN NEW.verbatim != OLD.verbatim BEGIN\n    SELECT RAISE(ABORT, 'answer.verbatim is immutable');\nEND", false},
+	{"trigger", "records_no_delete", "records", "CREATE TRIGGER records_no_delete BEFORE DELETE ON records\nBEGIN\n    SELECT RAISE(ABORT, 'records are never deleted');\nEND", false},
+	{"trigger", "records_no_replace", "records", "CREATE TRIGGER records_no_replace BEFORE INSERT ON records\nWHEN EXISTS (SELECT 1 FROM records WHERE id = NEW.id OR row_id = NEW.row_id) BEGIN\n    SELECT RAISE(ABORT, 'a record is written once and never replaced');\nEND", false},
+	{"trigger", "records_fixed_ids", "records", "CREATE TRIGGER records_fixed_ids BEFORE UPDATE ON records\nWHEN NEW.row_id IS NOT OLD.row_id OR NEW.id IS NOT OLD.id BEGIN\n    SELECT RAISE(ABORT, 'record ids never change');\nEND", false},
+	{"trigger", "models_no_delete", "models", "CREATE TRIGGER models_no_delete BEFORE DELETE ON models\nBEGIN\n    SELECT RAISE(ABORT, 'models are never deleted');\nEND", false},
+	{"trigger", "models_no_update", "models", "CREATE TRIGGER models_no_update BEFORE UPDATE ON models\nBEGIN\n    SELECT RAISE(ABORT, 'models never change');\nEND", false},
+	{"trigger", "models_no_replace", "models", "CREATE TRIGGER models_no_replace BEFORE INSERT ON models\nWHEN EXISTS (SELECT 1 FROM models WHERE model = NEW.model OR rowid = NEW.rowid) BEGIN\n    SELECT RAISE(ABORT, 'a model is written once and never replaced');\nEND", false},
+	{"trigger", "egress_log_no_delete", "egress_log", "CREATE TRIGGER egress_log_no_delete BEFORE DELETE ON egress_log\nBEGIN\n    SELECT RAISE(ABORT, 'egress receipts are never deleted');\nEND", false},
+	{"trigger", "egress_log_no_update", "egress_log", "CREATE TRIGGER egress_log_no_update BEFORE UPDATE ON egress_log\nBEGIN\n    SELECT RAISE(ABORT, 'egress receipts never change');\nEND", false},
+	{"trigger", "egress_log_no_replace", "egress_log", "CREATE TRIGGER egress_log_no_replace BEFORE INSERT ON egress_log\nWHEN EXISTS (SELECT 1 FROM egress_log WHERE id = NEW.id) BEGIN\n    SELECT RAISE(ABORT, 'an egress receipt is written once and never replaced');\nEND", false},
+	{"trigger", "first_written_no_delete", "first_written", "CREATE TRIGGER first_written_no_delete BEFORE DELETE ON first_written\nBEGIN\n    SELECT RAISE(ABORT, 'first-written hashes are never deleted');\nEND", false},
+	{"trigger", "first_written_no_update", "first_written", "CREATE TRIGGER first_written_no_update BEFORE UPDATE ON first_written\nBEGIN\n    SELECT RAISE(ABORT, 'first-written hashes never change');\nEND", false},
+	{"trigger", "first_written_no_replace", "first_written", "CREATE TRIGGER first_written_no_replace BEFORE INSERT ON first_written\nWHEN EXISTS (SELECT 1 FROM first_written WHERE record_id = NEW.record_id) BEGIN\n    SELECT RAISE(ABORT, 'a first-written hash is written once');\nEND", false},
+	{"trigger", "lane_records_no_delete", "lane_records", "CREATE TRIGGER lane_records_no_delete BEFORE DELETE ON lane_records\nBEGIN\n    SELECT RAISE(ABORT, 'lane records are never deleted');\nEND", false},
+	{"trigger", "lane_records_no_update", "lane_records", "CREATE TRIGGER lane_records_no_update BEFORE UPDATE ON lane_records\nBEGIN\n    SELECT RAISE(ABORT, 'lane records never change');\nEND", false},
+	{"trigger", "lane_records_no_replace", "lane_records", "CREATE TRIGGER lane_records_no_replace BEFORE INSERT ON lane_records\nWHEN EXISTS (SELECT 1 FROM lane_records WHERE id = NEW.id OR row_id = NEW.row_id) BEGIN\n    SELECT RAISE(ABORT, 'a lane record is written once and never replaced');\nEND", false},
+	{"trigger", "records_fixed_scope", "records", "CREATE TRIGGER records_fixed_scope BEFORE UPDATE ON records\nWHEN NEW.level IS NOT OLD.level OR NEW.instance IS NOT OLD.instance BEGIN\n    SELECT RAISE(ABORT, 'record scope never changes');\nEND", false},
+	{"trigger", "feedback_no_delete", "feedback", "CREATE TRIGGER feedback_no_delete BEFORE DELETE ON feedback\nBEGIN\n    SELECT RAISE(ABORT, 'feedback is never deleted');\nEND", false},
+	{"trigger", "feedback_no_update", "feedback", "CREATE TRIGGER feedback_no_update BEFORE UPDATE ON feedback\nBEGIN\n    SELECT RAISE(ABORT, 'feedback never changes');\nEND", false},
+	{"trigger", "feedback_no_replace", "feedback", "CREATE TRIGGER feedback_no_replace BEFORE INSERT ON feedback\nWHEN EXISTS (SELECT 1 FROM feedback WHERE id = NEW.id OR entry_sha256 = NEW.entry_sha256 OR (case_id = NEW.case_id AND event = NEW.event AND source = NEW.source)) BEGIN\n    SELECT RAISE(ABORT, 'feedback is written once and never replaced');\nEND", false},
+	{"index", "feedback_case", "feedback", "CREATE INDEX feedback_case ON feedback(case_id, at)", false},
+	{"index", "records_scope", "records", "CREATE INDEX records_scope ON records(level, instance)", false},
+	{"index", "lane_records_scope", "lane_records", "CREATE INDEX lane_records_scope ON lane_records(level, instance)", false},
+	{"table", "keyword_index_data", "keyword_index_data", "CREATE TABLE 'keyword_index_data'(id INTEGER PRIMARY KEY, block BLOB)", false},
+	{"table", "keyword_index_idx", "keyword_index_idx", "CREATE TABLE 'keyword_index_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID", false},
+	{"table", "keyword_index_content", "keyword_index_content", "CREATE TABLE 'keyword_index_content'(id INTEGER PRIMARY KEY, c0, c1, c2)", false},
+	{"table", "keyword_index_docsize", "keyword_index_docsize", "CREATE TABLE 'keyword_index_docsize'(id INTEGER PRIMARY KEY, sz BLOB)", false},
+	{"table", "keyword_index_config", "keyword_index_config", "CREATE TABLE 'keyword_index_config'(k PRIMARY KEY, v) WITHOUT ROWID", false},
+	{"table", "lane_keyword_index_data", "lane_keyword_index_data", "CREATE TABLE 'lane_keyword_index_data'(id INTEGER PRIMARY KEY, block BLOB)", false},
+	{"table", "lane_keyword_index_idx", "lane_keyword_index_idx", "CREATE TABLE 'lane_keyword_index_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID", false},
+	{"table", "lane_keyword_index_content", "lane_keyword_index_content", "CREATE TABLE 'lane_keyword_index_content'(id INTEGER PRIMARY KEY, c0, c1)", false},
+	{"table", "lane_keyword_index_docsize", "lane_keyword_index_docsize", "CREATE TABLE 'lane_keyword_index_docsize'(id INTEGER PRIMARY KEY, sz BLOB)", false},
+	{"table", "lane_keyword_index_config", "lane_keyword_index_config", "CREATE TABLE 'lane_keyword_index_config'(k PRIMARY KEY, v) WITHOUT ROWID", false},
+	{"index", "sqlite_autoindex_records_1", "records", "", true},
+	{"index", "sqlite_autoindex_models_1", "models", "", true},
+	{"index", "sqlite_autoindex_vectors_1", "vectors", "", true},
+	{"index", "sqlite_autoindex_lane_records_1", "lane_records", "", true},
+	{"index", "sqlite_autoindex_feedback_1", "feedback", "", true},
+	{"index", "sqlite_autoindex_feedback_2", "feedback", "", true},
+}
+
+// HistorySchema returns a copy of the supported decision-store layout.
+func HistorySchema() []HistorySchemaObject {
+	return append([]HistorySchemaObject(nil), historySchema...)
+}

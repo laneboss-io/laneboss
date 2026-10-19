@@ -19,7 +19,12 @@ const CodexFeatureRefusal = "Codex hooks feature must be enabled: the selected b
 const CodexPluginRefusal = "Codex plugins feature must be disabled: the selected binary must report plugins off with the lane's configuration flags"
 
 // CodexGate is owned by one planned run, never a process-global or disk cache.
-type CodexGate struct{ checked map[string]bool }
+type CodexGate struct {
+	checked map[string]bool
+	// LaneSandbox is supplied by the configuration-owned Darwin wrapper plan,
+	// never by a runner argument or environment variable.
+	LaneSandbox bool
+}
 
 type probeOutput struct {
 	bytes.Buffer
@@ -37,8 +42,8 @@ func (b *probeOutput) Write(data []byte) (int, error) {
 	return n, nil
 }
 
-func probeCodex(path, cwd string, environment, args []string) (string, error) {
-	if err := vetSandboxArgs(args); err != nil {
+func probeCodex(path, cwd string, environment, args []string, laneSandbox ...bool) (string, error) {
+	if err := vetSandboxArgs(args, laneSandbox...); err != nil {
 		return "", err
 	}
 	if err := VetCodexEnvironment(environment); err != nil {
@@ -94,6 +99,7 @@ func (g *CodexGate) Prepare(argv []string, cwd string, environment []string) ([]
 			effective[key] = value
 		}
 	}
+	scope := launcherScope(effective)
 	index := 0
 	for index < len(argv) && filepath.Base(argv[index]) == "env" {
 		index++
@@ -145,13 +151,30 @@ func (g *CodexGate) Prepare(argv []string, cwd string, environment []string) ([]
 	if err := vetEnvironment(effective); err != nil {
 		return nil, err
 	}
+	if err := vetLauncherScope(scope, effective); err != nil {
+		return nil, err
+	}
+	if err := vetLanePath(effective["CODEX_HOME"], cwd, effective); err != nil {
+		return nil, err
+	}
 	path, err := codexPath(argv[index], cwd, effective["PATH"])
 	if err != nil {
 		return nil, err
 	}
 	prepared := append([]string{}, argv[:index]...)
 	prepared = append(prepared, path, "-c", CodexEnable)
-	prepared = append(prepared, argv[index+1:]...)
+	runnerArgs := argv[index+1:]
+	if g.LaneSandbox {
+		if err := vetSandboxArgs(runnerArgs, true); err != nil {
+			return nil, err
+		}
+		runnerArgs, err = replaceCodexSandbox(runnerArgs)
+		if err != nil {
+			return nil, err
+		}
+		prepared = append(prepared, "--sandbox", "danger-full-access")
+	}
+	prepared = append(prepared, runnerArgs...)
 	flags := []string{}
 	for i := index + 1; i < len(prepared); i++ {
 		word := prepared[i]
@@ -159,7 +182,7 @@ func (g *CodexGate) Prepare(argv []string, cwd string, environment []string) ([]
 			break
 		}
 		switch word {
-		case "-c", "--config", "--enable", "--disable", "-p", "--profile", "-C", "--cd":
+		case "-c", "--config", "--enable", "--disable", "-p", "--profile", "-C", "--cd", "--sandbox", "-s":
 			if i+1 >= len(prepared) {
 				return nil, errors.New(CodexFeatureRefusal)
 			}
@@ -178,16 +201,22 @@ func (g *CodexGate) Prepare(argv []string, cwd string, environment []string) ([]
 			}
 		}
 	}
-	if err := vetConfigArgs(flags); err != nil {
+	if err := vetConfigArgs(flags, g.LaneSandbox); err != nil {
 		return nil, err
 	}
-	if err := vetSandboxArgs(prepared[index+1:]); err != nil {
+	if err := vetSandboxArgs(prepared[index+1:], g.LaneSandbox); err != nil {
 		return nil, err
 	}
-	if _, err := writableRoots(filepath.Join(effective["CODEX_HOME"], "config.toml"), cwd, prepared[index+1:]); err != nil {
+	if _, err := writableRootsIn(filepath.Join(effective["CODEX_HOME"], "config.toml"), cwd, g.LaneSandbox, effective, prepared[index+1:]); err != nil {
 		return nil, err
 	}
-	if err := VetCodex(effective["CODEX_HOME"], cwd, effective["HOME"]); err != nil {
+	if err := vetCodexIn(effective["CODEX_HOME"], cwd, effective, effective["HOME"]); err != nil {
+		return nil, err
+	}
+	if err := renderStateRoot(effective["CODEX_HOME"], effective); err != nil {
+		return nil, err
+	}
+	if err := vetCodexIn(effective["CODEX_HOME"], cwd, effective, effective["HOME"]); err != nil {
 		return nil, err
 	}
 	verb := -1
@@ -208,7 +237,7 @@ func (g *CodexGate) Prepare(argv []string, cwd string, environment []string) ([]
 	for key, value := range effective {
 		probeEnv = append(probeEnv, key+"="+value)
 	}
-	version, err := probeCodex(path, cwd, probeEnv, append(append([]string{}, flags...), "--version"))
+	version, err := probeCodex(path, cwd, probeEnv, append(append([]string{}, flags...), "--version"), g.LaneSandbox)
 	if err != nil || !regexp.MustCompile(`[0-9]+\.[0-9]+\.[0-9]+`).MatchString(version) {
 		return nil, errors.New(CodexFeatureRefusal)
 	}
@@ -217,7 +246,7 @@ func (g *CodexGate) Prepare(argv []string, cwd string, environment []string) ([]
 	if g.checked[key] {
 		return prepared, nil
 	}
-	output, err := probeCodex(path, cwd, probeEnv, append(append([]string{}, flags...), "features", "list"))
+	output, err := probeCodex(path, cwd, probeEnv, append(append([]string{}, flags...), "features", "list"), g.LaneSandbox)
 	if err != nil {
 		return nil, err
 	}

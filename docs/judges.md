@@ -1,24 +1,26 @@
 # Judges
 
-A judge is an external command the launcher can ask one yes/no question. The launcher does not know what is behind
+A judge is an external command the launcher can ask a bounded scalar question or a batch of typed questions. The launcher does not know what is behind
 it: a rule engine, a small model, a service. This page holds the contract between the launcher and a judge, the
 configuration, the three commands, the egress rule, the known limits and a stand-in judge to start from. Adapters for
 particular providers live under `examples/judges/`.
 
 A judge adds coverage where rules alone are too narrow (for example, telling whether a tool result is a refusal by a
 guard). This layer only lets a configuration name judges and lets the launcher ask one, bounded, logged and without
-sending a secret. It is not yet used by any other part of the launcher.
+sending a secret. The org's decision capture (`org capture-decision`) and decision guard (the org hook, and
+`lane send --ask`; [Guiding agents](decisions.md#guiding-agents)) ask judges in this way; `laneboss judge ask` is the
+same machinery from the command line.
 
 ## The judge contract
 
-A judge is an external COMMAND the launcher runs for one question. The launcher writes ONE JSON object to the
+A judge is an external COMMAND the launcher runs for one scalar ask or typed batch. The launcher writes ONE JSON object to the
 command's standard input and reads ONE JSON object from its standard output.
 
 Request (UTF-8, one object, a final newline):
 
     {"laneboss_judge": 1,
      "question": "refusal.is-refusal",            an identifier: lower-case words joined by dots and hyphens
-     "kind": "noul",                              the only kind in version 1: a yes/no question, answered by a probability
+     "kind": "noul",                              the scalar version-1 contract: a yes/no question
      "prompt": "Is this tool result a refusal by a guard, a hook or a permission layer?",
      "subject": {"result": "<text>", "command": "<text>"}}     one to eight named texts, each at most 4000 characters
 
@@ -34,6 +36,109 @@ judge writes nothing but its answer to standard output; one line of explanation 
 never shown beyond its first 300 characters.
 
 (The comments after the members above are not part of the JSON; the example model name is invented.)
+
+### Typed batches and the TypeSafe boundary
+
+The guide's extension uses `kind: "typed"`; the job catalog uses
+`kind: "laneboss-jobs"`. Both carry named `state` and a `questions` map:
+
+```json
+{
+  "laneboss_judge": 1,
+  "question": "decision.conflicts",
+  "kind": "typed",
+  "state": {
+    "decisions": ["D-22: Require approval before publishing."],
+    "texts": ["Publish without approval."]
+  },
+  "questions": {
+    "comparison": {
+      "type": "noul",
+      "instructions": "Does the action in \u0060texts[0]\u0060 contradict the decision in \u0060decisions[0]\u0060?",
+      "criteria": {
+        "true": "The specified action contradicts the recorded decision.",
+        "false": "The action is consistent with or unrelated to that decision."
+      }
+    }
+  }
+}
+```
+
+The TypeSafe adapter sends **one HTTP request for the batch**:
+`POST https://api.typesafe.ai/v1/systemone`, Bearer authorization, JSON content
+type, and only `state`, `model` and `questions` in the body. The documented
+default model alias is `jev-latest`. Choose a supported version with `--model`
+using the provider's [Models](https://docs.typesafe.ai/models) reference.
+Returned records keep the model the provider reports; the saved response
+examples report `jev-1.13.0`.
+Question IDs are response lookup keys and are not sent to the inference model.
+Every instruction must therefore express the complete judgment and reference
+its named state. Noul criteria define yes/no; a catalog Choice includes `none`.
+
+The official response has `model`, `answers` and `usage`:
+
+```json
+{
+  "model": "jev-1.13.0",
+  "answers": {"comparison": {"type": "noul", "noul": 0.95}},
+  "usage": {"input_tokens": 296, "output_tokens": 20}
+}
+```
+
+The shared validator in `internal/typesafe` checks the official wire shape.
+A typed adapter returns it, preserving all documented answer fields and adding
+only its optional sanitized header-derived `request` identifier. A legacy
+scalar ask translates `answers.answer.noul` into the launcher's
+`probability` field. That field is a launcher contract, not a TypeSafe field.
+
+| Primitive | Question criterion | Official answer fields |
+|---|---|---|
+| Noul | One yes/no proposition; optional true/false descriptions | `type: "noul"`, `noul` in [0,1] |
+| Choice | Map of options to descriptions; at most 255 options | `type: "choice"`, `choice`, full `probabilities`, `confidence` |
+| Score | Ordered array of 2–10 descriptive levels | `type: "score"`, `score`, `legend`, full `probabilities`, `confidence` |
+
+A Choice selects a maximum-probability option; every supplied option must be
+present, and confidence must be a finite number in [0,1]. Choice and Score
+probability sums must be within `max(1e-6, option_count * 5e-5)` of one.
+The API reference and primitive pages require a sum of one but do not specify
+precision ([API](https://docs.typesafe.ai/api), saved `api.md:255`;
+`primitives_choice.md:346`, `primitives_score.md:662`). The tolerance budgets
+half a rounding unit at four fractional decimal places per option. It is an
+application allowance, not a claim about the provider's actual precision.
+All values still require [0,1] bounds, complete keys and a selected maximum;
+clearly malformed sums remain unavailable. A Score is the probability-weighted position on
+zero-based levels, in [0, number of levels minus one]; the validator checks its
+weighted value and legend against the rubric. Structured level descriptions
+are supported. Noul has no separate confidence: near 0.5 means uncertainty,
+not medium intensity. Score/Choice confidence summarizes a distribution; it
+is not the score or the selected option's probability.
+
+Missing/wrong answer types, partial or extra answer sets, absent model/usage,
+numeric strings/booleans, out-of-range values, duplicate JSON members,
+malformed distributions and non-JSON output make the **whole batch unavailable**.
+No missing answer becomes zero. The adapter preserves official answer fields
+and strips unrelated provider extras. The guide uses complete decision text or
+reports uncovered input before sending. See [the decision dial](decisions.md#the-dial).
+
+HTTP 401/422 errors give no answer. HTTP 429/529 receive at most two exponential
+backoff retries (100 ms, then 200 ms) inside the original overall timeout;
+network errors, exhausted retries and malformed success bodies remain
+unavailable. Error bodies and credentials are not printed. A retry repeats the
+same batch and does not split its independent questions.
+
+The official fixtures in `internal/typesafe/testdata` and the adapter's HTTP
+rows include Noul, Choice and Score. Invalid variants are checked before their
+valid controls. Run executable checks on an authorized disposable Linux machine:
+
+```sh
+go test ./internal/typesafe ./internal/judge ./internal/orghook ./examples/judges/typesafe_jev
+python3 -m unittest discover -s e2e-rows -p test_typesafe_jobs.py -v
+sh e2e-rows/check-decision-guide.sh
+sh e2e-rows/check-job-hook.sh
+```
+
+The stand-ins verify wire shape, request content, batching and advisory policy.
+They provide no authenticated AI-service test or domain-calibration evidence.
 
 ### How the launcher reads the contract
 
@@ -82,9 +187,7 @@ judge that needs a key reads it from its own environment or files (see "Known li
 
 ## Asking
 
-`judges.ask(configuration, state, name, question, prompt, subject, lane=None)` in `src/laneboss/judges.py` is the one
-function other parts of the launcher call. `state` is the opened state directory, `subject` a dictionary of names to
-texts. In this order, it:
+`judge.AskContext` in `internal/judge/ask.go` implements scalar asks; `AskNoulsContext` in `internal/judge/batch.go` implements guide batches, and `AskJobsContext` implements catalog asks. They share bounded process execution, configuration binding and egress locking. For scalar asks, in order:
 
 1. **Screens the names.** The judge name, the question, the lane and every subject name go through the credential
    detector (`docs/architecture.md`, "Credentials") before anything else is done with them. One that it refuses is
@@ -125,8 +228,8 @@ texts. In this order, it:
 7. **Logs the outcome.** The **outcome line** is written; only then is the result returned. If it cannot be written
    the sending is logged and the outcome is not: exit 7, with a message that says so, and no result.
 
-It never raises for a judge's fault and never returns a made-up probability. It raises `Refused` for invalid input or
-a state directory that is not the configuration's, and `EgressUnlogged` (exit 7) when the ask cannot be logged. While
+It never raises for a judge's fault and never returns a made-up probability. It returns a refused-input error for invalid input or
+a state directory that is not the configuration's, and an egress error (exit 7) when the ask cannot be logged. While
 a judge runs, the launcher holds no lock: not the lanes lock, and not the state directory's lock, which is taken only to
 record the owner, before the sent line (step 4). The egress log has a lock of its own that is held only while a line is
 written.
@@ -162,7 +265,7 @@ or missing or extra member, a field of the wrong type or form, or a time that do
 made by the first ask). Every ask writes two whole lines that share an `ask` identifier (32 hexadecimal characters),
 answered and unavailable alike.
 
-**The sent line**, written before the command is started, with exactly these members:
+**The sent line**, written before the command is started, with these members:
 
 | Member | Meaning |
 |---|---|
@@ -175,6 +278,7 @@ answered and unavailable alike.
 | `request_sha256` | The SHA-256 of the request the launcher **prepared** and offered to the command. |
 | `request_bytes` | How many bytes that was. |
 | `withheld`, `cut` | The two name lists of the request. |
+| `outcome_reserve` | Present only for a guide batch: `4096`, the bytes reserved for its outcome. Its absence means the scalar reserve of 1024 bytes. No other value is valid. |
 
 **The outcome line**, written after the command ended, with exactly these members:
 
@@ -184,7 +288,7 @@ answered and unavailable alike.
 | `ask` | The ask identifier. |
 | `event` | `"outcome"`. |
 | `outcome` | `answered`, or `timeout`, `exit`, `output` or `not-found`. |
-| `probability` | The probability, or null. |
+| `probability` | The scalar probability, or null. An answered guide batch has null here and an additional `probabilities` map of question ID to yes probability. |
 | `model` | What answered, or null: an identifier, as "How the launcher reads the contract" says. |
 | `request` | The provider's own request identifier, or null: the same. |
 | `duration_ms` | How long the command ran, in milliseconds. |
@@ -192,7 +296,7 @@ answered and unavailable alike.
 **What the hash describes.** `request_sha256` and `request_bytes` describe the request the launcher prepared and
 offered. A judge may read less than all of it (it may close its input, ignore it or read a prefix); the log does not
 claim what it read. The log never holds a text the launcher sent, a prompt or a judge's standard error, and of a judge's
-answer only what the contract's rules let through (a probability and two identifiers). A judge that echoes a short text
+answer only validated scalar/batch probabilities and identifiers. A judge that echoes a short text
 into `model` or `request` is no answer unless the text is itself an identifier; an identifier that happens to equal a
 short text is logged.
 
@@ -218,13 +322,15 @@ file system kept what was synced. Directories above the state directory that the
 synced by it.
 
 **The log never grows past what its own reader accepts.** `judge egress` reads at most 64 MiB. Before a sent line is
-written, the log's size plus that line plus a reserve of 1024 bytes for the outcome line of every unfinished ask (this
-one included) must fit in that limit; otherwise the ask is refused (exit 7, `nothing was asked`) with a message that says
+written, the log's size plus that line plus the reserves for every unfinished ask (this
+one included) must fit in that limit. Each scalar ask reserves 1024 bytes; each guide batch reserves 4096 bytes,
+recorded in its sent line. Otherwise the ask is refused (exit 7, `nothing was asked`) with a message that says
 the egress log is full and names the file, which is to be moved aside (renamed: nothing rotates it). Move it aside only
 when no ask is running: stop issuing asks and let the launcher commands that are asking finish first, because an ask in
-flight writes its outcome line to whatever file has the log's name then, apart from its sent line. An outcome line is
-at most about 500 bytes and is always written inside the reserve, so the log stays readable by `judge egress` after a
-refused ask and after every outcome. An unfinished ask keeps its reserve for as long as its sent line is in the log.
+flight writes its outcome line to whatever file has the log's name then, apart from its sent line. A scalar outcome fits
+inside 1024 bytes; a bounded guide batch fits inside 4096 bytes, so the log stays readable by `judge egress` after a
+refused ask and after every outcome. Only an outcome with the same `ask` releases a sent line's reserve. An unfinished
+or killed ask keeps the reserve of its own class for as long as its unmatched sent line is in the log.
 
 **A log this version did not write is not appended to.** Before a sent line is written, the last line of the log must be
 a line of this version (the check `judge egress` makes on every line). Otherwise the ask is refused (exit 7, `nothing was

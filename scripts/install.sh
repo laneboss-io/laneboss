@@ -66,6 +66,6 @@ trap 'exit 143' TERM
 cd "$root"
 # Fixed toolchain and build settings make the installed manifest reproducible
 # across source locations. The Go command fetches missing toolchains/modules.
-GOTOOLCHAIN=go1.26.0 GOWORK=off CGO_ENABLED=0 GOENV=off GOFLAGS= "$go_command" build -tags= -trimpath -buildvcs=false -o "$build_dir/laneboss" ./cmd/laneboss
-GOTOOLCHAIN=go1.26.0 GOWORK=off CGO_ENABLED=0 GOENV=off GOFLAGS= "$go_command" build -tags= -trimpath -buildvcs=false -o "$build_dir/install" ./scripts/install
+GOTOOLCHAIN=go1.26.0 GOWORK=off CGO_ENABLED=0 GOENV=off GOFLAGS='' GOEXPERIMENT='' GOAMD64=v1 GOARM64=v8.0 "$go_command" build -buildmode=exe -tags= -trimpath -buildvcs=false -ldflags=-buildid= -o "$build_dir/laneboss" ./cmd/laneboss
+GOTOOLCHAIN=go1.26.0 GOWORK=off CGO_ENABLED=0 GOENV=off GOFLAGS='' GOEXPERIMENT='' "$go_command" build -buildmode=exe -tags= -trimpath -buildvcs=false -ldflags=-buildid= -o "$build_dir/install" ./scripts/install
 "$build_dir/install" "$root" "$prefix" "$build_dir/laneboss"

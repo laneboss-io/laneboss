@@ -1,12 +1,15 @@
 package laneturns
 
 import (
+	"encoding/json"
 	"math"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"laneboss.io/laneboss/internal/caller/records"
 )
 
 func fmtInt(n int) string { return strconv.Itoa(n) }
@@ -34,7 +37,7 @@ func normalizeEnvelope(e object) (object, error) {
 		}
 		r["id"] = "ev-" + id
 	}
-	if !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`).MatchString(str(r["id"])) || !regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}$`).MatchString(str(r["kind"])) || !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:@/+-]{0,127}$`).MatchString(str(r["actor"])) || !regexp.MustCompile(`^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$`).MatchString(str(r["protocol_version"])) {
+	if !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`).MatchString(str(r["id"])) || !regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}(?:\.[a-z][a-z0-9_]{0,31}){1,3}$`).MatchString(str(r["kind"])) || !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:@/+() -]{0,127}$`).MatchString(str(r["actor"])) || !regexp.MustCompile(`^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$`).MatchString(str(r["protocol_version"])) {
 		return nil, refused("an event's id, kind, actor or protocol_version is invalid")
 	}
 	if r["lane"] != nil && !lanePattern.MatchString(str(r["lane"])) {
@@ -66,8 +69,25 @@ func isArray(v any) bool {
 	return kind == reflect.Slice || kind == reflect.Array
 }
 func boundedInteger(v any, lo, hi float64) bool {
-	n := number(v)
-	return isWhole(v) && !math.IsInf(n, 0) && n >= lo && n <= hi
+	var n int64
+	switch value := v.(type) {
+	case int:
+		n = int64(value)
+	case int64:
+		n = value
+	case json.Number:
+		if strings.ContainsAny(value.String(), ".eE") {
+			return false
+		}
+		var err error
+		n, err = value.Int64()
+		if err != nil {
+			return false
+		}
+	default:
+		return false
+	}
+	return n >= int64(lo) && n <= int64(hi)
 }
 func validAbsolute(v any) bool {
 	s, ok := v.(string)
@@ -108,6 +128,9 @@ func validatePayloadFields(kind string, p object) error {
 		}
 	}
 	if kind == "lane.started" || kind == "lane.adopted" {
+		if err := records.Validate(p); err != nil {
+			return refused("%s payload report line: %s", kind, err)
+		}
 		for _, key := range []string{"worktree", "log"} {
 			if !validAbsolute(p[key]) {
 				return fail(key)
@@ -159,9 +182,9 @@ func validatePayloadFields(kind string, p object) error {
 					continue
 				}
 			}
-			allowed := []string{"routing", "supervisor", "previous"}
+			allowed := []string{"routing", "supervisor", "previous", "settings"}
 			if key == "account" {
-				allowed = []string{"supervisor", "default", "previous", "room"}
+				allowed = []string{"supervisor", "default", "previous", "room", "settings"}
 			}
 			if !contains(allowed, str(v)) {
 				return fail("chosen_by." + key)

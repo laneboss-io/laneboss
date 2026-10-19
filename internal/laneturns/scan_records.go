@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"laneboss.io/laneboss/internal/observation"
 )
 
 var scanCountKeys = []string{"lines", "unknown_lines", "other_lines", "oversized", "timed_out", "cut_results", "cut_lines", "outside_runs"}
@@ -434,7 +436,7 @@ func errorsAsProblem(err error, p **problem) bool {
 	return false
 }
 func scanPosition(item *scanItem) object {
-	return object{"path": safeScanPath(item.record.shown), "line": item.line, "offset": item.offset, "item": item.index}
+	return observation.Position(safeScanPath(item.record.shown), item.line, item.offset, item.index)
 }
 func scanSafeName(value string, pattern *regexp.Regexp) any {
 	if value != "" && pattern.MatchString(value) {

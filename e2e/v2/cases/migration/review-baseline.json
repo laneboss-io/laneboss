@@ -1,0 +1,216 @@
+{
+  "schema": "laneboss.migration-review-baseline.v1",
+  "baseline": ["f75dfa0d5889481309862a47", "30244853188f727f"],
+  "regressions": [
+    {
+      "test": "TestReviewLegacy/session_id",
+      "pattern": "^TestReviewLegacy$/^session_id$",
+      "diagnostic": "legacy argument escaped its field gate"
+    },
+    {
+      "test": "TestReviewLegacy/lane",
+      "pattern": "^TestReviewLegacy$/^lane$",
+      "diagnostic": "legacy argument escaped its field gate"
+    },
+    {
+      "test": "TestReviewLegacy/branch",
+      "pattern": "^TestReviewLegacy$/^branch$",
+      "diagnostic": "legacy argument escaped its field gate"
+    },
+    {
+      "test": "TestReviewLegacy/base",
+      "pattern": "^TestReviewLegacy$/^base$",
+      "diagnostic": "legacy argument escaped its field gate"
+    },
+    {
+      "test": "TestReviewLegacy/model",
+      "pattern": "^TestReviewLegacy$/^model$",
+      "diagnostic": "legacy argument escaped its field gate"
+    },
+    {
+      "test": "TestReviewLegacy/effort",
+      "pattern": "^TestReviewLegacy$/^effort$",
+      "diagnostic": "legacy argument escaped its field gate"
+    },
+    {
+      "test": "TestReviewLegacyTypes/branch",
+      "pattern": "^TestReviewLegacyTypes$/^branch$",
+      "diagnostic": "legacy non-string argument was accepted"
+    },
+    {
+      "test": "TestReviewCredentials/.netrc",
+      "pattern": "^TestReviewCredentials$/^.netrc$",
+      "diagnostic": "credential material entered legacy history"
+    },
+    {
+      "test": "TestReviewCredentials/notes.txt",
+      "pattern": "^TestReviewCredentials$/^notes.txt$",
+      "diagnostic": "credential material entered legacy history"
+    },
+    {
+      "test": "TestReviewCredentials/worktree",
+      "pattern": "^TestReviewCredentials$/^worktree$",
+      "diagnostic": "worktree credentials were silently accepted"
+    },
+    {
+      "test": "TestReviewHistoryOrder",
+      "pattern": "^TestReviewHistoryOrder$",
+      "diagnostic": "legacy history order is not deterministic"
+    },
+    {
+      "test": "TestReviewRollback/root-link",
+      "pattern": "^TestReviewRollback$/^root-link$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/backup-parent",
+      "pattern": "^TestReviewRollback$/^backup-parent$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/version",
+      "pattern": "^TestReviewRollback$/^version$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/digest",
+      "pattern": "^TestReviewRollback$/^digest$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/active-empty",
+      "pattern": "^TestReviewRollback$/^active-empty$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/active-overlap",
+      "pattern": "^TestReviewRollback$/^active-overlap$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/retained-overlap",
+      "pattern": "^TestReviewRollback$/^retained-overlap$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewOverlap",
+      "pattern": "^TestReviewOverlap$",
+      "diagnostic": "unresolved rollback path was treated as disjoint"
+    },
+    {
+      "test": "TestReviewRollback/existing-target",
+      "pattern": "^TestReviewRollback$/^existing-target$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/nil-store",
+      "pattern": "^TestReviewRollback$/^nil-store$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/no-measurement",
+      "pattern": "^TestReviewRollback$/^no-measurement$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewRollback/live-process",
+      "pattern": "^TestReviewRollback$/^live-process$",
+      "diagnostic": "unsafe rollback input escaped its field gate"
+    },
+    {
+      "test": "TestReviewReadback/activating",
+      "pattern": "^TestReviewReadback$/^activating$",
+      "diagnostic": "activating migration was advertised as verified"
+    },
+    {
+      "test": "TestReviewCompletion/readback",
+      "pattern": "^TestReviewCompletion$/^readback$",
+      "diagnostic": "completion was published before read-back"
+    },
+    {
+      "test": "TestReviewCompletion/problems",
+      "pattern": "^TestReviewCompletion$/^problems$",
+      "diagnostic": "completion ignored unresolved or disappearing plan"
+    },
+    {
+      "test": "TestReviewCompletion/source-problem",
+      "pattern": "^TestReviewCompletion$/^source-problem$",
+      "diagnostic": "completion ignored unresolved or disappearing plan"
+    },
+    {
+      "test": "TestReviewCompletion/deleted",
+      "pattern": "^TestReviewCompletion$/^deleted$",
+      "diagnostic": "completion escaped its final verification gate"
+    },
+    {
+      "test": "TestReviewPlanProblems",
+      "pattern": "^TestReviewPlanProblems$",
+      "diagnostic": "plan problems were not computed from dependencies"
+    },
+    {
+      "test": "TestReviewReadback/completed",
+      "pattern": "^TestReviewReadback$/^completed$",
+      "diagnostic": "all-state read-back missed duplicate delivery"
+    },
+    {
+      "test": "TestReviewReadback/returned",
+      "pattern": "^TestReviewReadback$/^returned$",
+      "diagnostic": "returned mail was counted as pending"
+    },
+    {
+      "test": "TestReviewApply/expired",
+      "pattern": "^TestReviewApply$/^expired$",
+      "diagnostic": "apply input escaped its deciding guard"
+    },
+    {
+      "test": "TestReviewArchive/path",
+      "pattern": "^TestReviewArchive$/^path$",
+      "diagnostic": "unsafe archive member was accepted"
+    },
+    {
+      "test": "TestReviewArchive/mode",
+      "pattern": "^TestReviewArchive$/^mode$",
+      "diagnostic": "unsafe archive member was accepted"
+    },
+    {
+      "test": "TestReviewArchive/link",
+      "pattern": "^TestReviewArchive$/^link$",
+      "diagnostic": "unsafe archive member was accepted"
+    },
+    {
+      "test": "TestReviewProjection/missing",
+      "pattern": "^TestReviewProjection$/^missing$",
+      "diagnostic": "event lane without projection was accepted"
+    },
+    {
+      "test": "TestReviewProjection/config",
+      "pattern": "^TestReviewProjection$/^config$",
+      "diagnostic": "source projection metadata mismatch was accepted"
+    },
+    {
+      "test": "TestReviewProjection/lanes",
+      "pattern": "^TestReviewProjection$/^lanes$",
+      "diagnostic": "source projection metadata mismatch was accepted"
+    },
+    {
+      "test": "TestReviewGrant/sha256",
+      "pattern": "^TestReviewGrant$/^sha256$",
+      "diagnostic": "relaunch accepted an invalid supplied grant set"
+    },
+    {
+      "test": "TestReviewGrant/expires_at",
+      "pattern": "^TestReviewGrant$/^expires_at$",
+      "diagnostic": "relaunch accepted an invalid supplied grant set"
+    },
+    {
+      "test": "TestReviewCanonical",
+      "pattern": "^TestReviewCanonical$",
+      "diagnostic": "migration canonical JSON diverged from RFC8785"
+    },
+    {
+      "test": "TestReviewEffectInventory",
+      "pattern": "^TestReviewEffectInventory$",
+      "diagnostic": "complete effect inventory omitted its causal migration"
+    }
+  ]
+}

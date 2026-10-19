@@ -35,13 +35,6 @@ func nativeSignal(identity object, signal syscall.Signal) (bool, bool, error) {
 	}
 	return true, true, nil
 }
-func becomeSubreaper() bool {
-	if !nativeProcesses() {
-		return false
-	}
-	_, _, errno := syscall.Syscall6(syscall.SYS_PRCTL, 36, 1, 0, 0, 0, 0)
-	return errno == 0
-}
 func reapOrphans(table map[int]processEntry, runner int, excluded ...int) {
 	for pid, entry := range table {
 		blocked := false

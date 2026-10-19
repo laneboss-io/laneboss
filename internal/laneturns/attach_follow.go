@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"laneboss.io/laneboss/internal/eventstore"
 )
 
 const bypassWarning = "WARNING: approvals are bypassed: the agent may run any command and change any file it can reach."
@@ -53,7 +55,7 @@ func displayStatus(row object) string {
 	return text
 }
 func logRange(s *laneSession, lane string, run int, size int64) (int64, int64, bool, error) {
-	events, err := s.store.events(lane, "lane.started")
+	events, err := s.events(lane, "lane.started")
 	if err != nil {
 		return 0, 0, false, err
 	}
@@ -332,9 +334,11 @@ func (f *attachFollower) finish(row object, size int64) error {
 		return err
 	}
 	var ended object
+	external := false
 	for _, e := range events {
 		if integer(obj(e["payload"])["run"]) == f.current {
 			ended = obj(e["payload"])
+			external = eventstore.ExternallyAppended(e)
 		}
 	}
 	if ended == nil {
@@ -344,6 +348,9 @@ func (f *attachFollower) finish(row object, size int64) error {
 		}
 		f.emit(fmt.Sprintf("run %d ended without an end event (reason %s)\n", f.current, shown(reason)))
 	} else {
+		if external {
+			f.emit("Externally appended lifecycle event\n")
+		}
 		code := "none"
 		if ended["exit_code"] != nil {
 			code = fmt.Sprint(integer(ended["exit_code"]))

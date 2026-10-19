@@ -94,6 +94,9 @@ func openStore(path, command string, p *progress) (s *store, err error) {
 	if _, e = s.exec("PRAGMA foreign_keys = ON"); e != nil {
 		return s, e
 	}
+	if _, e = s.exec("PRAGMA secure_delete = ON"); e != nil {
+		return s, e
+	}
 	version, e := s.count("PRAGMA user_version")
 	if e != nil {
 		return s, e

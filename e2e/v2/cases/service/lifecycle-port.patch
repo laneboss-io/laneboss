@@ -1,0 +1,51 @@
+--- a/internal/v2/lifecycle/plan_fail.go
++++ b/internal/v2/lifecycle/plan_fail.go
+@@ -12,36 +12,18 @@
+ // service resolves uncertain injection/projection results from these original
+ // selectors, fences before withdrawal, and obtains real helper quiescence
+ // before Release/RevokeInjection. Missing results never mean empty resources.
+-type PlanCleanup struct {
+-	ID            api.ID
+-	Kind          string // withdraw, release, revoke_injection
+-	Cause         api.InternalIntent
+-	ReservationID api.ID
+-	LaunchID      api.ID
+-	Slot          api.CredentialSlot
+-	SlotResult    api.BlobRef
+-	SlotKnown     bool
+-	Injection     *api.Injection
+-	InjectionIn   *api.BlobRef
+-	InjectionOut  *api.BlobRef
+-	Prepared      *api.PreparedLaunch
+-	Withdrawal    *api.CredentialWithdrawalRequest
+-	Issues        []*api.Error
+-}
+-
+-// FailedPlanStore extends the single writer, not the public API or effect
+-// union. FailPlan MUST commit the supplied transaction and cleanup outbox in
+-// one transaction, or neither. A separate enqueue after Transact is forbidden.
+-// Under that lock the writer rechecks the original planning claim, immutable
+-// reservation, cancellation epoch and projection selector. Teardown grants
+-// no fresh launch authority when policy has advanced.
+-// The service/store owns dispatch through the existing broker/helper cleanup
+-// ports; this capability is required because api.Effect has no credential
+-// withdrawal, slot release or injection-revoke member.
+-type FailedPlanStore interface {
+-	FailPlan(context.Context, api.Transaction, []PlanCleanup) (api.Commit, error)
+-	PlanCleanup(context.Context, api.Scope, api.ID) (PlanCleanup, error)
+-}
++type PlanCleanup = api.PlanCleanup
++
++// FailedPlanStore extends the single writer, not the public API or effect
++// union. FailPlan MUST commit the supplied transaction and cleanup outbox in
++// one transaction, or neither. A separate enqueue after Transact is forbidden.
++// Under that lock the writer rechecks the original planning claim, immutable
++// reservation, cancellation epoch and projection selector. Teardown grants
++// no fresh launch authority when policy has advanced.
++// The service/store owns dispatch through the existing broker/helper cleanup
++// ports; this capability is required because api.Effect has no credential
++// withdrawal, slot release or injection-revoke member.
++type FailedPlanStore = api.FailedPlanStore
+ 
+ func (execution *planExecution) stageResult(ctx context.Context, stage string) (launchStageResult, *api.BlobRef, error) {
+ 	meta, err := execution.service.deps.Store.ObjectMetadata(ctx, execution.scope, launchObjectID(execution.record.Reservation.ID, "result-"+stage))

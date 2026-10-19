@@ -83,6 +83,7 @@ bootstrap_source=$3
 bootstrap_candidate=$4
 bootstrap_doc_line=0
 bootstrap_blocks_ran=0
+bootstrap_blocks_expected=0
 
 bootstrap_exit() {
     bootstrap_exit_code=$?
@@ -152,14 +153,17 @@ awk '
 ' "$bootstrap_source/docs/getting-started.md" > "$bootstrap_run/walkthrough.sh"
 sh -n "$bootstrap_run/walkthrough.sh"
 cd "$bootstrap_source"
+test ! -e /var/run/laneboss/example || fail 'use a fresh box without an installed example identity service'
 # Keep this a plain source operation: using it as an if-condition would disable
 # POSIX errexit inside the sourced commands and could hide a failed check.
+# The generated file is syntax-checked above and does not exist during linting.
+# shellcheck source=/dev/null
 . "$bootstrap_run/walkthrough.sh"
 [ "$bootstrap_blocks_ran" -eq "$bootstrap_blocks_expected" ] \
     || fail 'not all walkthrough shell blocks finished'
 
 command laneboss --version > "$bootstrap_run/installed-version.json"
-jq -e '.program == "laneboss" and .version == "0.6.0-dev4" and
+jq -e '.program == "laneboss" and .version == "0.7.0" and
        .protocol_version == "1.3.0"' "$bootstrap_run/installed-version.json"
 if [ -n "$bootstrap_candidate" ]; then
     cp "$bootstrap_candidate" "$bootstrap_run/tested-laneboss"

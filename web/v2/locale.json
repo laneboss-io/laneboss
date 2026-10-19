@@ -1,0 +1,46 @@
+{
+  "Laneboss v2 Dashboard": {
+    "en": "Laneboss v2 Dashboard",
+    "zh-TW": "Laneboss v2 控制台"
+  },
+  "Org Tree": {
+    "en": "Org Tree",
+    "zh-TW": "組織樹"
+  },
+  "Lane Lifecycle": {
+    "en": "Lane Lifecycle",
+    "zh-TW": "生命週期"
+  },
+  "Raw Streams & Mail": {
+    "en": "Raw Streams & Mail",
+    "zh-TW": "原始輸出與訊息"
+  },
+  "Decisions": {
+    "en": "Decisions",
+    "zh-TW": "決策紀錄"
+  },
+  "Refusal Statistics": {
+    "en": "Refusal Statistics",
+    "zh-TW": "攔截與未評分統計"
+  },
+  "Plugins": {
+    "en": "Plugins",
+    "zh-TW": "已安裝外掛"
+  },
+  "Scripts & Tools": {
+    "en": "Scripts & Tools",
+    "zh-TW": "組織腳本與工具"
+  },
+  "D6 Approvals": {
+    "en": "D6 Approvals",
+    "zh-TW": "D6 變更核准紀錄"
+  },
+  "Human Controls": {
+    "en": "Human Controls",
+    "zh-TW": "人工控制與傳訊"
+  },
+  "Keyboard Shortcuts": {
+    "en": "Keyboard Shortcuts",
+    "zh-TW": "鍵盤快捷鍵"
+  }
+}

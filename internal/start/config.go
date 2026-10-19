@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+	"laneboss.io/laneboss/internal/instancename"
 )
 
 type configuration struct {
@@ -26,6 +27,9 @@ type otherLocation struct{ name, kind, path string }
 type unreadableConfig struct{ name, why string }
 
 func checkName(name, what string) error {
+	if what == "role" && instancename.Valid(name) {
+		return nil
+	}
 	if !nameRE.MatchString(name) {
 		return refused("the " + what + " must match " + nameRule)
 	}

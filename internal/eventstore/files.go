@@ -475,11 +475,10 @@ func (d *Directory) Marker() (Object, error) {
 }
 func (d *Directory) Lock(shared bool) (func(), error) { return directoryLock(d.file, shared) }
 
-// Readers coordinate through both lock mechanisms. A client using the file
-// fallback can therefore exclude a reader even when that reader can lock the
-// directory itself. Writers retain the directory lock and join the file lock
-// once a reader or a fallback client has created it. Every client takes the
-// directory lock before the file lock, and releases acquired locks in reverse order.
+// Clients use the directory lock when supported and join an existing fallback
+// file so that they also coordinate with clients unable to lock directories.
+// Only a failed directory lock may create that file. Acquired locks are released
+// in reverse order.
 func directoryLock(f *os.File, shared bool) (func(), error) {
 	op := syscall.LOCK_EX
 	if shared {
@@ -492,7 +491,7 @@ func directoryLock(f *os.File, shared bool) (func(), error) {
 		}
 	}
 	path := filepath.Join(f.Name(), ".lock")
-	needFile := shared || !directoryLocked
+	needFile := !directoryLocked
 	if !needFile {
 		_, err := os.Lstat(path)
 		if err != nil && !os.IsNotExist(err) {
@@ -504,7 +503,7 @@ func directoryLock(f *os.File, shared bool) (func(), error) {
 	var lockFile *os.File
 	if needFile {
 		flags := syscall.O_RDWR | syscall.O_NOFOLLOW | syscall.O_NONBLOCK | syscall.O_CLOEXEC
-		if shared || !directoryLocked {
+		if !directoryLocked {
 			flags |= syscall.O_CREAT
 		}
 		fd, err := syscall.Open(path, flags, 0600)

@@ -1,6 +1,7 @@
 package judge
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"laneboss.io/laneboss/internal/faults"
+	"laneboss.io/laneboss/internal/guardtime"
 )
 
 type result struct {
@@ -24,25 +26,61 @@ type result struct {
 	Withheld    []string `json:"withheld"`
 	Cut         []string `json:"cut"`
 	Duration    int64    `json:"duration_ms"`
+
+	command      string
+	confidence   float64
+	nouls        map[string]float64
+	distribution map[string]float64
 }
 
 func askJudge(c *configuration, o options, j judgeDefinition, r request) (result, string, bool, error) {
+	return askJudgeContext(context.Background(), c, o, j, r)
+}
+
+func askJudgeWithin(c *configuration, o options, j judgeDefinition, r request, limit time.Duration) (result, string, bool, error) {
+	ctx := context.Background()
+	if limit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, limit)
+		defer cancel()
+	}
+	return askJudgeContext(ctx, c, o, j, r)
+}
+
+func askJudgeContext(ctx context.Context, c *configuration, o options, j judgeDefinition, r request) (result, string, bool, error) {
 	res := result{Judge: o.judge, Question: o.question, Withheld: r.withheld, Cut: r.cut}
+	if err := ctx.Err(); err != nil {
+		return res, "", false, err
+	}
 	state, err := c.openState(true)
 	if err != nil {
 		return res, "", false, err
 	}
 	defer state.close()
-	return askJudgeInState(c, state, o, j, r)
+	return askJudgeInStateContext(ctx, c, state, o, j, r)
+}
+
+func askJudgeInStateWithin(c *configuration, state *directory, o options, j judgeDefinition, r request, limit time.Duration) (result, string, bool, error) {
+	ctx := context.Background()
+	if limit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, limit)
+		defer cancel()
+	}
+	return askJudgeInStateContext(ctx, c, state, o, j, r)
 }
 
 func askJudgeInState(c *configuration, state *directory, o options, j judgeDefinition, r request) (result, string, bool, error) {
+	return askJudgeInStateContext(context.Background(), c, state, o, j, r)
+}
+
+func askJudgeInStateContext(ctx context.Context, c *configuration, state *directory, o options, j judgeDefinition, r request) (result, string, bool, error) {
 	res := result{Judge: o.judge, Question: o.question, Withheld: r.withheld, Cut: r.cut}
 	expected, err := filepath.EvalSymlinks(c.statePath)
 	if err != nil || expected != state.real {
 		return res, "", false, refused("the state directory does not belong to this configuration")
 	}
-	if err = state.recordOwner(c); err != nil {
+	if err = state.recordOwner(c, ctx); err != nil {
 		return res, "", false, err
 	}
 	directory, err := state.childDirectory("judges", true)
@@ -65,16 +103,37 @@ func askJudgeInState(c *configuration, state *directory, o options, j judgeDefin
 		lane = o.lane
 	}
 	sent := map[string]any{"at": utcNow(), "ask": ask, "event": "sent", "judge": o.judge, "question": o.question, "lane": lane, "request_sha256": r.hash, "request_bytes": len(r.data), "withheld": r.withheld, "cut": r.cut}
-	if err = directory.writeLog(logBytes(sent), true, nothingAsked); err != nil {
+	if r.batch {
+		sent["outcome_reserve"] = batchOutcomeReserve
+	}
+	if err = directory.writeLog(logBytes(sent), true, nothingAsked, ctx); err != nil {
 		return res, "", false, err
 	}
 	started := time.Now()
-	reason, status, out, stderr, interrupted := runCommand(j.command, r.data, j.seconds, interrupts)
+	processCtx := ctx
+	cancel := func() {}
+	if deadline, ok := ctx.Deadline(); ok {
+		// Reserve time inside the same budget for process cleanup and recording
+		// the timeout outcome; a log lock never gets a fresh deadline.
+		reserve := guardtime.Cleanup
+		if remaining := time.Until(deadline) / 4; remaining < reserve {
+			reserve = remaining
+		}
+		if reserve > 0 {
+			processCtx, cancel = context.WithDeadline(ctx, deadline.Add(-reserve))
+		}
+	}
+	defer cancel()
+	reason, status, out, stderr, interrupted := runCommandEnvironmentContext(processCtx, j.command, r.data, j.seconds, interrupts, nil)
 	var a answer
+	decode := readAnswer
+	if r.decode != nil {
+		decode = r.decode
+	}
 	if reason == "" {
 		if status != 0 {
 			reason = "exit"
-		} else if found, ok := readAnswer(out); ok {
+		} else if found, ok := decode(out); ok {
 			reason = "answered"
 			a = found
 		} else {
@@ -82,9 +141,15 @@ func askJudgeInState(c *configuration, state *directory, o options, j judgeDefin
 		}
 	}
 	res.Outcome, res.Probability, res.Model, res.Request = reason, a.p, a.model, a.request
+	res.command, res.confidence = a.command, a.confidence
+	res.nouls = a.nouls
+	res.distribution = a.distribution
 	res.Duration = int64(time.Since(started).Round(time.Millisecond) / time.Millisecond)
 	outcome := map[string]any{"at": utcNow(), "ask": ask, "event": "outcome", "outcome": reason, "probability": a.p, "model": a.model, "request": a.request, "duration_ms": res.Duration}
-	if err = directory.writeLog(logBytes(outcome), false, outcomeUnlogged); err != nil {
+	if a.nouls != nil {
+		outcome["probabilities"] = a.nouls
+	}
+	if err = directory.writeLog(logBytes(outcome), false, outcomeUnlogged, ctx); err != nil {
 		return res, "", interrupted, err
 	}
 	detail := ""
@@ -151,6 +216,33 @@ func runCommand(argv []string, input []byte, seconds int, interrupts <-chan os.S
 }
 
 func runCommandEnvironment(argv []string, input []byte, seconds int, interrupts <-chan os.Signal, environment []string) (string, int, []byte, []byte, bool) {
+	return runCommandEnvironmentContext(context.Background(), argv, input, seconds, interrupts, environment)
+}
+
+func runCommandWithin(argv []string, input []byte, seconds int, limit time.Duration, interrupts <-chan os.Signal) (string, int, []byte, []byte, bool) {
+	ctx := context.Background()
+	if limit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, limit)
+		defer cancel()
+	}
+	return runCommandEnvironmentContext(ctx, argv, input, seconds, interrupts, nil)
+}
+
+func runCommandEnvironmentWithin(argv []string, input []byte, seconds int, limit time.Duration, interrupts <-chan os.Signal, environment []string) (string, int, []byte, []byte, bool) {
+	ctx := context.Background()
+	if limit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, limit)
+		defer cancel()
+	}
+	return runCommandEnvironmentContext(ctx, argv, input, seconds, interrupts, environment)
+}
+
+func runCommandEnvironmentContext(ctx context.Context, argv []string, input []byte, seconds int, interrupts <-chan os.Signal, environment []string) (string, int, []byte, []byte, bool) {
+	if ctx.Err() != nil {
+		return "timeout", -1, nil, nil, false
+	}
 	var opened []*os.File
 	closeOpened := func() {
 		for _, f := range opened {
@@ -200,6 +292,9 @@ func runCommandEnvironment(argv []string, input []byte, seconds int, interrupts 
 	outWrite.Close()
 	errWrite.Close()
 	deadline := time.Now().Add(time.Duration(seconds) * time.Second)
+	if bound, ok := ctx.Deadline(); ok && bound.Before(deadline) {
+		deadline = bound
+	}
 	outputDeadline := outRead.SetReadDeadline(deadline)
 	errorDeadline := errRead.SetReadDeadline(deadline)
 	inputDeadline := inWrite.SetWriteDeadline(deadline)
@@ -228,6 +323,8 @@ func runCommandEnvironment(argv []string, input []byte, seconds int, interrupts 
 			reason = "output"
 		case <-timer.C:
 			reason = "timeout"
+		case <-ctx.Done():
+			reason = "timeout"
 		case <-interrupts:
 			reason = "exit"
 			interrupted = true
@@ -242,7 +339,7 @@ func runCommandEnvironment(argv []string, input []byte, seconds int, interrupts 
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	} else {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
-		grace := time.NewTimer(time.Second)
+		grace := time.NewTimer(50 * time.Millisecond)
 		select {
 		case <-waitDone:
 			ended = true
@@ -252,7 +349,7 @@ func runCommandEnvironment(argv []string, input []byte, seconds int, interrupts 
 		// A leader may have ended while a child ignores TERM; always kill the group.
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		if !ended {
-			killGrace := time.NewTimer(time.Second)
+			killGrace := time.NewTimer(50 * time.Millisecond)
 			select {
 			case <-waitDone:
 				ended = true

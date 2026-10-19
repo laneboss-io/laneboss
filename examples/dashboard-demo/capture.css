@@ -1,0 +1,48 @@
+/* Presentation only: no state, model, parent or timeline content is changed. */
+#capture-label {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10000;
+  padding: 11px 32px;
+  color: #f4f7f2;
+  background: #263b31;
+  font: 12px/18px system-ui, sans-serif;
+  letter-spacing: .025em;
+}
+main { padding-top: 68px; }
+#org-graph { max-height: 550px; }
+.graph-level[data-level="3"] .graph-parent-cards {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.agent-drawer {
+  width: min(780px, 96vw);
+  padding-top: 42px;
+}
+.drawer-demo-label {
+  position: absolute;
+  inset: 0 0 auto;
+  margin: 0;
+  padding: 11px 22px;
+  color: #f4f7f2;
+  background: #263b31;
+  font: 12px/18px system-ui, sans-serif;
+}
+.drawer-records { max-height: 240px; }
+.drawer-body .thinking-stream { max-height: 300px; }
+.scroll { max-height: 640px; }
+table { table-layout: fixed; width: 100%; }
+td, th, .nowrap, .summary, .lane, .model {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+#events-content th:nth-child(1) { width: 16%; }
+#events-content th:nth-child(2) { width: 12%; }
+#events-content th:nth-child(3) { width: 6%; }
+#events-content th:nth-child(4) { width: 16%; }
+#events-content th:nth-child(5) { width: 50%; }
+#drawer-lifecycle th:nth-child(1) { width: 24%; }
+#drawer-lifecycle th:nth-child(2) { width: 12%; }
+#drawer-lifecycle th:nth-child(3) { width: 23%; }
+#drawer-lifecycle th:nth-child(4) { width: 41%; }

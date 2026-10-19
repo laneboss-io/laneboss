@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +21,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/typesafe"
 )
 
 const maxBytes = 1 << 20
@@ -240,7 +243,7 @@ func readRequest() (string, map[string]any, bool, error) {
 	if len(data) > maxBytes {
 		return "", nil, false, bad(2, "the request is larger than 1 MiB")
 	}
-	value, e := decode(data, false)
+	value, e := decode(data, true)
 	if e != nil {
 		return "", nil, false, bad(2, "the request is not one JSON object in UTF-8")
 	}
@@ -250,6 +253,39 @@ func readRequest() (string, map[string]any, bool, error) {
 	}
 	if v, ok := request["laneboss_judge"].(json.Number); !ok || v.String() != "1" {
 		return "", nil, false, bad(2, "laneboss_judge must be 1")
+	}
+	if request["kind"] == "typed" {
+		state, questions := object(request["state"]), object(request["questions"])
+		if state == nil || !typesafe.Questions(questions) || unpaired(data) {
+			return "", nil, false, bad(2, "typed request needs named state and documented questions")
+		}
+		return "laneboss.typed", map[string]any{"state": state, "questions": questions}, false, nil
+	}
+	if request["kind"] == "laneboss-jobs" {
+		state, questions := object(request["state"]), object(request["questions"])
+		owned, command := object(questions["owned"]), object(questions["command"])
+		criteria := object(command["criteria"])
+		shell, shellOK := state["shell_command"].(string)
+		if request["question"] != "laneboss.jobs" || !shellOK || shell == "" || !typesafe.Questions(questions) || owned["type"] != "noul" ||
+			command["type"] != "choice" || len(criteria) < 2 || len(criteria) > 255 {
+			return "", nil, false, bad(2, "job request needs a shell command and generated noul/choice questions")
+		}
+		for _, question := range []map[string]any{owned, command} {
+			text, ok := question["instructions"].(string)
+			if !ok || strings.TrimSpace(text) == "" || utf8.RuneCountInString(text) > 4000 {
+				return "", nil, false, bad(2, "job question instructions must be bounded text")
+			}
+		}
+		for name, value := range criteria {
+			text, ok := value.(string)
+			if name == "" || !ok || text == "" || utf8.RuneCountInString(text) > 4000 {
+				return "", nil, false, bad(2, "job choices must have generated names and purposes")
+			}
+		}
+		if _, exists := criteria["none"]; !exists {
+			return "", nil, false, bad(2, "job choices must include none")
+		}
+		return "laneboss.jobs", map[string]any{"state": state, "questions": questions}, unpaired(data), nil
 	}
 	if request["kind"] != "noul" {
 		return "", nil, false, bad(2, "kind must be noul")
@@ -400,14 +436,19 @@ func cleanID(s string) any {
 	return nil
 }
 func ask(o options, prompt string, subject map[string]any) ([]byte, any, error) {
-	body := map[string]any{"state": subject, "model": o.model, "questions": map[string]any{"answer": map[string]any{"type": "noul", "instructions": prompt}}}
+	body := map[string]any{"state": subject, "model": o.model, "questions": scalarQuestions(prompt)}
+	if questions, ok := subject["questions"].(map[string]any); ok && (prompt == "laneboss.jobs" || prompt == "laneboss.typed") {
+		body = map[string]any{"state": subject["state"], "model": o.model, "questions": questions}
+	}
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
 	if e := enc.Encode(body); e != nil {
 		return nil, nil, bad(2, "the request holds text that cannot be sent as UTF-8")
 	}
-	request, e := http.NewRequest(http.MethodPost, o.base+"/v1/systemone", &b)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(o.timeout*float64(time.Second)))
+	defer cancel()
+	request, e := http.NewRequestWithContext(ctx, http.MethodPost, o.base+"/v1/systemone", bytes.NewReader(b.Bytes()))
 	if e != nil {
 		return nil, nil, bad(4, "cannot get an answer from the service: ValueError")
 	}
@@ -422,13 +463,28 @@ func ask(o options, prompt string, subject map[string]any) ([]byte, any, error) 
 	}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: time.Duration(o.timeout * float64(time.Second)), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, e := client.Do(request)
+	var response *http.Response
+	for attempt := 0; ; attempt++ {
+		request.Body = io.NopCloser(bytes.NewReader(b.Bytes()))
+		response, e = client.Do(request)
+		if e != nil || (response.StatusCode != 429 && response.StatusCode != 529) || attempt == 2 {
+			break
+		}
+		response.Body.Close()
+		delay := time.NewTimer(time.Duration(1<<attempt) * 100 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			delay.Stop()
+			return nil, nil, httpFailure(ctx.Err(), o.timeout)
+		case <-delay.C:
+		}
+	}
 	if e != nil {
 		return nil, nil, httpFailure(e, o.timeout)
 	}
 	defer response.Body.Close()
 	id := cleanID(response.Header.Get("x-typesafe-request-id"))
-	if response.StatusCode >= 300 {
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		suffix := ""
 		if id != nil {
 			suffix = fmt.Sprintf(" (request %s)", id)
@@ -446,7 +502,7 @@ func ask(o options, prompt string, subject map[string]any) ([]byte, any, error) 
 }
 func httpFailure(e error, seconds float64) error {
 	var timeout net.Error
-	if errors.As(e, &timeout) && timeout.Timeout() {
+	if errors.Is(e, context.DeadlineExceeded) || errors.As(e, &timeout) && timeout.Timeout() {
 		return bad(5, fmt.Sprintf("the service did not answer within %g seconds", seconds))
 	}
 	return bad(4, "cannot get an answer from the service: "+errorKind(e))
@@ -496,12 +552,11 @@ func probability(n json.Number) (float64, bool) {
 	return f + 0, true
 }
 func answer(body []byte, id any) (string, error) {
-	value, e := decode(body, true)
+	root, e := typesafe.Response(body, scalarQuestions("Is the supplied proposition true?"))
 	unreadable := bad(4, "the service's answer is not the documented one")
 	if e != nil {
 		return "", unreadable
 	}
-	root := object(value)
 	a := object(object(root["answers"])["answer"])
 	if a["type"] != "noul" {
 		return "", unreadable
@@ -515,11 +570,8 @@ func answer(body []byte, id any) (string, error) {
 		return "", unreadable
 	}
 	model := root["model"]
-	if model != nil {
-		m, ok := model.(string)
-		if !ok || !identifier.MatchString(m) {
-			return "", unreadable
-		}
+	if m, ok := model.(string); !ok || !identifier.MatchString(m) {
+		return "", unreadable
 	}
 	modelJSON, _ := json.Marshal(model)
 	idJSON, _ := json.Marshal(id)
@@ -529,8 +581,37 @@ func answer(body []byte, id any) (string, error) {
 	}
 	return fmt.Sprintf("{\"probability\": %s, \"model\": %s, \"request\": %s}", number, modelJSON, idJSON), nil
 }
+
+func jobAnswer(body []byte, id any, criteria map[string]any) (string, error) {
+	return typedAnswer(body, id, map[string]any{
+		"owned":   map[string]any{"type": "noul", "instructions": "Does the action do a managed job?"},
+		"command": map[string]any{"type": "choice", "instructions": "Which catalog command applies?", "criteria": criteria},
+	})
+}
+
+func scalarQuestions(prompt string) map[string]any {
+	return map[string]any{"answer": map[string]any{"type": "noul", "instructions": prompt,
+		"criteria": map[string]any{"true": "The proposition in instructions is true for the named state.", "false": "The proposition in instructions is false for the named state."}}}
+}
+
+func typedAnswer(body []byte, id any, questions map[string]any) (string, error) {
+	result, err := typesafe.Response(body, questions)
+	unreadable := bad(4, "the service's answer is not the documented one")
+	if err != nil {
+		return "", unreadable
+	}
+	if model, ok := result["model"].(string); !ok || !identifier.MatchString(model) {
+		return "", unreadable
+	}
+	result["request"] = id
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return "", unreadable
+	}
+	return string(raw), nil
+}
 func help() string {
-	return "usage: typesafe_jev.py [-h] [--env-file PATH] [--key-name NAME] [--model MODEL]\n                       [--base-url URL] [--timeout SECONDS]\n\nJudge for the laneboss launcher: asks TypeSafe's Jev one yes/no question about the request on standard input and prints the probability of yes. Exit 2: bad request or options; 3: key file; 4: HTTP error, an answer that cannot be read, or text that held the key; 5: time-out.\n\noptions:\n  -h, --help         show this help and exit\n  --env-file PATH   required: file of NAME=value lines that holds the key; group and others must have no access\n  --key-name NAME   the name of the key's line (default: TYPESAFE_API_KEY)\n  --model MODEL     the model or alias to ask (default: jev-latest)\n  --base-url URL    the service's address; https unless 127.0.0.1 (default: https://api.typesafe.ai)\n  --timeout SECONDS seconds to wait for the service in all (default: 8)"
+	return "usage: typesafe_jev [-h] [--env-file PATH] [--key-name NAME] [--model MODEL]\n                       [--base-url URL] [--timeout SECONDS]\n\nJudge for the laneboss launcher: asks TypeSafe's Jev the typed questions about the named state on standard input. Legacy scalar asks print the probability of yes; typed batches preserve official answers. Exit 2: bad request or options; 3: key file; 4: HTTP error, an answer that cannot be read, or text that held the key; 5: time-out.\n\noptions:\n  -h, --help         show this help and exit\n  --env-file PATH   required: file of NAME=value lines that holds the key; group and others must have no access\n  --key-name NAME   the name of the key's line (default: TYPESAFE_API_KEY)\n  --model MODEL     the model or alias to ask (default: jev-latest)\n  --base-url URL    the service's address; https unless 127.0.0.1 (default: https://api.typesafe.ai)\n  --timeout SECONDS seconds to wait for the service in all (default: 8)"
 }
 func main() { os.Exit(run(os.Args[1:])) }
 func run(args []string) (code int) {
@@ -567,7 +648,11 @@ func run(args []string) (code int) {
 		body, id, err := ask(o, prompt, subject)
 		e = err
 		if e == nil {
-			result, e = answer(body, id)
+			if questions, ok := subject["questions"].(map[string]any); ok && (prompt == "laneboss.jobs" || prompt == "laneboss.typed") {
+				result, e = typedAnswer(body, id, questions)
+			} else {
+				result, e = answer(body, id)
+			}
 		}
 	}
 	if e != nil {

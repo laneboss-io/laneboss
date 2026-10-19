@@ -9,24 +9,43 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"syscall"
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+	"laneboss.io/laneboss/internal/hookblacklist"
+	"laneboss.io/laneboss/internal/instancename"
 )
 
 const (
-	maxBytes     = 2 * 1024 * 1024
-	maxRules     = 512
-	maxReadPaths = 4096
+	maxBytes            = 2 * 1024 * 1024
+	maxRules            = 512
+	maxReadPaths        = 4096
+	maxDescriptionBytes = 4096
 )
 
-var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$`)
+var validName = instancename.Expression
 
 func invalid(message string) error { return errors.New(message) }
+
+type observationGap struct{ err error }
+
+func (e *observationGap) Error() string { return e.err.Error() }
+func (e *observationGap) Unwrap() error { return e.err }
+
+func observation(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &observationGap{err: err}
+}
+
+func isObservationGap(err error) bool {
+	var gap *observationGap
+	return errors.As(err, &gap)
+}
 func object(value any) (map[string]any, bool) {
 	result, ok := value.(map[string]any)
 	return result, ok
@@ -341,10 +360,146 @@ func instanceFromDirectory(directory string) string {
 }
 
 type instance struct {
-	home, directory, name, worktree          string
+	home, directory, name, role, worktree    string
 	level                                    int
+	hookMode                                 string
+	blacklist                                []blacklistRule
+	blacklistSources                         []string
 	data                                     map[string]any
 	writableRepos, allowedTools, secretNames []string
+}
+
+// blacklistRule is the one org-level hook entry format. A rule may have a
+// deterministic matcher, a decision/job reference for the judge, or both.
+// Empty scope lists mean every level or role, respectively.
+type blacklistRule struct {
+	id, description, band, instead string
+	source                         string
+	why                            string
+	builtIn                        bool
+	patternOnly                    bool
+	argv                           [][]string
+	argvWords                      []string
+	pathGlob, toolGlob             string
+	decision, job                  string
+	levels                         []int
+	roles                          []string
+	identityScope                  bool
+	examplesNotOK, examplesOK      []string
+	pathRoots                      []string
+	hookPaths                      bool
+	secretNames                    []string
+	legacySecret                   bool
+}
+
+type hookPolicy struct {
+	mode      string
+	blacklist []blacklistRule
+}
+
+func hookText(value any, label string, limit int) (string, error) {
+	text, ok := value.(string)
+	if !ok || strings.TrimSpace(text) == "" || len([]byte(text)) > limit || hasControl(text) {
+		return "", invalid(label + " must be nonempty text within the byte limit")
+	}
+	return text, nil
+}
+
+func hookExamples(value any, label string) ([]string, error) {
+	if value == nil {
+		return nil, nil
+	}
+	items, ok := array(value)
+	if !ok || len(items) > 8 {
+		return nil, invalid(label + " must be an array of at most 8 examples")
+	}
+	result := make([]string, len(items))
+	total := 0
+	for i, item := range items {
+		text, err := hookText(item, fmt.Sprintf("%s[%d]", label, i), 512)
+		if err != nil {
+			return nil, err
+		}
+		total += len([]byte(text))
+		if total > 4096 {
+			return nil, invalid(label + " exceeds the combined example byte limit")
+		}
+		result[i] = text
+	}
+	return result, nil
+}
+
+func hookScope(value any, label string) ([]int, []string, error) {
+	if value == nil {
+		return nil, nil, nil
+	}
+	data, ok := object(value)
+	if !ok || !onlyKeys(data, "levels", "roles", "identities") {
+		return nil, nil, invalid(label + " must be a table with optional levels and roles")
+	}
+	levels := []int(nil)
+	if raw, exists := data["levels"]; exists {
+		values, ok := array(raw)
+		if !ok || len(values) == 0 || len(values) > maxRules {
+			return nil, nil, invalid(label + ".levels must be a nonempty array of levels")
+		}
+		seen := map[int]bool{}
+		for _, value := range values {
+			level, ok := integer(value)
+			if !ok || !allowedLevel(level) || seen[level] {
+				return nil, nil, invalid(label + ".levels must contain distinct levels from 3 to 6")
+			}
+			seen[level] = true
+			levels = append(levels, level)
+		}
+	}
+	roles := []string(nil)
+	key := "roles"
+	if _, exists := data[key]; !exists {
+		key = "identities" // Existing refusal descriptions used this name.
+	}
+	if raw, exists := data[key]; exists {
+		values, err := stringList(raw, label+"."+key, false)
+		if err != nil {
+			return nil, nil, err
+		}
+		roles = values
+	}
+	return levels, roles, nil
+}
+
+func parseHookBlacklist(home string) (hookPolicy, error) {
+	policy := hookPolicy{mode: "blacklist"}
+	raw, err := readTOML(filepath.Join(home, "org.toml"), "org.toml")
+	if err != nil {
+		return policy, err
+	}
+	value, exists := raw["hooks"]
+	if !exists {
+		return policy, nil
+	}
+	hooks, ok := object(value)
+	if !ok || !onlyKeys(hooks, "mode", "blacklist") {
+		return policy, invalid("org.toml hooks must contain only mode and blacklist")
+	}
+	if value, exists := hooks["mode"]; exists {
+		mode, ok := value.(string)
+		if !ok || (mode != "blacklist" && mode != "strict") {
+			return policy, invalid("org.toml hooks.mode must be blacklist or strict")
+		}
+		// Accept the removed spelling for source compatibility. Every org uses
+		// blacklist semantics; render/validate report the deprecation.
+	}
+	rowsValue, exists := hooks["blacklist"]
+	if !exists {
+		return policy, nil
+	}
+	rows, err := hookblacklist.Parse(rowsValue, "org.toml hooks.blacklist")
+	if err != nil {
+		return policy, err
+	}
+	policy.blacklist = hookBlacklistRows(rows, "", filepath.Join(home, "org.toml"))
+	return policy, nil
 }
 
 func loadInstance(directory string) (*instance, error) {
@@ -355,6 +510,10 @@ func loadInstance(directory string) (*instance, error) {
 		return nil, invalid("unknown instance: expected .laneboss/instances/NAME/instance.toml")
 	}
 	home, err := orgHome(filepath.Dir(filepath.Dir(directory)))
+	if err != nil {
+		return nil, err
+	}
+	hook, err := parseHookBlacklist(home)
 	if err != nil {
 		return nil, err
 	}
@@ -374,13 +533,21 @@ func loadInstance(directory string) (*instance, error) {
 	if !ok || strings.TrimSpace(role) == "" {
 		return nil, invalid("instance.toml needs a role")
 	}
+	var sources []string
+	hook.blacklist, sources, err = effectiveHookBlacklist(home, level, role, hook.blacklist)
+	if err != nil {
+		return nil, err
+	}
 	repos, err := stringList(data["writable_repos"], "instance writable_repos", true)
 	if err != nil {
 		return nil, err
 	}
-	tools, err := stringList(data["allowed_tools"], "instance allowed_tools", true)
-	if err != nil {
-		return nil, err
+	tools := []string{}
+	if value, exists := data["allowed_tools"]; exists {
+		tools, err = stringList(value, "instance allowed_tools", true)
+		if err != nil {
+			return nil, err
+		}
 	}
 	secretsValue, exists := data["secret_names"]
 	if !exists {
@@ -406,7 +573,8 @@ func loadInstance(directory string) (*instance, error) {
 			return nil, err
 		}
 	}
-	return &instance{home: home, directory: directory, name: name, level: level, data: data, writableRepos: repos, allowedTools: tools, secretNames: secrets, worktree: worktree}, nil
+	return &instance{home: home, directory: directory, name: name, role: role, level: level, hookMode: hook.mode,
+		blacklist: hook.blacklist, blacklistSources: sources, data: data, writableRepos: repos, allowedTools: tools, secretNames: secrets, worktree: worktree}, nil
 }
 
 func findInstance(cwd, pinned string) (*instance, error) {
@@ -475,20 +643,10 @@ func validateRefusal(data map[string]any, label string) error {
 		}
 	}
 	applies, ok := object(data["applies_to"])
-	if !ok || len(applies) != 2 || !onlyKeys(applies, "levels", "identities") {
-		return invalid(label + " needs applies_to levels and identities")
+	if !ok {
+		return invalid(label + " needs applies_to")
 	}
-	levels, ok := array(applies["levels"])
-	if !ok || len(levels) == 0 || len(levels) > maxRules {
-		return invalid(label + " has invalid applicable levels")
-	}
-	for _, value := range levels {
-		level, ok := integer(value)
-		if !ok || !allowedLevel(level) {
-			return invalid(label + " has invalid applicable levels")
-		}
-	}
-	if _, err := stringList(applies["identities"], label+" applicable identities", false); err != nil {
+	if _, _, err := hookScope(applies, label+" applies_to"); err != nil {
 		return err
 	}
 	for _, key := range []string{"examples_allowed", "examples_refused"} {
@@ -570,7 +728,15 @@ func loadRules(inst *instance) ([]rule, error) {
 	result := []rule{}
 	for _, layer := range []string{"shared", fmt.Sprintf("L%d", inst.level)} {
 		source := layer + "/hooks/rules.toml"
-		data, err := readTOML(filepath.Join(inst.home, filepath.FromSlash(source)), source)
+		path := filepath.Join(inst.home, filepath.FromSlash(source))
+		// Rule sources are owner-authored and optional. A present but unreadable,
+		// malformed or dangling-link source must still fail closed.
+		if _, err := os.Lstat(path); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return nil, invalid(source + " is unreadable")
+		}
+		data, err := readTOML(path, source)
 		if err != nil {
 			return nil, err
 		}
@@ -660,6 +826,9 @@ func listRefusals(org string) ([]map[string]any, error) {
 	result := []map[string]any{}
 	for _, layer := range layers {
 		files, err := os.ReadDir(filepath.Join(layer, "refusals"))
+		if os.IsNotExist(err) {
+			continue
+		}
 		if err != nil {
 			return nil, invalid("a required refusals directory is missing or unreadable")
 		}

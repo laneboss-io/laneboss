@@ -31,6 +31,14 @@ func (e *unsupportedEventError) Unwrap() error { return e.problem }
 
 func (p *problem) Error() string { return p.message }
 func refused(format string, args ...any) error {
+	if format == "%s" && len(args) == 1 {
+		if err, ok := args[0].(error); ok {
+			var p *problem
+			if errors.As(err, &p) && p.prefix == "refused" {
+				return err
+			}
+		}
+	}
 	return &problem{2, "refused", fmt.Sprintf(format, args...)}
 }
 func integrity(format string, args ...any) error {
@@ -56,7 +64,7 @@ func (a arguments) optional(name string) any {
 }
 
 var options = map[string]string{
-	"adopt": "config lane project session runner model effort account worktree brief budget idle",
+	"adopt": "config lane project session runner model effort account worktree brief budget idle role level principal",
 	"turn":  "config lane budget account", "send": "config lane file from", "attach": "config lane", "loop": "config",
 }
 
@@ -79,7 +87,7 @@ func parseArgs(args []string) (arguments, error) {
 		}
 		if strings.HasPrefix(value, "--") {
 			name, inline, hasInline := strings.Cut(value[2:], "=")
-			boolean := a.action == "turn" && name == "idle" || a.action == "loop" && (name == "detach" || name == "status" || name == "stop")
+			boolean := a.action == "turn" && name == "idle" || a.action == "send" && name == "ask" || a.action == "loop" && (name == "detach" || name == "status" || name == "stop")
 			if boolean {
 				if hasInline {
 					return a, refused("%s", cliargs.Reject("--"+name))
@@ -168,7 +176,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			}
 		}
 		if a.action == "send" {
-			fmt.Fprint(stdout, " [-]")
+			fmt.Fprint(stdout, " [--ask] [-]")
 		}
 		if a.action == "turn" {
 			fmt.Fprint(stdout, " [--idle]")

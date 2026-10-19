@@ -1,0 +1,88 @@
+{
+  "schema": "laneboss.e2e-controls.v2",
+  "scope": "Harness controls; runtime proof pending",
+  "rows": [
+    {
+      "id": "HARNESS-DISCOVERY",
+      "module": "test_runner",
+      "class": "DiscoveryControls",
+      "red": "Empty, foreign-base, badly named or nested modules must fail.",
+      "control": "Every nonempty selected module contributes exact test IDs."
+    },
+    {
+      "id": "HARNESS-CHILD",
+      "module": "test_runner",
+      "class": "DiscoveryControls",
+      "red": "Exit zero without a completion record, missing IDs or no CLI call.",
+      "control": "Matching actual child exit, IDs, count and CLI evidence."
+    },
+    {
+      "id": "HARNESS-HARVEST",
+      "module": "test_runner",
+      "class": "ArtifactControls",
+      "red": "Bundle read-back or manifest failure cannot leave a passing bundle.",
+      "control": "Final summary and manifest hashes agree after failure."
+    },
+    {
+      "id": "HARNESS-FILES",
+      "module": "test_kit",
+      "class": "DescriptorControls",
+      "red": "Symlink, hardlink, traversal and FIFO reads/writes.",
+      "control": "Real random safe file bytes read through the same descriptors."
+    },
+    {
+      "id": "HARNESS-SOCKET",
+      "module": "test_kit",
+      "class": "ProcessAndSocketControls",
+      "red": "A plain socket under umask 022 fails the production comparison.",
+      "control": "Exact owner, RPC group and mode are required."
+    },
+    {
+      "id": "HARNESS-TIMEOUT",
+      "module": "test_kit",
+      "class": "ProcessAndSocketControls",
+      "red": "An actual timed-out process cannot pass or hang the controller.",
+      "control": "Real exit and timeout evidence remain readable."
+    },
+    {
+      "id": "HARNESS-PRIVILEGE",
+      "phase": "sealed fixture controls",
+      "red": "Service test identity, unsafe UID inputs or shared primary groups.",
+      "control": "Actual private accounts, no sudo, and no probe RPC membership."
+    },
+    {
+      "id": "HARNESS-APPARMOR",
+      "phase": "sealed apparmor step",
+      "red": "Unprofiled namespace controls before and after profile install.",
+      "control": "Profiled bwrap works with both host switches unchanged."
+    },
+    {
+      "id": "HARNESS-COLLECTION",
+      "module": "test_kit",
+      "class": "ProcessAndSocketControls",
+      "red": "Unregistered accounts/groups/UIDs or surviving/unknown processes.",
+      "control": "Actual pidfd termination, continued safe cleanup and retained failure."
+    },
+    {
+      "id": "HARNESS-IMPORTS",
+      "module": "test_kit",
+      "class": "ProcessAndSocketControls",
+      "red": "Ordinary helper invocation sees a planted shadow module.",
+      "control": "The same helper under isolated Python sees only trusted imports."
+    },
+    {
+      "id": "E2E-LADDER-CONTROLS",
+      "module": "test_ladder",
+      "class": "LadderControls",
+      "red": "Wrong answers/routes, early PONG, hidden ends, wrong actor, missing bytes or sequential trees.",
+      "control": "The same shared assertions consume matching independent observations."
+    },
+    {
+      "id": "HARNESS-CASE-RESULT",
+      "module": "test_runner",
+      "class": "ResultControls",
+      "red": "Missing/duplicate rows, changed/linked evidence, setup crash or survivors.",
+      "control": "Exact result identity, reached rows, actual exit and file hashes."
+    }
+  ]
+}

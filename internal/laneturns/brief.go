@@ -6,7 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/decisionsrv"
+	"laneboss.io/laneboss/internal/peers"
 	"laneboss.io/laneboss/internal/protocol"
+	"laneboss.io/laneboss/internal/rolepolicy"
 )
 
 var protocolBytes = protocol.Bytes()
@@ -17,7 +21,13 @@ func ended(data []byte) []byte {
 	}
 	return append(append([]byte{}, data...), '\n')
 }
-func composeBrief(c *configuration, lane, project string, data []byte, label string) ([]byte, error) {
+func composeBrief(c *configuration, lane, project string, data []byte, label string, recorded caller.Line, selected ...*rolepolicy.Selection) ([]byte, error) {
+	return composeTurnBrief(c, lane, project, data, label, recorded, false, selected...)
+}
+
+// composeTurnBrief places the loop's automatic idle payload at byte zero when
+// requested by turn. Manual idle, task and mail messages retain policy first.
+func composeTurnBrief(c *configuration, lane, project string, data []byte, label string, recorded caller.Line, idleFirst bool, selected ...*rolepolicy.Selection) ([]byte, error) {
 	if err := checkText(data, label, "brief"); err != nil {
 		return nil, err
 	}
@@ -26,16 +36,54 @@ func composeBrief(c *configuration, lane, project string, data []byte, label str
 		p = "none"
 	}
 	var b bytes.Buffer
-	if len(data) > 0 {
+	intro := "Everything above this block is the brief exactly as written."
+	if idleFirst && len(data) > 0 {
+		b.Write(ended(data))
+		b.WriteByte('\n')
+	}
+	if len(selected) > 0 && selected[0] != nil {
+		// Every message carries the current project and level decisions. Only
+		// automatic idle turns carry that policy after their original payload.
+		section := decisionsrv.BriefSectionFor(selected[0].Catalog.Root, project, selected[0].Level, func(text string) bool {
+			rule, _ := findCredential(text)
+			return rule != ""
+		})
+		var prefix []byte
+		var err error
+		if idleFirst {
+			prefix, err = selected[0].PolicyWith(section)
+		} else {
+			prefix, err = selected[0].PrefixWith(section)
+		}
+		if err != nil {
+			return nil, refused("%s", err.Error())
+		}
+		if err := credentialError("org role and protocol", prefix); err != nil {
+			return nil, err
+		}
+		b.Write(prefix)
+		intro = "The task after 'Your task' is the brief exactly as written; org policy precedes it."
+		if idleFirst {
+			intro = "The idle payload at the start is exactly as written; org policy follows it in this same message."
+		}
+	}
+	if !idleFirst && len(data) > 0 {
 		b.Write(ended(data))
 	}
-	fmt.Fprintf(&b, "\n<!-- laneboss launcher block: begin (protocol %s) -->\n\n---\n\n# Launcher block\n\nEverything above this block is the brief exactly as written. laneboss %s appended this block.\n\n- Configuration: %s\n- Project: %s\n- Lane: %s\n- Protocol version: %s\n- Brief sha256: %s\n\n", protocolVersion, launcherVersion, c.name, p, lane, protocolVersion, digest(data))
+	reportLine, err := peers.ReportLine(c.callerConfig(), lane, recorded)
+	if err != nil {
+		return nil, refused("%s", err)
+	}
+	fmt.Fprintf(&b, "\n<!-- laneboss launcher block: begin (protocol %s) -->\n\n---\n\n# Launcher block\n\n%s laneboss %s appended this block.\n\n- Configuration: %s\n- Project: %s\n- Lane: %s\n\n%s- Protocol version: %s\n- Brief sha256: %s\n\n", protocolVersion, intro, launcherVersion, c.name, p, lane, reportLine, protocolVersion, digest(data))
 	b.Write(ended(protocolBytes))
 	for _, rule := range c.allRules(project) {
 		fmt.Fprintf(&b, "\n## Standing rules: %s (sha256 %s)\n\n", rule.path, digest(rule.data))
 		b.Write(ended(rule.data))
 	}
 	b.WriteString("\n<!-- laneboss launcher block: end -->\n")
+	if b.Len() > 5*1024*1024 {
+		return nil, refused("the rendered brief exceeds its 5 MiB handover limit")
+	}
 	return b.Bytes(), nil
 }
 func checkRendered(s *stateDir, lane string, p object) error {
@@ -71,7 +119,7 @@ func checkRendered(s *stateDir, lane string, p object) error {
 	}
 	return nil
 }
-func renderBrief(s *laneSession, lane, project, source string, data, output []byte) (object, error) {
+func renderBrief(s *laneSession, lane, project, source string, data, output []byte, selected ...*rolepolicy.Selection) (object, error) {
 	// Reject a damaged or unrecorded store before creating any input copies.
 	st, err := openStore(s.state, true)
 	if err != nil {
@@ -88,6 +136,14 @@ func renderBrief(s *laneSession, lane, project, source string, data, output []by
 			role, detail, value string
 			data                []byte
 		}{"rules", "path", r.path, r.data})
+	}
+	if len(selected) > 0 && selected[0] != nil {
+		for _, input := range selected[0].Inputs {
+			consumed = append(consumed, struct {
+				role, detail, value string
+				data                []byte
+			}{"rules", "path", input.Path, input.Bytes})
+		}
 	}
 	created := []string{}
 	for _, input := range consumed {

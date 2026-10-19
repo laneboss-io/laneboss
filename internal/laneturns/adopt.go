@@ -14,7 +14,25 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"laneboss.io/laneboss/internal/caller"
+	"laneboss.io/laneboss/internal/delegation"
+	"laneboss.io/laneboss/internal/rolepolicy"
+	"laneboss.io/laneboss/internal/settings"
+	"laneboss.io/laneboss/internal/worktreepath"
 )
+
+func checkWorktreeOverlap(lane, path string, rows []object) error {
+	for _, other := range rows {
+		if str(other["lane"]) == lane || flag(other["cleaned"]) || str(other["worktree"]) == "" {
+			continue
+		}
+		if worktreepath.Overlap(path, str(other["worktree"])) {
+			return refused("the working directory overlaps lane %s's worktree; one lane per directory scope\nInstead: pick a separate directory, or clean lane %s first", str(other["lane"]), str(other["lane"]))
+		}
+	}
+	return nil
+}
 
 func parseBudget(value string) (any, error) {
 	if value == "" {
@@ -295,7 +313,7 @@ func adopt(c *configuration, a arguments) (object, error) {
 		return nil, refused("--session must be a lower-case UUID")
 	}
 	for _, kind := range []string{"lane.started", "lane.adopted"} {
-		events, err := s.store.events("", kind)
+		events, err := s.events("", kind)
 		if err != nil {
 			return nil, err
 		}
@@ -309,6 +327,14 @@ func adopt(c *configuration, a arguments) (object, error) {
 	r, err := c.runner(name)
 	if err != nil {
 		return nil, err
+	}
+	principal, reportLine, err := c.starter(a)
+	if err != nil {
+		return nil, err
+	}
+	selection, err := rolepolicy.Start(c.home, c.data, a.get("level"), a.get("role"), a.get("principal"), texts(r["command"]), screenRoleSource)
+	if err != nil {
+		return nil, refused("%s", err.Error())
 	}
 	if project["workers"] != nil && !contains(project["workers"], name) {
 		return nil, refused("runner %s is not one of project %s's workers", name, projectName)
@@ -328,6 +354,9 @@ func adopt(c *configuration, a arguments) (object, error) {
 	}
 	if problems := turnProblems(name, r); len(problems) > 0 {
 		return nil, refused("runner %s cannot take turns, because %s", name, strings.Join(problems, "; "))
+	}
+	if err = selection.CheckDriver(texts(r["resume"])); err != nil {
+		return nil, refused("%s", err.Error())
 	}
 	for field, value := range (object{"effort": effort, "project": nilIfEmpty(projectName)}) {
 		if value == nil && uses(r["resume"], field) {
@@ -371,12 +400,12 @@ func adopt(c *configuration, a arguments) (object, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = checkWorktreeOverlap(lane, directory, others); err != nil {
+		return nil, err
+	}
 	for _, other := range others {
 		if str(other["lane"]) == lane {
 			continue
-		}
-		if !flag(other["cleaned"]) && str(other["worktree"]) != "" && sameDir(str(other["worktree"]), directory) {
-			return nil, refused("lane %s already works in this directory; one lane per working directory", str(other["lane"]))
 		}
 		if sessionName(str(other["lane"])) == sessionName(lane) {
 			return nil, refused("the lane's tmux session would have the same name as another lane's (tmux turns . into _)")
@@ -445,7 +474,7 @@ func adopt(c *configuration, a arguments) (object, error) {
 	if err != nil {
 		return nil, err
 	}
-	output, err := composeBrief(c, lane, projectName, data, "--brief")
+	output, err := composeBrief(c, lane, projectName, data, "--brief", reportLine, selection)
 	if err != nil {
 		return nil, err
 	}
@@ -457,6 +486,42 @@ func adopt(c *configuration, a arguments) (object, error) {
 		chosen["account"] = "supervisor"
 	}
 	payload := object{"runner": name, "model": model, "effort": effort, "account": account, "chosen_by": chosen, "difficulty": nil, "project": nilIfEmpty(projectName), "worktree": directory, "branch": nil, "base": nil, "repository": nil, "budget_minutes": budget, "quiet_seconds": quiet, "brief": object{"path": s.state.lanePath(lane, "rendered", digest(output)+".md"), "sha256": digest(output)}, "log": s.state.lanePath(lane, "output.log"), "session": object{"socket": socket, "name": sessionName(lane)}, "touches": []any{}, "claims": nilIfEmpty(claim.registry), "session_id": sessionID, "idle_seconds": idle}
+	selection.Record(payload)
+	for key, value := range reportLine.Fields() {
+		payload[key] = value
+	}
+	root, err := rolepolicy.ConfigRoot(c.home, c.data)
+	if err != nil {
+		return nil, refused("%s", err)
+	}
+	identity := object{}
+	for _, key := range []string{"runner", "model", "effort", "account", "budget_minutes"} {
+		if key != "account" && payload[key] != nil {
+			identity[key] = payload[key]
+		}
+	}
+	snapshot, err := settings.Resolve(root, reportLine.Level, a.get("role"), "", identity, screenRoleSource)
+	if err != nil {
+		return nil, refused("%s", err)
+	}
+	if account != nil {
+		if err := snapshot.RequestAccount(account); err != nil {
+			return nil, refused("%s", err)
+		}
+	}
+	// Unknown adopted identity fields remain unknown, even if a file defines a
+	// default. Capture the actual session and its grants, not a changed identity.
+	for _, key := range []string{"effort", "account"} {
+		if payload[key] == nil {
+			delete(snapshot.Values, key)
+			delete(snapshot.Entries, key)
+		}
+	}
+	if err := delegation.Bind(c.callerConfig(), principal.ID, snapshot); err != nil {
+		return nil, refused("%s", err)
+	}
+	snapshot.MarkChoices(chosen)
+	payload["settings"] = snapshot.Map()
 	if err = checkValueCredentials(payload, "payload", 0); err != nil {
 		return nil, err
 	}
@@ -477,14 +542,17 @@ func adopt(c *configuration, a arguments) (object, error) {
 			claim.release(mine)
 		}
 	}()
-	rendered, err := renderBrief(s, lane, projectName, a.get("brief"), data, output)
+	rendered, err := renderBrief(s, lane, projectName, a.get("brief"), data, output, selection)
 	if err != nil {
 		return nil, err
 	}
 	if !equalJSON(rendered, payload["brief"]) {
 		return nil, integrity("the rendered brief is not where it was expected")
 	}
-	event, err := s.append("lane.adopted", lane, "laneboss", payload)
+	if err = caller.RecordSession(c.callerConfig(), principal); err != nil {
+		return nil, refused("%s", err)
+	}
+	event, err := s.append("lane.adopted", lane, caller.LifecycleActor(principal.ID), payload)
 	if err != nil {
 		return nil, err
 	}

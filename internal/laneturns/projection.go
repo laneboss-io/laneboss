@@ -4,6 +4,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"laneboss.io/laneboss/internal/caller/records"
+	"laneboss.io/laneboss/internal/lanesandbox"
+	"laneboss.io/laneboss/internal/rolepolicy"
+	"laneboss.io/laneboss/internal/settings"
 )
 
 func emptyRow(lane string) object {
@@ -62,6 +67,9 @@ func checkPayload(kind string, p object) error {
 		}
 	case "lane.mailed":
 		keys = "sequence sender sha256 bytes"
+		if _, ok := p["legacy_relationship"]; ok {
+			keys += " legacy_relationship"
+		}
 	case "lane.delivered":
 		keys = "run sequences"
 	case "lane.returned":
@@ -84,6 +92,31 @@ func checkPayload(kind string, p object) error {
 		}
 		return refused("%s: this turn implementation cannot append that event kind", kind)
 	}
+	if kind == "lane.started" || kind == "lane.adopted" {
+		if err := settings.ValidateEvent(p); err != nil {
+			return refused("%s", err)
+		}
+		if _, exists := p["settings"]; exists {
+			keys += " settings"
+		}
+		if err := lanesandbox.ValidateEvent(p); err != nil {
+			return refused("%s", err)
+		}
+		if _, exists := p["runner_sandbox"]; exists {
+			keys += " runner_sandbox"
+		}
+		if err := rolepolicy.ValidateEvent(p); err != nil {
+			return refused("%s", err.Error())
+		}
+		if _, exists := p["role_context"]; exists {
+			keys += " role role_context"
+		}
+		for _, key := range []string{"level", "level_source", "starter"} {
+			if _, ok := p[key]; ok {
+				keys += " " + key
+			}
+		}
+	}
 	if !exactKeys(p, keys) {
 		if kind == "lane.state" && (p["held"] != nil || p["not_covered"] != nil) {
 			return &unsupportedEventError{&problem{2, "refused", "lane.state: its resource or coverage extension remains pending for the owning command group"}}
@@ -100,10 +133,13 @@ func checkPayload(kind string, p object) error {
 		}
 	}
 	if kind == "lane.mailed" {
+		if v, ok := p["legacy_relationship"]; ok && v != true {
+			return refused("lane.mailed: payload.legacy_relationship must be true when present")
+		}
 		if n := number(p["sequence"]); n < 1 || n > 999999999 || n != float64(integer(p["sequence"])) {
 			return refused("lane.mailed: payload.sequence is invalid")
 		}
-		if !senderPattern.MatchString(str(p["sender"])) || !hashPattern.MatchString(str(p["sha256"])) || integer(p["bytes"]) < 1 || integer(p["bytes"]) > maxMessage {
+		if !records.ValidSender(str(p["sender"])) || !hashPattern.MatchString(str(p["sha256"])) || integer(p["bytes"]) < 1 || integer(p["bytes"]) > maxMessage {
 			return refused("lane.mailed: payload sender, sha256 or bytes is invalid")
 		}
 	}
@@ -408,6 +444,8 @@ func applyEvent(row, e object) object {
 		row["lost"] = integer(row["lost"]) + 1
 	case "gone":
 		row["running"] = false
+	case "cleaned":
+		row["cleaned"] = true
 	case "mailed":
 		mail["last"] = p["sequence"]
 		mail["waiting"] = append(array(mail["waiting"]), p["sequence"])

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"laneboss.io/laneboss/internal/observation"
 )
 
 type refusalInfo struct {
@@ -17,7 +19,7 @@ type refusalInfo struct {
 }
 
 func position(item *scanItem) object {
-	return object{"path": safePath(item.record.shown), "line": item.line, "offset": item.offset, "item": item.index}
+	return observation.Position(safePath(item.record.shown), item.line, item.offset, item.index)
 }
 func (scan *refusalScan) search(item *scanItem) (*guard, string) {
 	deadline := time.Now().Add(time.Second)
@@ -66,6 +68,11 @@ func (scan *refusalScan) search(item *scanItem) (*guard, string) {
 func (scan *refusalScan) handle(item *scanItem) error {
 	key := item.record.path + "\x00" + item.id
 	if item.kind == "call" {
+		if item.class == "shell" {
+			if err := scan.substitutionCall(item); err != nil {
+				return err
+			}
+		}
 		if item.id == "" {
 			return nil
 		}
@@ -107,6 +114,34 @@ func (scan *refusalScan) handle(item *scanItem) error {
 			call.resultWhen = item.when
 		}
 	}
+	return nil
+}
+
+func (scan *refusalScan) substitutionCall(call *scanItem) error {
+	found, err := ShellSubstitutionInText(call.text, scan.textTools)
+	if err != nil || !found {
+		return err
+	}
+	place := call.id
+	if place == "" {
+		place = fmt.Sprintf("@%d:%d", call.offset, call.index)
+	}
+	id := "ws-" + recordDigest(scan.lane, observation.Kind, call.record.path, place)[:24]
+	if scan.known[id] {
+		return nil
+	}
+	tool := safeName(call.tool, `[A-Za-z0-9][A-Za-z0-9._:-]{0,63}`)
+	if tool == nil {
+		tool = "shell"
+	}
+	command := excerpt(call.text)
+	command["length"] = call.length
+	command["sha256"] = call.sha
+	p := observation.Payload(call.run, id, tool, call.at, command, safeName(call.id, `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`), position(call))
+	if err := scan.emitPayload("lane.workaround_suspected", p, call.at); err != nil {
+		return err
+	}
+	scan.known[id] = true
 	return nil
 }
 func (scan *refusalScan) emitPayload(kind string, p object, at any) error {

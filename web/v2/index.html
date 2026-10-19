@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title data-i18n="Laneboss v2 Dashboard">Laneboss v2 Dashboard</title>
+<style>
+/* STYLES */
+</style>
+</head>
+<body>
+<p id="presence-summary" role="status">presence=not_proven; human_approval=not_proven</p>
+<aside id="bootstrap-handoff" aria-labelledby="bootstrap-handoff-title">
+  <h2 id="bootstrap-handoff-title">Browser sign-in nonce</h2>
+  <p>Copy this nonce into the native sign-in command before it mints a dashboard link. Keep this tab open while the link is created.</p>
+  <code id="bootstrap-nonce" aria-live="polite"></code>
+</aside>
+<main>
+<header>
+  <div>
+    <h1 data-i18n="Laneboss v2 Dashboard">Laneboss v2 Dashboard</h1>
+    <a href="/enroll">Enroll a security key</a>
+    <nav aria-label="Dashboard sections">
+      <a href="#tree-panel" data-i18n="Org Tree">Org Tree</a>
+      <a href="#lifecycle-panel" data-i18n="Lane Lifecycle">Lane Lifecycle</a>
+      <a href="#raw-panel" data-i18n="Raw Streams &amp; Mail">Raw Streams &amp; Mail</a>
+      <a href="#decisions-panel" data-i18n="Decisions">Decisions</a>
+      <a href="#refusals-panel" data-i18n="Refusal Statistics">Refusal Statistics</a>
+      <a href="#plugins-panel" data-i18n="Plugins">Plugins</a>
+      <a href="#resources-panel" data-i18n="Scripts &amp; Tools">Scripts &amp; Tools</a>
+      <a href="#approvals-panel" data-i18n="D6 Approvals">D6 Approvals</a>
+      <a href="#controls-panel" data-i18n="Human Controls">Human Controls</a>
+    </nav>
+  </div>
+  <div class="preferences">
+    <label>Theme
+      <select id="theme-choice">
+        <option value="system">System</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
+    <label>Language
+      <select id="language-choice">
+        <option value="en">EN</option>
+        <option value="zh-TW">繁體中文</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<div class="grid">
+  <section class="panel full" id="tree-panel" aria-labelledby="tree-heading">
+    <div class="panel-head"><h2 id="tree-heading" data-i18n="Org Tree">Org Tree</h2></div>
+    <p class="error" id="tree-error" role="status"></p>
+    <div class="body scroll" id="tree-content"></div>
+  </section>
+
+  <section class="panel full" id="lifecycle-panel" aria-labelledby="lifecycle-heading">
+    <div class="panel-head"><h2 id="lifecycle-heading" data-i18n="Lane Lifecycle">Lane Lifecycle</h2></div>
+    <p class="error" id="lifecycle-error" role="status"></p>
+    <div class="body scroll" id="lifecycle-content"></div>
+  </section>
+
+  <section class="panel full" id="raw-panel" aria-labelledby="raw-heading">
+    <div class="panel-head"><h2 id="raw-heading" data-i18n="Raw Streams &amp; Mail">Raw Streams &amp; Mail</h2></div>
+    <p class="error" id="raw-error" role="status"></p>
+    <div class="body scroll" id="raw-content"></div>
+  </section>
+
+  <section class="panel full" id="decisions-panel" aria-labelledby="decisions-heading">
+    <div class="panel-head"><h2 id="decisions-heading" data-i18n="Decisions">Decisions</h2></div>
+    <p class="error" id="decisions-error" role="status"></p>
+    <div class="body scroll" id="decisions-content"></div>
+  </section>
+
+  <section class="panel" id="refusals-panel" aria-labelledby="refusals-heading">
+    <div class="panel-head"><h2 id="refusals-heading" data-i18n="Refusal Statistics">Refusal Statistics</h2></div>
+    <p class="error" id="refusals-error" role="status"></p>
+    <div class="body scroll" id="refusals-content"></div>
+  </section>
+
+  <section class="panel" id="plugins-panel" aria-labelledby="plugins-heading">
+    <div class="panel-head"><h2 id="plugins-heading" data-i18n="Plugins">Plugins</h2></div>
+    <p class="error" id="plugins-error" role="status"></p>
+    <div class="body scroll" id="plugins-content"></div>
+  </section>
+
+  <section class="panel full" id="resources-panel" aria-labelledby="resources-heading">
+    <div class="panel-head"><h2 id="resources-heading" data-i18n="Scripts &amp; Tools">Scripts &amp; Tools</h2></div>
+    <p class="error" id="resources-error" role="status"></p>
+    <div class="body scroll" id="resources-content"></div>
+  </section>
+
+  <section class="panel full" id="approvals-panel" aria-labelledby="approvals-heading">
+    <div class="panel-head"><h2 id="approvals-heading" data-i18n="D6 Approvals">D6 Approvals</h2></div>
+    <p class="error" id="approvals-error" role="status"></p>
+    <div class="body scroll" id="approvals-content"></div>
+  </section>
+
+  <section class="panel full" id="controls-panel" aria-labelledby="controls-heading">
+    <div class="panel-head"><h2 id="controls-heading" data-i18n="Human Controls">Human Controls</h2></div>
+    <div class="body">
+      <p class="muted">Stop, resume, mark merged/abandoned, and send mail require a fresh operation-bound WebAuthn proof over POST /api/v2/rpc.</p>
+    </div>
+  </section>
+</div>
+
+<dialog id="shortcut-panel" aria-labelledby="shortcut-title">
+  <div>
+    <h2 id="shortcut-title" data-i18n="Keyboard Shortcuts">Keyboard Shortcuts</h2>
+    <button id="shortcut-close" type="button">Close</button>
+  </div>
+  <dl>
+    <div><dt><kbd>?</kbd></dt><dd>Toggle keyboard shortcuts</dd></div>
+    <div><dt><kbd>Esc</kbd></dt><dd>Close dialog</dd></div>
+  </dl>
+</dialog>
+</main>
+<script>
+/* SCRIPT */
+</script>
+</body>
+</html>

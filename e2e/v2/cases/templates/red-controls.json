@@ -1,0 +1,53 @@
+{
+  "schema": "laneboss.templates-controls.v2",
+  "controls": [
+    {
+      "id": "wrong-hash",
+      "assertion": "TPL-SCOPE",
+      "mutation": "Accept changed source bytes with the old source digest.",
+      "must_fail": "The negative request is accepted or its error is untyped."
+    },
+    {
+      "id": "wrong-generation",
+      "assertion": "TPL-SCOPE",
+      "mutation": "Accept a source generation outside the applied snapshot.",
+      "must_fail": "The stale template is accepted or rendered."
+    },
+    {
+      "id": "wrong-role",
+      "assertion": "TPL-SCOPE",
+      "mutation": "Select another role's local source for the requested role.",
+      "must_fail": "The wrong-role request succeeds."
+    },
+    {
+      "id": "malformed-source",
+      "assertion": "TPL-SCOPE",
+      "mutation": "Fall back to org defaults after a malformed local source.",
+      "must_fail": "The malformed-source request succeeds."
+    },
+    {
+      "id": "drop-task",
+      "assertion": "TPL-SCOPE",
+      "mutation": "Drop or normalize a byte of the assigned task.",
+      "must_fail": "The rendered task differs from retained task bytes."
+    },
+    {
+      "id": "drop-list-route",
+      "assertion": "LB-FIRST",
+      "mutation": "Omit the blacklist discovery route from the prompt.",
+      "must_fail": "The rendered prompt lacks org blacklist list."
+    },
+    {
+      "id": "bare-claude",
+      "assertion": "LB-FIRST",
+      "mutation": "Admit bare Claude into the role's primary driver catalog.",
+      "must_fail": "The bare-Claude request succeeds."
+    },
+    {
+      "id": "unknown-tool",
+      "assertion": "LB-FIRST",
+      "mutation": "Deny an unfamiliar tool because it is absent from a list.",
+      "must_fail": "The ordinary action is refused."
+    }
+  ]
+}

@@ -4,6 +4,9 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"laneboss.io/laneboss/internal/caller/records"
+	"laneboss.io/laneboss/internal/observation"
 )
 
 func validTimestamp(v any) bool {
@@ -79,6 +82,9 @@ func validCallPosition(v any, required bool) bool {
 func validateExtra(kind string, p object) error {
 	fail := func(field string) error { return refuse("%s payload.%s: invalid field", kind, field) }
 	if kind == "lane.started" || kind == "lane.adopted" {
+		if err := records.Validate(p); err != nil {
+			return refuse("%s payload report line: %s", kind, err)
+		}
 		if !match(`[a-z0-9][a-z0-9-]{0,31}`, str(p["runner"])) {
 			return fail("runner")
 		}
@@ -87,14 +93,14 @@ func validateExtra(kind string, p object) error {
 		}
 		chosen := obj(p["chosen_by"])
 		for _, k := range []string{"runner", "model"} {
-			if !contains(strings.Fields("routing supervisor previous"), str(chosen[k])) {
+			if !contains(strings.Fields("routing supervisor previous settings"), str(chosen[k])) {
 				return fail("chosen_by." + k)
 			}
 		}
-		if chosen["effort"] != nil && !contains(strings.Fields("routing supervisor previous"), str(chosen["effort"])) {
+		if chosen["effort"] != nil && !contains(strings.Fields("routing supervisor previous settings"), str(chosen["effort"])) {
 			return fail("chosen_by.effort")
 		}
-		if chosen["account"] != nil && !contains(strings.Fields("supervisor default previous room"), str(chosen["account"])) {
+		if chosen["account"] != nil && !contains(strings.Fields("supervisor default previous room settings"), str(chosen["account"])) {
 			return fail("chosen_by.account")
 		}
 		if _, ok := p["mail"]; ok && !sequences(p["mail"], 0, 64) {
@@ -186,7 +192,10 @@ func validateExtra(kind string, p object) error {
 		}
 	}
 	if kind == "lane.mailed" {
-		if !whole(p["sequence"], 1, 999999999) || !match(`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`, str(p["sender"])) || !match(`[0-9a-f]{64}`, str(p["sha256"])) || !whole(p["bytes"], 1, 262144) {
+		if v, ok := p["legacy_relationship"]; ok && v != true {
+			return fail("legacy_relationship")
+		}
+		if !whole(p["sequence"], 1, 999999999) || !records.ValidSender(str(p["sender"])) || !match(`[0-9a-f]{64}`, str(p["sha256"])) || !whole(p["bytes"], 1, 262144) {
 			return fail("sequence")
 		}
 	}
@@ -232,8 +241,11 @@ func validateExtra(kind string, p object) error {
 		}
 	}
 	if kind == "lane.workaround_suspected" {
-		if !sortedStrings(p["how"], 1, 2, func(s string) bool { return s == "shell-write" || s == "reworded" }) || !sortedStrings(p["paths"], 1, 1024, func(s string) bool { return recordPath(s, true) }) || !match(`[A-Za-z0-9][A-Za-z0-9._:-]{0,63}`, str(p["tool"])) || !validExcerpt(p["command"]) || !validCallPosition(p["call"], true) || (p["at"] != nil && !validTimestamp(p["at"])) {
+		if !sortedStrings(p["how"], 1, 2, func(s string) bool { return s == "shell-write" || s == "reworded" || s == "shell-substitution-in-text" }) || !sortedStrings(p["paths"], 1, 1024, func(s string) bool { return recordPath(s, true) }) || !match(`[A-Za-z0-9][A-Za-z0-9._:-]{0,63}`, str(p["tool"])) || !validExcerpt(p["command"]) || !validCallPosition(p["call"], true) || (p["at"] != nil && !validTimestamp(p["at"])) {
 			return fail("paths")
+		}
+		if err := observation.Check(p); err != nil {
+			return refuse("%s %s", kind, err.Error())
 		}
 		if contains(stringsOf(p["how"]), "reworded") != (p["similarity"] != nil) {
 			return fail("similarity")
@@ -274,4 +286,10 @@ func validateExtra(kind string, p object) error {
 		}
 	}
 	return nil
+}
+
+// ValidateEventPayload shares the CLI's additional per-kind payload checks with
+// service-owned observations. The envelope/base schema is checked by eventstore.
+func ValidateEventPayload(kind string, payload map[string]any) error {
+	return validateExtra(kind, payload)
 }

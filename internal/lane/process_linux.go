@@ -27,13 +27,6 @@ func nativeSignal(id object, sig syscall.Signal) (bool, bool, error) {
 	_, _, errno = syscall.RawSyscall6(424, fd, uintptr(sig), 0, 0, 0, 0)
 	return errno == 0, true, nil
 }
-func becomeSubreaper() bool {
-	if !nativeProcesses() {
-		return false
-	}
-	_, _, errno := syscall.RawSyscall6(syscall.SYS_PRCTL, 36, 1, 0, 0, 0, 0)
-	return errno == 0
-}
 func fifoAt(f *os.File, directory, name string) error {
 	return syscall.Mknodat(int(f.Fd()), name, syscall.S_IFIFO|0600, 0)
 }

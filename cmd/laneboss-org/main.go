@@ -4,6 +4,7 @@ package main
 import (
 	"os"
 
+	_ "laneboss.io/laneboss/internal/cli" // Initialize the embedded hook grammar.
 	"laneboss.io/laneboss/internal/org"
 )
 

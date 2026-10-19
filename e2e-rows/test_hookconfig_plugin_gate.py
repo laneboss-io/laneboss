@@ -12,11 +12,15 @@ so the mutants first drop the flag from Prepare and then also remove Revet's gat
 
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from tests.e2e import support, test_codex_hooks as hooks
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from orgsupport import ROLES
 
 
 setUpModule = hooks.setUpModule
@@ -37,6 +41,32 @@ ROWS = {"start": "test_start_route_plugin_flag", "turns": "test_turn_route_plugi
 
 
 class PluginGateTest(hooks.CodexHookLoadTest):
+    def configure(self, models_map=None, stdin=False):
+        super().configure(models_map, stdin=stdin)
+        # The inherited fixture initializes this org, including the built-in
+        # role library and the Codex hook home. Bind lane roles to that same org.
+        org = self.directory / "model-org"
+        text = self.config_file.read_text(encoding="utf-8")
+        text = "org_dir = " + json.dumps(str(org)) + "\n" + text
+        text += ('\n[supervisors.plugin-gate]\nlevel = 5\nrunner = "deepseek"\n'
+                 'projects = ["web"]\n')
+        self.config_file.write_text(text, encoding="utf-8")
+
+    def setUp(self):
+        super().setUp()
+        # Grant the inherited, vetted vendor home in this custom org. Later
+        # configure(stdin=True) calls retain this source for the turn route.
+        (self.directory / "model-org/.laneboss/settings.toml").write_text(
+            'env_allow = ["CODEX_HOME"]\n', encoding="utf-8")
+        self.run_laneboss("config", "validate", "alpha")
+        # Record the persistent test process before its headless commands start
+        # lanes; a role label alone is not an authenticated caller.
+        self.run_laneboss("start", "--config", "alpha", "--role", "plugin-gate")
+        self.environment["LANEBOSS_ROLE"] = "plugin-gate"
+
+    def begin(self, lane, *extra):
+        return super().begin(lane, "--role", ROLES[3], *extra)
+
     def run_lane(self, route):
         lane = "web-plugin-gate-" + route
         if route == "turns":

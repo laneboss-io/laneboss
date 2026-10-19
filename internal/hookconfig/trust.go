@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/BurntSushi/toml"
+	"laneboss.io/laneboss/internal/guardtime"
 	"laneboss.io/laneboss/internal/hookpaths"
 )
 
@@ -332,6 +333,10 @@ func systemPrefs(home string) error {
 
 // VetCodex checks every supported configuration layer before granting invocation-local trust.
 func VetCodex(home, cwd string, userHomes ...string) error {
+	return vetCodexIn(home, cwd, nil, userHomes...)
+}
+
+func vetCodexIn(home, cwd string, environment map[string]string, userHomes ...string) error {
 	if !filepath.IsAbs(home) || filepath.Base(home) != ".codex" {
 		return trustError("CODEX_HOME", "must name an absolute instance .codex directory")
 	}
@@ -365,7 +370,16 @@ func VetCodex(home, cwd string, userHomes ...string) error {
 	if err != nil {
 		return trustError(orgHome, err.Error())
 	}
-	roots, err := writableRoots(filepath.Join(home, "config.toml"), actual)
+	if stateBinding(environment) != "" {
+		state, err := boundInstanceState(home, environment)
+		if err != nil {
+			return err
+		}
+		if state != "" {
+			protected = append(protected, state)
+		}
+	}
+	roots, err := writableRootsIn(filepath.Join(home, "config.toml"), actual, false, environment)
 	if err != nil {
 		return err
 	}
@@ -398,7 +412,7 @@ func VetCodex(home, cwd string, userHomes ...string) error {
 		return trustError(hooksPath, "hooks.PreToolUse matcher or command count differs from the render")
 	}
 	command, _ := commands[0].(map[string]any)
-	if len(command) != 2 || command["type"] != "command" || command["command"] != marker.Command {
+	if len(command) != 3 || command["type"] != "command" || command["command"] != marker.Command || command["timeout"] != float64(guardtime.HookSeconds) {
 		return trustError(hooksPath, "hooks.PreToolUse command differs from the render")
 	}
 	file, err := os.Open(marker.Executable)
@@ -414,7 +428,7 @@ func VetCodex(home, cwd string, userHomes ...string) error {
 	if err != nil || hex.EncodeToString(sum.Sum(nil)) != marker.ExecutableSHA256 {
 		return trustError(markerPath, "laneboss org-hook executable changed; re-render before launching")
 	}
-	if err := checkConfig(filepath.Join(home, "config.toml")); err != nil {
+	if _, err := instanceDocument(filepath.Join(home, "config.toml"), environment); err != nil {
 		return err
 	}
 	if err := vetRepository(actual, home); err != nil {

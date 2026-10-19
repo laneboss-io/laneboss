@@ -21,13 +21,14 @@ import (
 )
 
 const (
-	maxTextBytes    = 1024 * 1024
-	maxCharacters   = 4000
-	maxEgressBytes  = 64 * 1024 * 1024
-	outcomeReserve  = 1024
-	withheldText    = "[withheld]"
-	nothingAsked    = "nothing was asked"
-	outcomeUnlogged = "the ask was sent and its sending is logged, but its outcome could not be logged"
+	maxTextBytes        = 1024 * 1024
+	maxCharacters       = 4000
+	maxEgressBytes      = 64 * 1024 * 1024
+	outcomeReserve      = 1024
+	batchOutcomeReserve = 4096
+	withheldText        = "[withheld]"
+	nothingAsked        = "nothing was asked"
+	outcomeUnlogged     = "the ask was sent and its sending is logged, but its outcome could not be logged"
 )
 
 var (
@@ -215,6 +216,8 @@ type request struct {
 	data          []byte
 	withheld, cut []string
 	hash          string
+	decode        func([]byte) (answer, bool)
+	batch         bool
 }
 
 func buildRequest(o options, prompt string, subjects []textPair) (request, error) {

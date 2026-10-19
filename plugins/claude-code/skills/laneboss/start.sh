@@ -1,14 +1,14 @@
 #!/bin/sh
-# The shell program of the /laneboss command. Usage: start.sh [CONFIGURATION [ROLE]]. SKILL.md runs it with no
+# The shell program of /laneboss. Usage: start.sh [CONFIGURATION [ROLE]]. SKILL.md runs it with no
 # argument in its one shell block and tells the session to run it with the plain names the person typed; typed text
 # never enters a shell block, and this program reads nothing from standard input.
 #
 # It accepts no argument, one name or two names, a name being a letter or digit and then letters, digits, dots,
 # underscores and hyphens, and refuses anything else. The program is laneboss on PATH, then $HOME/.local/bin/laneboss,
 # and nowhere else; it runs "laneboss start", "laneboss start --config NAME" or "laneboss start --config NAME
-# --role ROLE".
+# --role ROLE". Service registration through the plugin is unsupported; no-service registration retains its legacy route.
 #
-# It always exits 0 and always prints something on standard output, because the agent program gives the session
+# It exits 0 except when a signal ends it, because the agent program gives the session
 # nothing, not even an error, for a command that exits non-zero. When it cannot hand the session a list or a
 # briefing its output is the marker line and then the reason, and it never repeats an argument:
 #   - one of its own refusals, or laneboss not found: one sentence;

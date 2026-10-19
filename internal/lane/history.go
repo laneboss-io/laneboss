@@ -14,6 +14,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+
+	"laneboss.io/laneboss/internal/instancename"
 )
 
 type historyOrg struct {
@@ -116,7 +118,7 @@ func historyLocation(directory string) (*historyOrg, error) {
 			}
 		}
 	}
-	if !match(`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`, selected) {
+	if !instancename.Valid(selected) {
 		return nil, refuse("instance label is invalid")
 	}
 	instancePath := realPath(filepath.Join(instances, selected))
@@ -235,7 +237,7 @@ func validateHistoryRecord(record object) error {
 	if record["level"] == nil && record["instance"] == nil {
 		return nil
 	}
-	if !whole(record["level"], 3, 6) || !match(`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`, str(record["instance"])) {
+	if !whole(record["level"], 3, 6) || !instancename.Valid(str(record["instance"])) {
 		return integrity("a lane record has invalid scope")
 	}
 	return nil
@@ -526,7 +528,7 @@ func (s *session) ingestHistory(lane, directory string) (object, error) {
 		return nil, refuse("the org decision store does not exist as a regular file; initialize it first")
 	}
 	u := url.URL{Scheme: "file", Path: org.db}
-	q := url.Values{"mode": {"rw"}, "_pragma": {"busy_timeout(10000)", "foreign_keys(1)"}}
+	q := url.Values{"mode": {"rw"}, "_pragma": {"busy_timeout(10000)", "foreign_keys(1)", "secure_delete(ON)"}}
 	u.RawQuery = q.Encode()
 	db, err := sql.Open("sqlite", u.String())
 	if err != nil {

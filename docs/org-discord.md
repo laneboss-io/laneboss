@@ -190,11 +190,13 @@ another endpoint.
 
 ### Channel-aware, multi-member events
 
-The next consumer is the org's **shared Discord gateway**, replacing its
-hand-maintained optional-role list with `read_roles`. This phase supplies the
-reader and converter; it does not implement or start that gateway process or
-migrate an existing deployment. The messaging and form tools must use the same
-reader and `form_doorbell` names when they are packaged as shared org services.
+The org's **shared Discord gateway**, `integrations/discord/gateway.mjs`, reads
+these bindings through `laneboss org channel read ORG --json`. That read-only
+command validates the Discord service, members and instance/channel coverage,
+returns the token's environment-variable name and absolute event/state paths,
+and neither opens the secret store nor contacts Discord. The messaging and form
+tools must use the same role bindings and `form_doorbell` names when they are
+packaged as shared org services.
 
 For each authenticated Discord `MESSAGE_CREATE`, the gateway calls
 `message_to_event(message, roles, channel_names=channel_cache)`. The optional
@@ -210,7 +212,10 @@ is the guild nickname, global display name, then username. Text is preserved,
 including Unicode and line breaks. `event_json_line(message, roles, **options)`
 returns the same event serialized as exactly one JSON line with a final newline.
 The gateway appends that line to the role's `events_file` and updates its
-`state_file`; those writes belong to the next gateway phase.
+`state_file` with `last_message_id`. Each line is one UTF-8 `O_APPEND` write;
+state updates use a temporary file and atomic rename. Files are created with
+mode 0600. Duplicate message ids already in the event log are not appended
+again, including after a process restart; an incomplete log line stops startup.
 
 An explicit user entry controls that user's authority even if their Discord
 server roles also match. If only server roles match, `decide` takes precedence
@@ -223,9 +228,63 @@ Unknown channels, unlisted senders, bots, webhooks and malformed messages return
 the literal string `"drop"` and log a reason. Neither converter delivers a
 stranger's message or echoes its text into the drop log. The gateway must not
 append `"drop"` as an event. Form doorbells need their own authenticated,
-informational handling in the next gateway phase. Downstream decision capture
+informational handling in a later phase. Downstream decision capture
 may treat only `decide` events as authoritative decisions; `inform` events
 remain questions or information.
+
+### Run the gateway
+
+Use **Node 22 or newer**, the Go launcher from this release, and an org with
+registered L5/L6 channels. No Node packages are needed. In the Discord developer
+portal, enable **Message Content Intent** and **Server Members Intent** under
+Bot → Privileged Gateway Intents; the bot must be able to view the registered
+channels. Enable those privileged intents before starting the gateway.
+
+Provision the bot token in the gateway's process environment using the name in
+`services.discord.token_secret` (for example `ORG_DISCORD_BOT_TOKEN`), or the
+fallback `DISCORD_BOT_TOKEN`. The gateway checks it silently and reads no secret
+store. Keep the token out of commands and public configuration.
+
+```sh
+node integrations/discord/gateway.mjs --org ./example-org --launcher /usr/local/bin/laneboss
+```
+
+Release and source installers also retain the script and this guide under
+`PREFIX/share/laneboss/versions/0.7.0/`. Use that script's absolute path when
+running an installed service; installing Laneboss does not install Node.
+
+Run that foreground command under your existing process supervisor. For a
+systemd service, use the absolute paths to Node, this script, the org and the
+launcher in `ExecStart`, provide the token through a private `EnvironmentFile`
+owned by the service account with mode 0600, and use `Restart=on-failure` and
+`RestartSec=5`. A launchd job can use the same arguments in `ProgramArguments`
+and its private environment provisioner; keep credentials out of its arguments.
+Run as the account that owns the org. This guide starts no service.
+
+The gateway holds `.laneboss/shared/state/discord-gateway.lock` beside its
+sequence state, so a second process for the org refuses before contacting
+Discord. SIGTERM/SIGINT releases the lock. After a crash, verify the recorded
+PID is no longer the gateway before removing a stale lock; it is never stolen
+automatically. Role event/state files remain under each instance's `state/`
+directory at the names in the configuration. Config changes require a restart.
+
+Reconnects use bounded exponential backoff and Discord's resume URL, session
+id and last processed sequence, with heartbeats and acknowledgment checks.
+Missed dispatches replayed before `RESUMED` are delivered. Session credentials
+stay in memory; a process restart identifies anew and does not fetch channel
+history. A session Discord can no longer resume may therefore have a gap.
+The shared state stores only `last_sequence`. Logs contain status and fixed
+drop reasons, never message text. Slash commands, interactions, form doorbells
+and automatic decision capture are outside this receive-only service.
+
+For the loopback fake only, `LANEBOSS_TEST_DISCORD_BASE_URL` accepts exactly
+`http://127.0.0.1:PORT` or `ws://127.0.0.1:PORT` (an optional final slash is
+allowed). It uses `/api/v10/gateway/bot` on that HTTP origin, and accepts
+gateway/resume WebSockets only on the same origin. Other hosts, schemes, paths,
+credentials, queries and fragments are refused before any request. Production
+uses Discord API v10 and secure Discord gateway URLs; redirects are refused.
+`e2e-rows/test_discord_gateway.py` exercises that fake on a disposable Linux box
+and includes a bot-filter mutant. It cannot establish live Discord authentication.
 
 ### Validation and acceptance
 

@@ -1,0 +1,11 @@
+{
+  "schema": "laneboss.e2e-case.v2",
+  "id": "admin",
+  "owner": "lb-v2-admin",
+  "platforms": ["linux"],
+  "requires": ["service", "identity", "linux", "packaging"],
+  "entry": "run.sh",
+  "timeout_seconds": 1200,
+  "live_auth": false,
+  "assertion_ids": ["UBUNTU-USERNS", "HELPER-PEER", "HELPER"]
+}

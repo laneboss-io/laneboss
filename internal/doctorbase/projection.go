@@ -153,6 +153,10 @@ func checkTransition(row, event map[string]any) error {
 			if _, ok := recorded[rid]; ok {
 				return fail("the refusal is recorded already")
 			}
+		} else if kind == "lane.workaround_suspected" && p["refusal"] == nil {
+			if _, ok := suspected[String(p["suspicion"])]; ok {
+				return fail("the suspicion is recorded already")
+			}
 		} else {
 			r, ok := recorded[rid]
 			if !ok {
@@ -200,6 +204,9 @@ func applyRefusal(row, event map[string]any) {
 	open := map[pair][]string{}
 	for id, v := range Object(f["suspected"]) {
 		m := Object(v)
+		if m["refusal"] == nil {
+			continue
+		}
 		for _, path := range Array(m["paths"]) {
 			if !reviewed[pair{id, String(path)}] {
 				key := pair{String(m["refusal"]), String(path)}

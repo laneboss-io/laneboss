@@ -1,0 +1,2168 @@
+{
+  "schema": "laneboss.policy-mutations.v2",
+  "mutations": [
+    {
+      "id": "org-selector-missing",
+      "rules": ["BL-RESP", "draft4-fix13"],
+      "check": "Restore the unselected org snapshot lookup.",
+      "file": "internal/v2/policy/sources.go",
+      "before": "request := api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: generation}",
+      "after": "request := api.OrgSnapshotRequest{}",
+      "test": "TestOrgSnapshotSelectors",
+      "subtests": ["published"],
+      "markers": ["approved sources omitted or changed the current publication selectors"]
+    },
+    {
+      "id": "org-selector-policy-generation",
+      "rules": ["BL-RESP", "draft4-fix13"],
+      "check": "Confuse independent policy and org source generations.",
+      "file": "internal/v2/policy/sources.go",
+      "before": "request := api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: generation}",
+      "after": "request := api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: policy.Generation}",
+      "test": "TestOrgSnapshotSelectors",
+      "subtests": ["published"],
+      "markers": ["approved sources omitted or changed the current publication selectors"]
+    },
+    {
+      "id": "org-selector-initial-generation",
+      "rules": ["BL-RESP", "draft4-fix13"],
+      "check": "Hard-code the initial generation for later publications.",
+      "file": "internal/v2/policy/sources.go",
+      "before": "request := api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: generation}",
+      "after": "request := api.OrgSnapshotRequest{OrgID: api.ID(scope.Config), Generation: 1}",
+      "test": "TestOrgSnapshotSelectors",
+      "subtests": ["published"],
+      "markers": ["approved sources omitted or changed the current publication selectors"]
+    },
+    {
+      "id": "deny-empty",
+      "rules": [
+        "BL-RESP",
+        "default-allow"
+      ],
+      "check": "Invert the empty deny-union default.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "func aggregate(decisions []api.RuleDecision) string {\n\tresult := \"allow\"",
+      "after": "func aggregate(decisions []api.RuleDecision) string {\n\tresult := \"refuse\"",
+      "test": "TestNoRulesAndNoBudget",
+      "subtests": [],
+      "markers": [
+        "absence of denies must allow"
+      ]
+    },
+    {
+      "id": "deny-unmatched",
+      "rules": [
+        "BL-RESP",
+        "default-allow"
+      ],
+      "check": "Remove judged match threshold from a refuse entry.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if probability >= rule.Thresholds.Match && rule.Band == \"refuse\" {",
+      "after": "if rule.Band == \"refuse\" {",
+      "test": "TestJudgedBands",
+      "subtests": [
+        "unfamiliar"
+      ],
+      "markers": [
+        "scored band lost:"
+      ]
+    },
+    {
+      "id": "allow-matching",
+      "rules": [
+        "BL-RESP",
+        "membership"
+      ],
+      "check": "Invert the semantic match comparison.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if probability >= rule.Thresholds.Match && rule.Band == \"refuse\" {",
+      "after": "if probability < rule.Thresholds.Match && rule.Band == \"refuse\" {",
+      "test": "TestJudgedBands",
+      "subtests": [
+        "match-boundary"
+      ],
+      "markers": [
+        "scored band lost:"
+      ]
+    },
+    {
+      "id": "warn-blocks",
+      "rules": [
+        "BL-RESP",
+        "warn-only"
+      ],
+      "check": "Remove the refuse-band restriction from scored refusal.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if probability >= rule.Thresholds.Match && rule.Band == \"refuse\" {",
+      "after": "if probability >= rule.Thresholds.Match {",
+      "test": "TestJudgedBands",
+      "subtests": [
+        "warn-never-refuses"
+      ],
+      "markers": [
+        "scored band lost:"
+      ]
+    },
+    {
+      "id": "drop-instead",
+      "rules": [
+        "BL-RESP",
+        "instead"
+      ],
+      "check": "Drop the defining entry's Instead route.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "Thresholds: rule.Thresholds, Reason: reason, Instead: rule.Instead}",
+      "after": "Thresholds: rule.Thresholds, Reason: reason, Instead: \"\"}",
+      "test": "TestJudgedBands",
+      "subtests": [
+        "match-boundary"
+      ],
+      "markers": [
+        "scored band lost:"
+      ]
+    },
+    {
+      "id": "legacy-veto",
+      "rules": [
+        "BL-RESP",
+        "no-pattern-gate"
+      ],
+      "check": "Restore a tmux lexical veto after semantic nonmembership.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\t\tdecision.Result = aggregate(decision.Rules)\n\t\tinputBytes, err = json.Marshal(input)",
+      "after": "\t\tdecision.Result = aggregate(decision.Rules)\n\t\tif strings.Contains(string(request.Command.Command), \"tmux\") {\n\t\t\tdecision.Result = \"refuse\"\n\t\t}\n\t\tinputBytes, err = json.Marshal(input)",
+      "test": "TestExactInputsAndAudit",
+      "subtests": [],
+      "markers": [
+        "semantic nonmembership was replaced"
+      ]
+    },
+    {
+      "id": "omit-org",
+      "rules": [
+        "BL-RESP",
+        "org-fallback"
+      ],
+      "check": "Omit org rules while preserving defining-source provenance.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "if selected && applies(rule.Scope, role) {",
+      "after": "if selected && layer.DefinedAt != nil && applies(rule.Scope, role) {",
+      "test": "TestResolveLayerUnion",
+      "subtests": [
+        "absent"
+      ],
+      "markers": [
+        "union:"
+      ]
+    },
+    {
+      "id": "omit-higher",
+      "rules": [
+        "BL-RESP",
+        "higher-union"
+      ],
+      "check": "Remove higher-level deny inheritance.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "selected = layer.DefinedAt.Level > role.Level ||",
+      "after": "selected = false ||",
+      "test": "TestResolveLayerUnion",
+      "subtests": [
+        "executor"
+      ],
+      "markers": [
+        "union:"
+      ]
+    },
+    {
+      "id": "inherit-lower",
+      "rules": [
+        "BL-RESP",
+        "no-lower-inheritance"
+      ],
+      "check": "Include lower levels in deny inheritance.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "selected = layer.DefinedAt.Level > role.Level ||",
+      "after": "selected = layer.DefinedAt.Level != role.Level ||",
+      "test": "TestResolveLayerUnion",
+      "subtests": [
+        "supervisor"
+      ],
+      "markers": [
+        "union:"
+      ]
+    },
+    {
+      "id": "inherit-peer",
+      "rules": [
+        "BL-RESP",
+        "own-role-only"
+      ],
+      "check": "Remove the own-level role equality check.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "(layer.DefinedAt.Level == role.Level && layer.DefinedAt.Role == role.Role)",
+      "after": "(layer.DefinedAt.Level == role.Level)",
+      "test": "TestResolveLayerUnion",
+      "subtests": [
+        "executor"
+      ],
+      "markers": [
+        "union:"
+      ]
+    },
+    {
+      "id": "flatten-thresholds",
+      "rules": [
+        "BL-RESP",
+        "defining-thresholds"
+      ],
+      "check": "Replace a defining source threshold with the org scalar.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "\t\t\t\trule.Thresholds = thresholds",
+      "after": "\t\t\t\trule.Thresholds = orgThresholds",
+      "test": "TestResolveLayerUnion",
+      "subtests": [
+        "executor"
+      ],
+      "markers": [
+        "defining authority lost:"
+      ]
+    },
+    {
+      "id": "inactive-source",
+      "rules": [
+        "BL-RESP",
+        "invalid-source"
+      ],
+      "check": "Do not validate an unselected role's rule.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "if !validRule(rule) || seenRules[rule.ID] {",
+      "after": "if selected && (!validRule(rule) || seenRules[rule.ID]) {",
+      "test": "TestResolveLayerUnion",
+      "subtests": [],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "ignore-rule-scope",
+      "rules": [
+        "BL-RESP",
+        "role-scope"
+      ],
+      "check": "Remove rule applicability filtering.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "if selected && applies(rule.Scope, role) {",
+      "after": "if selected {",
+      "test": "TestResolveScopeAndValidation",
+      "subtests": [],
+      "markers": [
+        "scope did not exclude executor:"
+      ]
+    },
+    {
+      "id": "source-forgery",
+      "rules": [
+        "BL-RESP",
+        "source-provenance"
+      ],
+      "check": "Remove the defining-source equality guard.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "if rule.Source != (api.SourceRef{}) && rule.Source != layer.Source {",
+      "after": "if false {",
+      "test": "TestResolveScopeAndValidation",
+      "subtests": [],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "unscored-zero",
+      "rules": [
+        "BL-RESP",
+        "no-zero-substitute"
+      ],
+      "check": "Manufacture a numeric zero for an unscored outcome.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\treturn baseDecision(rule, result, \"unscored: \"+reason)",
+      "after": "\tdecision := baseDecision(rule, result, \"unscored: \"+reason)\n\tprobability := 0.0\n\tdecision.Probability = &probability\n\treturn decision",
+      "test": "TestOutageBands",
+      "subtests": [
+        "timeout"
+      ],
+      "markers": [
+        "outage was scored or closed another band:"
+      ]
+    },
+    {
+      "id": "close-noncritical",
+      "rules": [
+        "BL-RESP",
+        "critical-only"
+      ],
+      "check": "Close noncritical refuse entries during an outage.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if rule.Critical && rule.Band == \"refuse\" {",
+      "after": "if rule.Band == \"refuse\" {",
+      "test": "TestOutageBands",
+      "subtests": [
+        "timeout"
+      ],
+      "markers": [
+        "outage was scored",
+        "RuleID:ordinary"
+      ]
+    },
+    {
+      "id": "close-warn",
+      "rules": [
+        "BL-RESP",
+        "warn-outage"
+      ],
+      "check": "Allow critical warn entries to close during an outage.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if rule.Critical && rule.Band == \"refuse\" {",
+      "after": "if rule.Critical {",
+      "test": "TestOutageBands",
+      "subtests": [
+        "timeout"
+      ],
+      "markers": [
+        "outage was scored",
+        "RuleID:notice"
+      ]
+    },
+    {
+      "id": "uncertainty-closes",
+      "rules": [
+        "BL-RESP",
+        "scored-uncertainty"
+      ],
+      "check": "Treat scored uncertainty as a critical outage.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if probability >= rule.Thresholds.Match && rule.Band == \"refuse\" {",
+      "after": "if rule.Band == \"refuse\" && (probability >= rule.Thresholds.Match || (rule.Critical && probability >= rule.Thresholds.UncertainLow && probability <= rule.Thresholds.UncertainHigh)) {",
+      "test": "TestJudgedBands",
+      "subtests": [
+        "uncertain"
+      ],
+      "markers": [
+        "scored band lost:"
+      ]
+    },
+    {
+      "id": "partial-scored",
+      "rules": [
+        "BL-RESP",
+        "partial"
+      ],
+      "check": "Remove the complete-response status check.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "reply.Status != \"scored\" || len(reply.Results)",
+      "after": "len(reply.Results)",
+      "test": "TestOutageBands",
+      "subtests": [
+        "partial"
+      ],
+      "markers": [
+        "critical outage did not close:"
+      ]
+    },
+    {
+      "id": "cap-ignored",
+      "rules": [
+        "BL-RESP",
+        "cost-cap"
+      ],
+      "check": "Remove the returned-cost ceiling check.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "reply.CostMicros < 0 || reply.CostMicros > request.MaxCostMicros",
+      "after": "reply.CostMicros < 0",
+      "test": "TestOutageBands",
+      "subtests": [
+        "cost-reply"
+      ],
+      "markers": [
+        "critical outage did not close:"
+      ]
+    },
+    {
+      "id": "spend-with-zero",
+      "rules": [
+        "BL-RESP",
+        "no-budget-call"
+      ],
+      "check": "Call another batch after the command's inference reservation reaches zero.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if remaining <= 0 {",
+      "after": "if remaining < 0 {",
+      "test": "TestBatchesShareCost",
+      "subtests": [],
+      "markers": [
+        "batching reset cost or omitted the unresolved critical entry"
+      ]
+    },
+    {
+      "id": "reservation-reset",
+      "rules": [
+        "BL-RESP",
+        "unknown-cost"
+      ],
+      "check": "Reset the inference reservation after an unknown-cost failure.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\t\t\t\t\tremaining = 0\n\t\t\t\t\tblockedBudget = \"budget_reservation_unknown\"",
+      "after": "\t\t\t\t\tremaining = input.CostLimitMicros\n\t\t\t\t\tblockedBudget = \"budget_reservation_unknown\"",
+      "test": "TestUnknownCostStopsBatches",
+      "subtests": [],
+      "markers": [
+        "unknown provider cost was treated as zero"
+      ]
+    },
+    {
+      "id": "fit-unproved",
+      "rules": [
+        "BL-RESP",
+        "token-fit"
+      ],
+      "check": "Remove the unproved fit guard before inference.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "!fit.Proved || fit.InputBytes <= 0",
+      "after": "fit.InputBytes <= 0",
+      "test": "TestFitStopsBeforeInference",
+      "subtests": [
+        "unproved"
+      ],
+      "markers": [
+        "invalid fit reached inference"
+      ]
+    },
+    {
+      "id": "fit-bytes",
+      "rules": [
+        "BL-RESP",
+        "token-fit"
+      ],
+      "check": "Remove the bytes fit guard before inference.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "fit.InputBytes > request.Config.MaxBytes ||\n",
+      "after": "false ||\n",
+      "test": "TestFitStopsBeforeInference",
+      "subtests": [
+        "bytes"
+      ],
+      "markers": [
+        "invalid fit reached inference"
+      ]
+    },
+    {
+      "id": "fit-tokens",
+      "rules": [
+        "BL-RESP",
+        "token-fit"
+      ],
+      "check": "Remove the tokens fit guard before inference.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "fit.InputTokens > request.Config.ContextTokens ||\n",
+      "after": "false ||\n",
+      "test": "TestFitStopsBeforeInference",
+      "subtests": [
+        "tokens"
+      ],
+      "markers": [
+        "invalid fit reached inference"
+      ]
+    },
+    {
+      "id": "fit-tokenizer",
+      "rules": [
+        "BL-RESP",
+        "token-fit"
+      ],
+      "check": "Remove the tokenizer fit guard before inference.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "fit.ContextTokens != request.Config.ContextTokens || fit.TokenizerSHA256 != request.Config.TokenizerSHA256",
+      "after": "fit.ContextTokens != request.Config.ContextTokens",
+      "test": "TestFitStopsBeforeInference",
+      "subtests": [
+        "tokenizer"
+      ],
+      "markers": [
+        "invalid fit reached inference"
+      ]
+    },
+    {
+      "id": "ignore-model-pin",
+      "rules": [
+        "BL-RESP",
+        "provider-pin"
+      ],
+      "check": "Ignore the selected model pin.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "reply.SelectedModel != request.Config.Model || reply.DeploymentSHA256",
+      "after": "reply.DeploymentSHA256",
+      "test": "TestOutageBands",
+      "subtests": [
+        "wrong-model"
+      ],
+      "markers": [
+        "critical outage did not close:"
+      ]
+    },
+    {
+      "id": "reset-deadline",
+      "rules": [
+        "BL-RESP",
+        "deadline"
+      ],
+      "check": "Replace the caller's deadline with a new independent clock.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "ctx, cancel := context.WithTimeout(ctx, time.Duration(s.deps.CommandDeadlineMS)*time.Millisecond)",
+      "after": "ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.deps.CommandDeadlineMS)*time.Millisecond)",
+      "test": "TestParentDeadlineIsRetained",
+      "subtests": [],
+      "markers": [
+        "policy restarted the caller deadline"
+      ]
+    },
+    {
+      "id": "cache-scope",
+      "rules": [
+        "SKIP",
+        "rules-role-invalidation"
+      ],
+      "check": "Drop source/role/policy dependencies from the cache key.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "digest([]api.Digest{policy.SHA256, ruleHash, contextHash})",
+      "after": "digest(request.Command)",
+      "test": "TestCacheContextBindings",
+      "subtests": [
+        "rules",
+        "role",
+        "policy"
+      ],
+      "markers": [
+        "stale semantic allow survived"
+      ]
+    },
+    {
+      "id": "cache-cwd",
+      "rules": [
+        "SKIP",
+        "context-invalidation"
+      ],
+      "check": "Remove both copies of cwd from context binding.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "func ContextDigest(scope api.Scope, request api.PolicyEvaluateRequest, context api.JudgeContext, laneGeneration, grantGeneration api.Generation, turn api.TurnSnapshot) (api.Digest, error) {\n",
+      "after": "func ContextDigest(scope api.Scope, request api.PolicyEvaluateRequest, context api.JudgeContext, laneGeneration, grantGeneration api.Generation, turn api.TurnSnapshot) (api.Digest, error) {\n\trequest.Command.CWD = \"\"\n\tcontext.CWD = \"\"\n",
+      "test": "TestCacheContextBindings",
+      "subtests": [
+        "cwd"
+      ],
+      "markers": [
+        "stale semantic allow survived cwd"
+      ]
+    },
+    {
+      "id": "cache-raw",
+      "rules": [
+        "SKIP",
+        "raw-invalidation"
+      ],
+      "check": "Remove exact raw bytes and their digest from context binding.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "func ContextDigest(scope api.Scope, request api.PolicyEvaluateRequest, context api.JudgeContext, laneGeneration, grantGeneration api.Generation, turn api.TurnSnapshot) (api.Digest, error) {\n",
+      "after": "func ContextDigest(scope api.Scope, request api.PolicyEvaluateRequest, context api.JudgeContext, laneGeneration, grantGeneration api.Generation, turn api.TurnSnapshot) (api.Digest, error) {\n\trequest.Command.Command = []byte{}\n\trequest.Command.RawSHA256 = \"\"\n",
+      "test": "TestCacheContextBindings",
+      "subtests": [
+        "raw"
+      ],
+      "markers": [
+        "stale semantic allow survived raw"
+      ]
+    },
+    {
+      "id": "cache-expiry",
+      "rules": [
+        "SKIP",
+        "cache-ttl"
+      ],
+      "check": "Remove cache TTL expiry at lookup.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "!found || now.Before(entry.created) || !now.Before(entry.expires)",
+      "after": "!found || now.Before(entry.created)",
+      "test": "TestCacheExpiryAndCopies",
+      "subtests": [],
+      "markers": [
+        "expired allow was reused"
+      ]
+    },
+    {
+      "id": "cache-start-time",
+      "rules": [
+        "SKIP",
+        "cache-wait-age"
+      ],
+      "check": "Age cache and skip receipts at request arrival instead of lookup.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "lookupTime := s.deps.Clock.Now()",
+      "after": "lookupTime := started",
+      "test": "TestCacheAgesDuringRead",
+      "subtests": [
+        "cache",
+        "skip"
+      ],
+      "markers": [
+        "expired receipt survived input-retention wait"
+      ]
+    },
+    {
+      "id": "cache-unscored",
+      "rules": [
+        "SKIP",
+        "no-unscored-cache"
+      ],
+      "check": "Cache an unscored outage as a semantic verdict.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if complete && decision.AuditComplete && decision.ID == id {",
+      "after": "if decision.AuditComplete && decision.ID == id && (complete || len(input.Batches) > 0) {",
+      "test": "TestOutageBands",
+      "subtests": [
+        "timeout"
+      ],
+      "markers": [
+        "unscored evaluation was cached"
+      ]
+    },
+    {
+      "id": "cache-audit-gap",
+      "rules": [
+        "SKIP",
+        "audited-cache"
+      ],
+      "check": "Return and cache an uncommitted verdict after a failed durable reply.",
+      "file": "internal/v2/policy/audit.go",
+      "before": "return api.PolicyDecision{}, operationError(err, operation)",
+      "after": "decision.AuditComplete = true\n\t\treturn decision, nil",
+      "test": "TestAuditGapDoesNotCache",
+      "subtests": [],
+      "markers": [
+        "audit gap was cached"
+      ]
+    },
+    {
+      "id": "skip-no-proof",
+      "rules": [
+        "SKIP",
+        "positive-only",
+        "deny-no-override"
+      ],
+      "check": "Permit skipping nonempty rules without a scored positive proof.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if len(policy.Rules) == 0 {\n\t\t\t\treturn skip.ID, api.PolicyDecision{}",
+      "after": "if len(policy.Rules) >= 0 {\n\t\t\t\treturn skip.ID, api.PolicyDecision{}",
+      "test": "TestSkipCannotCancelDeny",
+      "subtests": [],
+      "markers": [
+        "skip overrode an explicit deny"
+      ]
+    },
+    {
+      "id": "skip-miss-refuses",
+      "rules": [
+        "SKIP",
+        "miss-invokes-judge"
+      ],
+      "check": "Turn a skip-context miss into a refusal after semantic allow.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\t\tdecision.Result = aggregate(decision.Rules)\n\t\tinputBytes, err = json.Marshal(input)",
+      "after": "\t\tdecision.Result = aggregate(decision.Rules)\n\t\tif len(policy.Skip) > 0 && policy.Skip[0].ContextSHA256 != skipContextHash {\n\t\t\tdecision.Result = \"refuse\"\n\t\t}\n\t\tinputBytes, err = json.Marshal(input)",
+      "test": "TestSkipRequiresPositiveProof",
+      "subtests": [],
+      "markers": [
+        "skip miss became an allowlist refusal"
+      ]
+    },
+    {
+      "id": "skip-stale",
+      "rules": [
+        "SKIP",
+        "skip-invalidation"
+      ],
+      "check": "Use any audited allow proof instead of current skip/rule/context bindings.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "for _, skip := range policy.Skip {\n\t\tif skip.RuleSetSHA256",
+      "after": "for _, skip := range policy.Skip {\n\t\ts.mu.Lock()\n\t\tfor _, entry := range s.cache {\n\t\t\tif entry.decision.AuditComplete && entry.decision.Result == \"allow\" {\n\t\t\t\ts.mu.Unlock()\n\t\t\t\treturn skip.ID, entry.decision\n\t\t\t}\n\t\t}\n\t\ts.mu.Unlock()\n\t\tif skip.RuleSetSHA256",
+      "test": "TestSkipInvalidation",
+      "subtests": [
+        "rule-update",
+        "context-update",
+        "generation-update"
+      ],
+      "markers": [
+        "stale skip/proof allowed changed work"
+      ]
+    },
+    {
+      "id": "skip-critical",
+      "rules": [
+        "SKIP",
+        "critical-unresolved"
+      ],
+      "check": "Invert the critical-entry skip guard when an approved skip exists.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "// With no judgment, an applicable critical entry is unresolved.\n\t\t\treturn \"\", api.PolicyDecision{}",
+      "after": "// Deliberate red inversion of critical skip eligibility.\n\t\t\tif len(policy.Skip) > 0 {\n\t\t\t\treturn policy.Skip[0].ID, api.PolicyDecision{}\n\t\t\t}\n\t\t\treturn \"\", api.PolicyDecision{}",
+      "test": "TestCriticalCannotSkip",
+      "subtests": [],
+      "markers": [
+        "skip hid an unresolved critical rule"
+      ]
+    },
+    {
+      "id": "omit-audit",
+      "rules": [
+        "BL-RESP",
+        "durable-audit"
+      ],
+      "check": "Remove the durable audit call while falsely claiming completion.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "decision, err = s.audit(ctx, scope, snapshot.OrgSnapshotRef, lane, grants, receipt.Operation.ID, started, decision)",
+      "after": "decision.AuditComplete = true\n\terr = nil",
+      "test": "TestExactInputsAndAudit",
+      "subtests": [],
+      "markers": [
+        "returned result differs from durable policy event"
+      ]
+    },
+    {
+      "id": "ignore-readback",
+      "rules": [
+        "BL-RESP",
+        "retained-input"
+      ],
+      "check": "Compare read-back bytes to themselves instead of exact input.",
+      "file": "internal/v2/policy/audit.go",
+      "before": "!bytes.Equal(chunk.Data, data[offset:offset+len(chunk.Data)])",
+      "after": "!bytes.Equal(chunk.Data, chunk.Data)",
+      "test": "TestScopeAndReceiptFailures",
+      "subtests": [
+        "bad-readback"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "omit-policy-cas",
+      "rules": [
+        "BL-RESP",
+        "policy-generation"
+      ],
+      "check": "Remove the approved org generation comparison at policy audit commit.",
+      "file": "internal/v2/policy/audit.go",
+      "before": "\t\t\t{Kind: api.CompareOrg, ID: snapshot.OrgID, Generation: snapshot.Generation},\n",
+      "after": "",
+      "test": "TestScopeAndReceiptFailures",
+      "subtests": [
+        "policy-race"
+      ],
+      "markers": [
+        "want conflict;"
+      ]
+    },
+    {
+      "id": "hide-judge-stub",
+      "rules": [
+        "BL-RESP",
+        "typed-dependency"
+      ],
+      "check": "Treat an unimplemented judge as an ordinary scored/outage path.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if isStub(fitErr) {",
+      "after": "if false {",
+      "test": "TestScopeAndReceiptFailures",
+      "subtests": [
+        "judge-stub"
+      ],
+      "markers": [
+        "want not_implemented;"
+      ]
+    },
+    {
+      "id": "hook-no-block",
+      "rules": [
+        "BL-RESP",
+        "hook-enforcement"
+      ],
+      "check": "Suppress the hook's enforcing outcome.",
+      "file": "internal/v2/policy/hook.go",
+      "before": "if command != \"org hook\" {",
+      "after": "if command == \"org hook\" {",
+      "test": "TestHookOutcome",
+      "subtests": [
+        "refuse"
+      ],
+      "markers": [
+        "want forbidden;"
+      ]
+    },
+    {
+      "id": "hook-no-route",
+      "rules": [
+        "BL-RESP",
+        "hook-instead"
+      ],
+      "check": "Remove the hook refusal's Instead validation.",
+      "file": "internal/v2/policy/hook.go",
+      "before": "rule.Result == \"refuse\" && textOK(rule.Instead, maxTextBytes)",
+      "after": "rule.Result == \"refuse\"",
+      "test": "TestHookOutcome",
+      "subtests": [
+        "missing-route"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "unknown-flags",
+      "rules": [
+        "BL-RESP",
+        "typed-cli"
+      ],
+      "check": "Allow an unknown policy flag to reach transport.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "if !allowed[name] {",
+      "after": "if false {",
+      "test": "TestCLIRejectsAmbiguousInputs",
+      "subtests": [],
+      "markers": [
+        "input reached transport or produced success:"
+      ]
+    },
+    {
+      "id": "policy-hash",
+      "rules": [
+        "BL-RESP",
+        "canonical-source"
+      ],
+      "check": "Check hash shape but stop comparing canonical content identity.",
+      "file": "internal/v2/policy/service.go",
+      "before": "policy.SHA256 != want",
+      "after": "!validDigest(want)",
+      "test": "TestScopeAndReceiptFailures",
+      "subtests": [
+        "bad-policy-hash"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "list-routes",
+      "rules": [
+        "BL-RESP",
+        "list-provenance"
+      ],
+      "check": "Omit the actual Instead value from human rule listing.",
+      "file": "internal/v2/policy/list.go",
+      "before": "rule.Text, rule.Instead,",
+      "after": "rule.Text, \"\",",
+      "test": "TestPolicyListText",
+      "subtests": [],
+      "markers": [
+        "rule list omitted actual words or provenance:"
+      ]
+    },
+    {
+      "id": "list-sources",
+      "rules": [
+        "BL-RESP",
+        "list-provenance"
+      ],
+      "check": "Omit empty-layer source provenance from human rule listing.",
+      "file": "internal/v2/policy/list.go",
+      "before": "source.Path, source.Generation",
+      "after": "\"\", source.Generation",
+      "test": "TestPolicyListText",
+      "subtests": [],
+      "markers": [
+        "rule list omitted actual words or provenance:"
+      ]
+    },
+    {
+      "id": "approved-config",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Ignore the approved snapshot's configuration binding.",
+      "file": "internal/v2/policy/sources.go",
+      "before": "snapshot.Config != scope.Config || !validID(snapshot.Ref.OrgID)",
+      "after": "!validID(snapshot.Ref.OrgID)",
+      "test": "TestApprovedSnapshots",
+      "subtests": [
+        "wrong-config"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "source-generation",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Permit source references from a stale org generation.",
+      "file": "internal/v2/policy/sources.go",
+      "before": "file.Source.Generation != snapshot.Ref.Generation ||",
+      "after": "false ||",
+      "test": "TestApprovedSnapshots",
+      "subtests": [
+        "stale-inventory"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "approved-membership",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Skip effective source membership in the approved inventory.",
+      "file": "internal/v2/policy/sources.go",
+      "before": "for _, source := range policy.Sources {",
+      "after": "for _, source := range []api.SourceRef{} {",
+      "test": "TestApprovedSnapshots",
+      "subtests": [
+        "unapproved-source"
+      ],
+      "markers": [
+        "want conflict;"
+      ]
+    },
+    {
+      "id": "source-content",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Stop comparing the resolved committed source content.",
+      "file": "internal/v2/policy/sources.go",
+      "before": "retained.Content != file.Content",
+      "after": "retained.Content.ID == \"\"",
+      "test": "TestApprovedSnapshots",
+      "subtests": [
+        "changed-source"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "turn-task",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Permit a turn snapshot with a different retained task.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "turn.Task != lane.Task ||",
+      "after": "false ||",
+      "test": "TestApprovedSnapshots",
+      "subtests": [
+        "changed-task"
+      ],
+      "markers": [
+        "want conflict;"
+      ]
+    },
+    {
+      "id": "object-metadata",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Ignore the actual retained object's configuration ACL.",
+      "file": "internal/v2/policy/audit.go",
+      "before": "metadata.ACL.Config != scope.Config ||",
+      "after": "false ||",
+      "test": "TestApprovedSnapshots",
+      "subtests": [
+        "metadata"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "committed-reply",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Return the proposed decision without a retained committed reply.",
+      "file": "internal/v2/policy/audit.go",
+      "before": "\tif commit.Reply == nil || commit.Reply.Error != nil || !bytes.Equal(commit.Reply.Result, payload) {\n\t\treturn api.PolicyDecision{}, integrity(\"policy commit differs from its exact typed reply\")\n\t}\n\treturn decisionReply(commit.Reply)",
+      "after": "\treturn decision, nil",
+      "test": "TestApprovedSnapshots",
+      "subtests": [
+        "reply"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "receipt-preflight",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Re-run module preflight instead of replaying a completed receipt.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if receipt.Reply != nil {\n\t\treturn s.replayPolicy(ctx, scope, receipt)\n\t}",
+      "after": "if false {\n\t\treturn s.replayPolicy(ctx, scope, receipt)\n\t}",
+      "test": "TestReceiptReplayBeforePreflight",
+      "subtests": [],
+      "markers": [
+        "retry did not replay its exact original result"
+      ]
+    },
+    {
+      "id": "frame-envelope",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Stop binding the typed envelope to the exact verified frame.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "!bytes.Equal(frame, envelope)",
+      "after": "!bytes.Equal(frame, frame) || !bytes.Equal(envelope, envelope)",
+      "test": "TestFrameAndReservation",
+      "subtests": [
+        "frame"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "frame-params",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Stop binding module parameters to the authenticated envelope.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "!bytes.Equal(wireParams, canonical)",
+      "after": "!bytes.Equal(wireParams, wireParams) || !bytes.Equal(canonical, canonical)",
+      "test": "TestFrameAndReservation",
+      "subtests": [
+        "params"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "frame-digest",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Ignore the authenticated envelope's claimed intent digest.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "digest != scope.Request.RequestSHA256",
+      "after": "!validDigest(digest)",
+      "test": "TestFrameAndReservation",
+      "subtests": [
+        "digest"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "reserved-frame",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Ignore exact raw request retention in the pending reservation.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "!bytes.Equal(receipt.RawRequest, scope.Frame.Bytes())",
+      "after": "!bytes.Equal(receipt.RawRequest, receipt.RawRequest)",
+      "test": "TestFrameAndReservation",
+      "subtests": [
+        "reservation"
+      ],
+      "markers": [
+        "unbound request performed inference, retention or commit"
+      ]
+    },
+    {
+      "id": "turn-cache",
+      "rules": [
+        "SKIP",
+        "draft3"
+      ],
+      "check": "Drop retained task, prompt and turn generation from context hashing.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "turn.Generation, turn.Task, turn.Prompt, context, request",
+      "after": "0, api.BlobRef{}, nil, context, request",
+      "test": "TestTurnChangesInvalidateCache",
+      "subtests": [],
+      "markers": [
+        "changed retained turn reused a cached semantic allow"
+      ]
+    },
+    {
+      "id": "human-principal",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Borrow a lane principal for the human target's source lookup.",
+      "file": "internal/v2/policy/service.go",
+      "before": "input, err = s.deps.Store.BriefingInput(ctx, scope, lookup)",
+      "after": "borrowed := scope\n\t\tborrowed.Actor = api.Actor{Kind: \"lane\", ID: \"borrowed\", LifeID: request.LifeID}\n\t\tinput, err = s.deps.Store.BriefingInput(ctx, borrowed, lookup)",
+      "test": "TestHumanTargetKeepsPrincipal",
+      "subtests": [],
+      "markers": [
+        "human targeted preview borrowed a lane principal"
+      ]
+    },
+    {
+      "id": "validate-org-generation",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Use policy generation in the complete org source validator.",
+      "file": "internal/v2/policy/service.go",
+      "before": "api.OrgValidateRequest{Generation: snapshot.Generation}",
+      "after": "api.OrgValidateRequest{Generation: min(snapshot.Generation, scope.PolicyGeneration)}",
+      "test": "TestSourceGenerationIsOrg",
+      "subtests": [],
+      "markers": [
+        "source validator did not receive the org generation"
+      ]
+    },
+    {
+      "id": "source-policy-generation",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Conflate independent org source and policy generations.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "if !validSource(source) {\n\t\t\treturn invalid(\"invalid policy provenance\")",
+      "after": "if !validSource(source) || source.Generation > policy.Generation {\n\t\t\treturn invalid(\"invalid policy provenance\")",
+      "test": "TestSourceGenerationIsOrg",
+      "subtests": [],
+      "markers": [
+        "invalid policy provenance"
+      ]
+    },
+    {
+      "id": "retained-input-refs",
+      "rules": [
+        "BL-RESP",
+        "draft3"
+      ],
+      "check": "Drop the actual approved source/task input references from retention.",
+      "file": "internal/v2/policy/audit.go",
+      "before": "InputRefs: append([]api.BlobRef{}, inputs...)",
+      "after": "InputRefs: []api.BlobRef{}",
+      "test": "TestExactInputsAndAudit",
+      "subtests": [],
+      "markers": [
+        "fixture retention lacks actual input references"
+      ]
+    },
+    {
+      "id": "receipt-config",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Ignore the retained receipt's configuration.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "receipt.Config != scope.Config || ",
+      "after": "",
+      "test": "TestForeignPolicyReceipt",
+      "subtests": [
+        "config"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "receipt-principal",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Ignore the retained actor kind, principal and life.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "receipt.Actor != scope.Actor || ",
+      "after": "",
+      "test": "TestForeignPolicyReceipt",
+      "subtests": [
+        "principal",
+        "life",
+        "kind"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "receipt-key",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Ignore the receipt method and retained mutation key.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "receipt.Key != key",
+      "after": "receipt.Key.RequestSHA256 != key.RequestSHA256",
+      "test": "TestForeignPolicyReceipt",
+      "subtests": [
+        "method",
+        "key"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "receipt-digest",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Ignore the receipt intent digest.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "receipt.Key != key",
+      "after": "(receipt.Key.Method != key.Method || receipt.Key.IdempotencyKey != key.IdempotencyKey)",
+      "test": "TestForeignPolicyReceipt",
+      "subtests": [
+        "digest"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "lane-proof",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Permit a lane proof to reach completed receipt replay.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "if scope.Actor.Kind == \"lane\" && proof != nil {",
+      "after": "if false && scope.Actor.Kind == \"lane\" && proof != nil {",
+      "test": "TestProofBeforePolicyReplay",
+      "subtests": [
+        "lane-proof"
+      ],
+      "markers": [
+        "want forbidden;"
+      ]
+    },
+    {
+      "id": "human-proof",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Omit live human session authority before replay.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\tif scope.Actor.Kind == \"human\" {\n\t\tverified, err := api.WithReadAuthority(ctx, scope)\n\t\tif err != nil {\n\t\t\treturn empty, err\n\t\t}\n\t\tscope = verified\n\t}\n",
+      "after": "",
+      "test": "TestProofBeforePolicyReplay",
+      "subtests": [
+        "missing-human"
+      ],
+      "markers": [
+        "want forbidden;"
+      ]
+    },
+    {
+      "id": "proof-id",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Ignore proof ID shape before replay.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "!validID(proof.ID) || ",
+      "after": "",
+      "test": "TestProofBeforePolicyReplay",
+      "subtests": [
+        "bad-id"
+      ],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "proof-digest",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Ignore proof binding to the exact operation before replay.",
+      "file": "internal/v2/policy/receipt.go",
+      "before": "proof.RequestSHA256 != scope.Request.RequestSHA256",
+      "after": "!validDigest(scope.Request.RequestSHA256)",
+      "test": "TestProofBeforePolicyReplay",
+      "subtests": [
+        "wrong-digest"
+      ],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "proof-guard",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Inject a consuming proof guard into a session-scoped preview.",
+      "file": "internal/v2/policy/audit.go",
+      "before": "Guards: []api.TransactionGuard{},",
+      "after": "Guards: []api.TransactionGuard{{Proof: &api.ProofUse{}}},",
+      "test": "TestHumanPolicyGuardAndReplay",
+      "subtests": [],
+      "markers": [
+        "invalid typed transaction shape"
+      ]
+    },
+    {
+      "id": "proof-target",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Skip binding the live human session principal before policy work.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\tif scope.Actor.Kind == \"human\" {\n\t\tverified, err := api.WithReadAuthority(ctx, scope)\n\t\tif err != nil {\n\t\t\treturn empty, err\n\t\t}\n\t\tscope = verified\n\t}\n",
+      "after": "",
+      "test": "TestHumanPolicyTargetGuard",
+      "subtests": [],
+      "markers": [
+        "mismatched proof target performed policy work"
+      ]
+    },
+    {
+      "id": "judge-default-spelling",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Reject the approved empty Clef provider/model spelling.",
+      "file": "internal/v2/policy/resolve.go",
+      "before": "config = resolved",
+      "after": "if config != resolved { return false }",
+      "test": "TestDefaultJudgeSpelling",
+      "subtests": [],
+      "markers": [
+        "default judge spelling did not produce a scored allow"
+      ]
+    },
+    {
+      "id": "cli-mutation-key",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Invent a mutation key instead of requiring the retained caller key.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "if call.IdempotencyKey == \"\" {",
+      "after": "call.IdempotencyKey = api.ID(strings.Repeat(\"k\", 32))\n\t\tif call.IdempotencyKey == \"\" {",
+      "test": "TestCLIRetainsMutationKey",
+      "subtests": [],
+      "markers": [
+        "missing retained mutation key reached transport or succeeded"
+      ]
+    },
+    {
+      "id": "human-replay",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Re-run human preflight instead of replaying the committed proof result.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if receipt.Reply != nil {\n\t\treturn s.replayPolicy(ctx, scope, receipt)\n\t}",
+      "after": "if false {\n\t\treturn s.replayPolicy(ctx, scope, receipt)\n\t}",
+      "test": "TestHumanPolicyGuardAndReplay",
+      "subtests": [],
+      "markers": [
+        "completed human receipt revalidated or consumed its proof again"
+      ]
+    },
+    {
+      "id": "scoped-judge-refusal",
+      "rules": [
+        "BL-RESP",
+        "draft4"
+      ],
+      "check": "Treat a scoped authorization/provider refusal as an inference outage.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "case api.CodeUnauthenticated, api.CodeForbidden, api.CodeConflict, api.CodeIntegrity, api.CodeVersion, api.CodePrerequisite:",
+      "after": "case api.CodeUnauthenticated, api.CodeConflict, api.CodeIntegrity, api.CodeVersion, api.CodePrerequisite:",
+      "test": "TestScopedJudgeRefusal",
+      "subtests": [
+        "fit",
+        "evaluate"
+      ],
+      "markers": [
+        "want forbidden;"
+      ]
+    },
+    {
+      "id": "policy-validator-register",
+      "rules": [
+        "BL-RESP",
+        "d4fix2"
+      ],
+      "check": "Skip the method-owned policy input registration.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "if err := RegisterInputValidator(\"policy.evaluate\", \"lb-v2-policy\", lbV2PolicyEvaluateInput); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestCLIRejectsPolicyFiles",
+      "subtests": [
+        "run",
+        "turn",
+        "cwd",
+        "digest"
+      ],
+      "markers": [
+        "policy file semantic error did not precede proof/key/transport"
+      ]
+    },
+    {
+      "id": "policy-validator-semantics",
+      "rules": [
+        "BL-RESP",
+        "d4fix2"
+      ],
+      "check": "Accept every structurally typed policy request without semantic checks.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "return lbV2Policy.ValidateEvaluateInput(request)",
+      "after": "return nil",
+      "test": "TestCLIRejectsPolicyFiles",
+      "subtests": [
+        "run",
+        "turn",
+        "cwd",
+        "digest"
+      ],
+      "markers": [
+        "policy file semantic error did not precede proof/key/transport"
+      ]
+    },
+    {
+      "id": "session-before-replay",
+      "rules": [
+        "BL-RESP",
+        "d4fix2"
+      ],
+      "check": "Reuse cached human facts after connection/session authority changes.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\tif scope.Actor.Kind == \"human\" {\n\t\tverified, err := api.WithReadAuthority(ctx, scope)\n\t\tif err != nil {\n\t\t\treturn empty, err\n\t\t}\n\t\tscope = verified\n\t}\n",
+      "after": "",
+      "test": "TestHumanSessionBeforeReplay",
+      "subtests": [
+        "closed",
+        "revoked",
+        "connection",
+        "principal",
+        "config",
+        "endpoint"
+      ],
+      "markers": [
+        "want forbidden;"
+      ]
+    },
+    {
+      "id": "get-input-registration",
+      "rules": [
+        "BL-RESP",
+        "d4val"
+      ],
+      "check": "Drop the policy.get semantic input registration.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "if err := RegisterInputValidator(\"policy.get\", \"lb-v2-policy\", lbV2PolicyGetInput); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestCLIReadValidFiles",
+      "subtests": [
+        "policy-get"
+      ],
+      "markers": [
+        "valid read file did not reach transport"
+      ]
+    },
+    {
+      "id": "config-read-registration",
+      "rules": [
+        "BL-RESP",
+        "d4val"
+      ],
+      "check": "Drop the config.read semantic input registration.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "if err := RegisterInputValidator(\"config.read\", \"lb-v2-policy\", lbV2PolicyConfigReadInput); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestCLIReadValidFiles",
+      "subtests": [
+        "config-read"
+      ],
+      "markers": [
+        "valid read file did not reach transport"
+      ]
+    },
+    {
+      "id": "config-validate-registration",
+      "rules": [
+        "BL-RESP",
+        "d4val"
+      ],
+      "check": "Drop the config.validate semantic input registration.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "if err := RegisterInputValidator(\"config.validate\", \"lb-v2-policy\", lbV2Policy.ValidateConfigValidateInput); err != nil {",
+      "after": "if err := error(nil); err != nil {",
+      "test": "TestCLIReadValidFiles",
+      "subtests": [
+        "config-validate"
+      ],
+      "markers": [
+        "valid read file did not reach transport"
+      ]
+    },
+    {
+      "id": "get-input-semantics",
+      "rules": [
+        "BL-RESP",
+        "d4val"
+      ],
+      "check": "Accept an invalid supplied policy life identifier.",
+      "file": "internal/v2/policy/input.go",
+      "before": "if request.LifeID != \"\" && !validID(request.LifeID) {",
+      "after": "if false {",
+      "test": "TestReadInputSemantics",
+      "subtests": [],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "config-read-semantics",
+      "rules": [
+        "BL-RESP",
+        "d4val"
+      ],
+      "check": "Accept an unknown or empty configuration view.",
+      "file": "internal/v2/policy/input.go",
+      "before": "return inputInvalid(\"unknown configuration view\")",
+      "after": "return nil",
+      "test": "TestReadInputSemantics",
+      "subtests": [],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "empty-config-semantics",
+      "rules": [
+        "BL-RESP",
+        "d4val"
+      ],
+      "check": "Ignore the actual empty-method body and validate a manufactured empty object.",
+      "file": "internal/v2/policy/input.go",
+      "before": "return api.DecodeObject(raw, &request)",
+      "after": "return api.DecodeObject([]byte(\"{}\"), &request)",
+      "test": "TestEmptyConfigInput",
+      "subtests": [
+        "extra-field"
+      ],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "missing-cost-config",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Accept omitted assembly inference configuration.",
+      "file": "internal/v2/policy/service.go",
+      "before": "if deps.MaxCostMicros <= 0 {",
+      "after": "if deps.MaxCostMicros < 0 {",
+      "test": "TestConfiguredInferenceBudget",
+      "subtests": [],
+      "markers": [
+        "want prerequisite_missing;"
+      ]
+    },
+    {
+      "id": "judge-not-consulted",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Silently replace the approved positive inference ceiling with zero.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "limit := s.deps.MaxCostMicros",
+      "after": "limit := int64(0)",
+      "test": "TestConfiguredInferenceBudget",
+      "subtests": [],
+      "markers": [
+        "approved inference ceiling did not reach the judge"
+      ]
+    },
+    {
+      "id": "missing-judge-allow",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Treat an absent judge port as an ordinary noncritical outage allow.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "return nil, nil, false, api.NotImplemented(\"lb-v2-judge\", \"policy judge dependency\")",
+      "after": "for _, rule := range rules {\n\t\t\tdecisions = append(decisions, unscored(rule, \"judge_unavailable\"))\n\t\t}\n\t\treturn decisions, observations, false, nil",
+      "test": "TestMissingJudgeRefusesEvaluation",
+      "subtests": [],
+      "markers": [
+        "want not_implemented;"
+      ]
+    },
+    {
+      "id": "hook-ignores-deny",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Map a refusing hook decision to exit zero through the prescribed cli.Run form.",
+      "file": "internal/v2/policy/hook.go",
+      "before": "return &api.Error{Code: api.CodeForbidden,\n\t\t\t\t\tMessage: \"blacklist entry \" + string(rule.RuleID) + \": \" + rule.Reason,\n\t\t\t\t\tInstead: rule.Instead}",
+      "after": "return nil",
+      "test": "TestInstalledHookExit",
+      "subtests": [],
+      "markers": [
+        "installed hook decision/exit mismatch: failed cases=deny",
+        "deny exited zero"
+      ]
+    },
+    {
+      "id": "human-read-session",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Omit current human connection/session authority for all public reads.",
+      "file": "internal/v2/policy/service.go",
+      "before": "if scope.Actor.Kind == \"human\" {\n\t\treturn api.WithReadAuthority(ctx, scope)\n\t}",
+      "after": "if false {\n\t\treturn api.WithReadAuthority(ctx, scope)\n\t}",
+      "test": "TestHumanReadAuthority",
+      "subtests": [
+        "missing",
+        "closed",
+        "principal"
+      ],
+      "markers": [
+        "invalid human read authority reached protected work"
+      ]
+    },
+    {
+      "id": "lane-read-authority",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Omit live lane launch/grant/cleaned checks before policy/config reads.",
+      "file": "internal/v2/policy/service.go",
+      "before": "\t\tif err := s.laneReadAuthority(ctx, scope, lane, policy.Generation); err != nil {\n\t\t\treturn empty, noSnapshot, err\n\t\t}\n",
+      "after": "",
+      "test": "TestLaneReadAuthority",
+      "subtests": [
+        "cleaned",
+        "launch",
+        "grants",
+        "expiry"
+      ],
+      "markers": [
+        "want forbidden;"
+      ]
+    },
+    {
+      "id": "lane-read-instance",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Allow a foreign instance selector to reach a conflict instead of target refusal.",
+      "file": "internal/v2/policy/service.go",
+      "before": "if role != nil && policy.Context != *role {\n\t\tif scope.Actor.Kind == \"lane\" {",
+      "after": "if role != nil && policy.Context != *role {\n\t\tif false {",
+      "test": "TestReadInstanceTarget",
+      "subtests": [],
+      "markers": [
+        "want forbidden;"
+      ]
+    },
+    {
+      "id": "projection-source-scope",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Expose unselected org source metadata in a lane configuration projection.",
+      "file": "internal/v2/policy/service.go",
+      "before": "if scope.Actor.Kind == \"human\" {\n\t\tsources = make([]api.SourceRef, 0, len(org.Sources))",
+      "after": "if true {\n\t\tsources = make([]api.SourceRef, 0, len(org.Sources))",
+      "test": "TestProjectionSourceScope",
+      "subtests": [
+        "lane-path"
+      ],
+      "markers": [
+        "configuration source visibility differs"
+      ]
+    },
+    {
+      "id": "projection-life-acl",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Drop the lane life from the retained projection intent and object ACL.",
+      "file": "internal/v2/policy/service.go",
+      "before": "target.LifeID = scope.Actor.LifeID",
+      "after": "target.LifeID = \"\"",
+      "test": "TestProjectionSourceScope",
+      "subtests": [
+        "lane-path"
+      ],
+      "markers": [
+        "configuration projection lost its principal/life ACL"
+      ]
+    },
+    {
+      "id": "config-view-catalog",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Admit config/read view values outside the frozen catalog.",
+      "file": "internal/v2/policy/input.go",
+      "before": "case \"path\", \"list\", \"show\", \"settings\", \"roles\", \"plugins\", \"channels\":",
+      "after": "case \"path\", \"list\", \"show\", \"settings\", \"roles\", \"plugins\", \"channels\", \"config\", \"read\":",
+      "test": "TestCLIClosedViews",
+      "subtests": [
+        "config",
+        "read"
+      ],
+      "markers": [
+        "noncatalog configuration view reached transport"
+      ]
+    },
+    {
+      "id": "client-provider-cap",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Refuse a wire-valid provider overflow on the ergonomic hook client.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "command, err = lbV2PolicyRead(file, api.MaxFrameBytes)",
+      "after": "command, err = lbV2PolicyRead(file, api.MaxJudgeBytes)",
+      "test": "TestInstalledHookExit",
+      "subtests": [],
+      "markers": [
+        "installed hook decision/exit mismatch: failed cases=unscored",
+        "provider overflow refused locally"
+      ]
+    },
+    {
+      "id": "late-command-check",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Resolve a missing target before local command/cwd/tool validation.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "\t\tif err := lbV2Policy.ValidateCommandInput(request.Command); err != nil {\n\t\t\treturn err\n\t\t}\n",
+      "after": "",
+      "test": "TestCLILocalPreflight",
+      "subtests": [
+        "cwd",
+        "tool"
+      ],
+      "markers": [
+        "local preflight reached target lookup"
+      ]
+    },
+    {
+      "id": "late-key-check",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Resolve a missing target before checking the retained mutation key.",
+      "file": "internal/v2/cli/commands_policy.go",
+      "before": "\t\tif call.IdempotencyKey == \"\" {\n\t\t\treturn lbV2PolicyClientError(api.CodeInvalid, \"mutation requires a retained idempotency key\")\n\t\t}\n\t\tif !lbV2PolicyKeyShape(call.IdempotencyKey) || (call.RequestID != \"\" && !lbV2PolicyKeyShape(call.RequestID)) {\n\t\t\treturn lbV2PolicyClientError(api.CodeInvalid, \"invalid retained request key\")\n\t\t}\n",
+      "after": "",
+      "test": "TestCLILocalPreflight",
+      "subtests": [
+        "key"
+      ],
+      "markers": [
+        "local preflight reached target lookup"
+      ]
+    },
+    {
+      "id": "skip-overbound",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Bind an approved work exemption to ephemeral caller/launch/turn facts.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "skipContextHash, err := SkipContextDigest(scope.Config, request.Command, policy)",
+      "after": "skipContextHash, err := contextHash, error(nil)",
+      "test": "TestStableSkipApproval",
+      "subtests": [
+        "turn"
+      ],
+      "markers": [
+        "stable skip approval was not reusable"
+      ]
+    },
+    {
+      "id": "positive-proof-scope",
+      "rules": [
+        "BL-RESP",
+        "d4fix4"
+      ],
+      "check": "Drop full caller context from the positive allow proof key.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "}{\"positive-proof-v1\", ruleHash, contextHash})",
+      "after": "}{\"positive-proof-v1\", ruleHash, \"\"})",
+      "test": "TestHumanCannotSeedLaneSkip",
+      "subtests": [],
+      "markers": [
+        "human preview seeded a lane positive proof"
+      ]
+    },
+    {
+      "id": "zero-spend-allow",
+      "rules": [
+        "BL-RESP",
+        "d4fix5"
+      ],
+      "check": "Turn a zero-spend fresh judgment into an ordinary unscored allow.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\tif len(policy.Rules) > 0 && limit <= 0 {\n\t\treturn empty, &api.Error{Code: api.CodeBudget, Owner: \"lb-v2-policy\",\n\t\t\tMessage: \"fresh policy judgment requires a positive remaining inference budget\",\n\t\t\tInstead: \"Have the supervising role allocate an approved inference budget, then retry with a new retained request key.\"}\n\t}\n",
+      "after": "",
+      "test": "TestZeroSpendRefusesJudgment",
+      "subtests": [],
+      "markers": [
+        "zero-spend evaluation did not refuse before judging"
+      ]
+    },
+    {
+      "id": "judge-invalid-allow",
+      "rules": [
+        "BL-RESP",
+        "d4fix5"
+      ],
+      "check": "Treat a judge invalid-request error as an ordinary outage allow.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "case api.CodeInvalid, api.CodeNotFound:",
+      "after": "case api.CodeNotFound:",
+      "test": "TestScopedJudgeRefusal",
+      "subtests": [
+        "fit-invalid",
+        "evaluate-invalid"
+      ],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "judge-not-found-allow",
+      "rules": [
+        "BL-RESP",
+        "d4fix5"
+      ],
+      "check": "Treat a judge not-found error as an ordinary outage allow.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "case api.CodeInvalid, api.CodeNotFound:",
+      "after": "case api.CodeInvalid:",
+      "test": "TestScopedJudgeRefusal",
+      "subtests": [
+        "fit-not-found",
+        "evaluate-not-found"
+      ],
+      "markers": [
+        "want not_found;"
+      ]
+    },
+    {
+      "id": "generation-values-swapped",
+      "rules": [
+        "BL-RESP",
+        "d4fix5"
+      ],
+      "check": "Report the current and recorded policy generations in the wrong positions.",
+      "file": "internal/v2/policy/service.go",
+      "before": "fmt.Sprintf(\"recorded life policy generation %d differs from current policy generation %d\", recorded, current)",
+      "after": "fmt.Sprintf(\"recorded life policy generation %d differs from current policy generation %d\", current, recorded)",
+      "test": "TestLanePolicyGenerationDiagnostic",
+      "subtests": [
+        "policy.get",
+        "config.read",
+        "config.validate",
+        "policy.evaluate"
+      ],
+      "markers": [
+        "generation refusal lost recorded/current values or reached protected work"
+      ]
+    },
+    {
+      "id": "f11-policy-eval",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Use the retained launch generation for a fresh policy evaluation.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "api.PolicyGenerationFor(api.PolicyNewEvaluation, policy.Generation, lane.PolicyGeneration)",
+      "after": "api.PolicyGenerationFor(api.PolicyExactReplay, policy.Generation, lane.PolicyGeneration)",
+      "test": "TestPolicyCurrentEvaluation",
+      "subtests": [],
+      "markers": [
+        "fresh policy evaluation did not use the current approved generation"
+      ]
+    },
+    {
+      "id": "f11-policy-replay",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Select current policy instead of the completed receipt's retained generation.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "api.PolicyGenerationForReplay(scope, current, receipt)",
+      "after": "api.PolicyGenerationFor(api.PolicyNewEvaluation, current.Generation, receipt.PolicyGeneration)",
+      "test": "TestPolicyHistoricalReplay",
+      "subtests": [],
+      "markers": [
+        "exact policy replay lost its retained generation or performed fresh work"
+      ]
+    },
+    {
+      "id": "f11-policy-replay-key",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Bypass the exact replay config/actor/key/digest binding.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "api.PolicyGenerationForReplay(scope, current, receipt)",
+      "after": "api.PolicyGenerationFor(api.PolicyExactReplay, current.Generation, receipt.PolicyGeneration)",
+      "test": "TestPolicyReplayBinding",
+      "subtests": [
+        "config",
+        "actor",
+        "key",
+        "digest"
+      ],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "f11-policy-pin",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Accept a widened live policy projection in the protected refresh receipt.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "\tif err := api.ValidatePolicyAdvance(lane, request, policy, receipt); err != nil {\n\t\treturn api.Lane{}, err\n\t}\n",
+      "after": "",
+      "test": "TestPolicyAdvanceReceiptRefusals",
+      "subtests": [
+        "pin"
+      ],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "f11-policy-event",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Accept an incorrect lane.policy event in the protected refresh receipt.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "\tif err := api.ValidatePolicyAdvance(lane, request, policy, receipt); err != nil {\n\t\treturn api.Lane{}, err\n\t}\n",
+      "after": "",
+      "test": "TestPolicyAdvanceReceiptRefusals",
+      "subtests": [
+        "event"
+      ],
+      "markers": [
+        "want invalid_request;"
+      ]
+    },
+    {
+      "id": "f11-policy-cas",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Supply a stale life CAS to the protected policy refresh.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "ExpectedLaneGeneration: lane.Generation,",
+      "after": "ExpectedLaneGeneration: lane.Generation + 1,",
+      "test": "TestPolicyAdvanceFence",
+      "subtests": [],
+      "markers": [
+        "lane policy refresh used a stale life fence"
+      ]
+    },
+    {
+      "id": "f11-policy-epoch",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Lose the current cancellation epoch on the protected policy refresh.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "CancellationEpoch: lane.CancellationEpoch,",
+      "after": "CancellationEpoch: 0,",
+      "test": "TestPolicyAdvanceFence",
+      "subtests": [],
+      "markers": [
+        "lane policy refresh used a stale life fence"
+      ]
+    },
+    {
+      "id": "f11-policy-history",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Accept a foreign generation or hash from the immutable history port.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "if err != nil || historical.Generation != generation || historical.SHA256 != hash {",
+      "after": "if err != nil || historical.Generation != generation && historical.SHA256 == hash {",
+      "test": "TestPolicyReplayHistoryRefusals",
+      "subtests": [
+        "generation",
+        "hash"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "f11-policy-reply",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Accept a completed decision that differs from its receipt generation.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "if decision.PolicyGeneration != generation {",
+      "after": "if false {",
+      "test": "TestPolicyReplayHistoryRefusals",
+      "subtests": [
+        "reply"
+      ],
+      "markers": [
+        "want integrity;"
+      ]
+    },
+    {
+      "id": "f11-policy-refresh-port",
+      "rules": [
+        "BL-RESP",
+        "fix11"
+      ],
+      "check": "Swallow a protected refresh conflict or owner-named missing implementation.",
+      "file": "internal/v2/policy/generation.go",
+      "before": "receipt, err := s.deps.Store.RefreshLanePolicy(ctx, scope, request)\n\tif err != nil {\n\t\treturn api.Lane{}, err\n\t}",
+      "after": "receipt, err := s.deps.Store.RefreshLanePolicy(ctx, scope, request)\n\tif err != nil {\n\t\treturn lane, nil\n\t}",
+      "test": "TestPolicyAdvancePortFailure",
+      "subtests": [],
+      "markers": [
+        "policy refresh failure became judgment or success"
+      ]
+    },
+    {
+      "id": "human-preview-refresh",
+      "rules": [
+        "BL-RESP",
+        "d4fix7"
+      ],
+      "check": "Refresh a target lane's live projection during a verified human preview.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if scope.Actor.Kind == \"lane\" {",
+      "after": "if scope.Actor.Kind == \"lane\" || scope.Actor.Kind == \"human\" {",
+      "test": "TestHumanPreviewKeepsLaneProjection",
+      "subtests": [],
+      "markers": [
+        "human preview refreshed the target lane policy projection"
+      ]
+    },
+    {
+      "id": "lane-refresh-omitted",
+      "rules": [
+        "BL-RESP",
+        "d4fix7"
+      ],
+      "check": "Skip the protected refresh for actual lane evaluations.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "if scope.Actor.Kind == \"lane\" {",
+      "after": "if scope.Actor.Kind == \"human\" {",
+      "test": "TestPolicyCurrentEvaluation",
+      "subtests": [],
+      "markers": [
+        "fresh policy evaluation omitted its one protected lane refresh"
+      ]
+    },
+    {
+      "id": "zero-spend-order",
+      "rules": [
+        "BL-RESP",
+        "d4fix7"
+      ],
+      "check": "Return the same budget refusal only after refresh and input retention.",
+      "file": "internal/v2/policy/evaluate.go",
+      "before": "\tif len(policy.Rules) > 0 && limit <= 0 {\n\t\treturn empty, &api.Error{Code: api.CodeBudget, Owner: \"lb-v2-policy\",\n\t\t\tMessage: \"fresh policy judgment requires a positive remaining inference budget\",\n\t\t\tInstead: \"Have the supervising role allocate an approved inference budget, then retry with a new retained request key.\"}\n\t}\n\t// A human preview reads current policy without changing the target's life CAS.\n\tif scope.Actor.Kind == \"lane\" {\n\t\tlane, err = s.advanceLanePolicy(ctx, scope, lane, policy)\n\t\tif err != nil {\n\t\t\treturn empty, err\n\t\t}\n\t}\n\truleHash, err := RuleSetDigest(policy)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tcontextHash, err := ContextDigest(scope, request, judgeContext, lane.Generation, grants.Generation, turn)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tskipContextHash, err := SkipContextDigest(scope.Config, request.Command, policy)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tcacheKey, err := digest([]api.Digest{policy.SHA256, ruleHash, contextHash})\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tid, err := newID(\"policy\")\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tinput := evaluationInput{\n\t\tSchema: \"laneboss.policy-input.v2\", Request: request,\n\t\tStartedAt:  api.Timestamp(started.UTC().Format(time.RFC3339Nano)),\n\t\tWireParams: append([]byte{}, scope.Request.Params...), Context: judgeContext,\n\t\tPolicy: policy, OrgSnapshot: snapshot.OrgSnapshotRef, Turn: turn, RuleSetSHA256: ruleHash, ContextSHA256: contextHash,\n\t\tSkipContextSHA256: skipContextHash,\n\t\tCostLimitMicros:   limit, DeadlineMS: deadlineMS, Batches: []batchObservation{},\n\t}\n\tinputBytes, err := json.Marshal(input)\n\tif err != nil {\n\t\treturn empty, integrity(\"policy input cannot be encoded\")\n\t}\n\tintent, err := retentionIntent(scope, request.Target, request.LogicalTurnID, receipt.Operation.ID)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tinputs := append(append([]api.BlobRef{}, snapshot.Inputs...), turn.Task)\n\tinputRef, err := s.put(ctx, scope, intent, \"judge_request\", inputBytes, inputs)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n",
+      "after": "\t// A human preview reads current policy without changing the target's life CAS.\n\tif scope.Actor.Kind == \"lane\" {\n\t\tlane, err = s.advanceLanePolicy(ctx, scope, lane, policy)\n\t\tif err != nil {\n\t\t\treturn empty, err\n\t\t}\n\t}\n\truleHash, err := RuleSetDigest(policy)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tcontextHash, err := ContextDigest(scope, request, judgeContext, lane.Generation, grants.Generation, turn)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tskipContextHash, err := SkipContextDigest(scope.Config, request.Command, policy)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tcacheKey, err := digest([]api.Digest{policy.SHA256, ruleHash, contextHash})\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tid, err := newID(\"policy\")\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tinput := evaluationInput{\n\t\tSchema: \"laneboss.policy-input.v2\", Request: request,\n\t\tStartedAt:  api.Timestamp(started.UTC().Format(time.RFC3339Nano)),\n\t\tWireParams: append([]byte{}, scope.Request.Params...), Context: judgeContext,\n\t\tPolicy: policy, OrgSnapshot: snapshot.OrgSnapshotRef, Turn: turn, RuleSetSHA256: ruleHash, ContextSHA256: contextHash,\n\t\tSkipContextSHA256: skipContextHash,\n\t\tCostLimitMicros:   limit, DeadlineMS: deadlineMS, Batches: []batchObservation{},\n\t}\n\tinputBytes, err := json.Marshal(input)\n\tif err != nil {\n\t\treturn empty, integrity(\"policy input cannot be encoded\")\n\t}\n\tintent, err := retentionIntent(scope, request.Target, request.LogicalTurnID, receipt.Operation.ID)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tinputs := append(append([]api.BlobRef{}, snapshot.Inputs...), turn.Task)\n\tinputRef, err := s.put(ctx, scope, intent, \"judge_request\", inputBytes, inputs)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tif len(policy.Rules) > 0 && limit <= 0 {\n\t\treturn empty, &api.Error{Code: api.CodeBudget, Owner: \"lb-v2-policy\",\n\t\t\tMessage: \"fresh policy judgment requires a positive remaining inference budget\",\n\t\t\tInstead: \"Have the supervising role allocate an approved inference budget, then retry with a new retained request key.\"}\n\t}\n",
+      "test": "TestZeroSpendBeforeSideEffects",
+      "subtests": [
+        "lane",
+        "human"
+      ],
+      "markers": [
+        "zero-spend refusal refreshed or retained input"
+      ]
+    }
+  ]
+}

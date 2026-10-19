@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"laneboss.io/laneboss/internal/cliargs"
+	"laneboss.io/laneboss/internal/eventstore"
 )
 
 const withheld = "[withheld]"
@@ -54,7 +55,21 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return usage(stderr, cliargs.Required("ACTION"))
 	}
 	if args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprintln(stdout, "usage: laneboss plugin [-h] ACTION ...\n\nLocate the plugin that ships with the launcher.\n\nActions:\n  path  the directory of the installed plugin, as one JSON value")
+		fmt.Fprintln(stdout, "usage: laneboss plugin [-h] ACTION ...\n\nLocate the plugin that ships with the launcher.\n\nActions:\n  path  the directory of the installed plugin, as one JSON value\n  list  installed launcher plugins and their recorded status")
+		return 0
+	}
+	if args[0] == "list" {
+		if len(args) != 1 {
+			return usage(stderr, cliargs.Reject(""))
+		}
+		rows, err := Inventory()
+		if err != nil {
+			fmt.Fprintln(stderr, "refused: installed plugins could not be read")
+			return 2
+		}
+		if json.NewEncoder(stdout).Encode(eventstore.ScreenValue(rows)) != nil {
+			return 70
+		}
 		return 0
 	}
 	if args[0] != "path" {

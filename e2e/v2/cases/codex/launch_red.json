@@ -1,0 +1,1822 @@
+[
+  {
+    "id": "lp-retained-author",
+    "file": "launch.go",
+    "test": "TestPlanningAuthor/retained",
+    "reason": "acceptance: fresh planning claimant lost the retained service author",
+    "edits": [["effect.Context.Actor.Kind != \"service\" || !id(effect.Context.Actor.ID)", "effect.Context.Actor != s.deps.ReadScope.Actor"]]
+  },
+  {
+    "id": "lp-author-kind",
+    "file": "launch.go",
+    "test": "TestPlanningAuthor/kind",
+    "reason": "acceptance: invalid planning author escaped its deciding guard",
+    "edits": [["effect.Context.Actor.Kind != \"service\" || ", ""]]
+  },
+  {
+    "id": "lp-author-id",
+    "file": "launch.go",
+    "test": "TestPlanningAuthor/id",
+    "reason": "acceptance: invalid planning author escaped its deciding guard",
+    "edits": [["!id(effect.Context.Actor.ID) || ", ""]]
+  },
+  {
+    "id": "lp-claim-actor-id",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/scope-id",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [[" || !id(scope.Actor.ID)", ""]]
+  },
+  {
+    "id": "lp-claim-snapshot",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/generation",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "!reflect.DeepEqual(current, lease.Record)",
+        "!reflect.DeepEqual(current.Effect.ID, lease.Record.Effect.ID)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-generation",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/zero-generation",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "current.Generation == 0",
+        "current.Generation > 1<<53-1"
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-expiry",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/expiry",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "!now.Before(expires)",
+        "expires.IsZero()"
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-id",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/claim",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "current.ClaimID != lease.ClaimID ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-shape",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/claim-shape",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "!id(current.ClaimID)",
+        "len(current.ClaimID) > 128"
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-expiry-pin",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/claim-expiry",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "current.ClaimExpiresAt != lease.ExpiresAt || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-claimant",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/claimant",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "current.ClaimantID != scope.Actor.ID",
+        "current.ClaimantID == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-state",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/state",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "current.State != api.EffectClaimed",
+        "current.State == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-outcome",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/outcome",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "current.Outcome != nil || ",
+        "current.Outcome != nil && current.Outcome.Error != nil || "
+      ]
+    ]
+  },
+  {
+    "id": "lp-claim-scope",
+    "file": "launch.go",
+    "test": "TestPlanningClaim/scope",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "scope.Actor.Kind != \"service\"",
+        "scope.Actor.Kind == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reservation-reservation",
+    "file": "launch.go",
+    "test": "TestReservationEffect/reservation",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.ID != effect.PlanLaunch.ReservationID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reservation-config",
+    "file": "launch.go",
+    "test": "TestReservationEffect/config",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.Config != scope.Config || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reservation-target",
+    "file": "launch.go",
+    "test": "TestReservationEffect/target",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.Target != target ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reservation-operation",
+    "file": "launch.go",
+    "test": "TestReservationEffect/operation",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.OperationID != effect.OperationID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reservation-request",
+    "file": "launch.go",
+    "test": "TestReservationEffect/request",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.RequestID != effect.Context.CauseRequestID ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reservation-requester",
+    "file": "launch.go",
+    "test": "TestReservationEffect/requester",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.RequestedBy != effect.Context.RequestedBy || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reservation-epoch",
+    "file": "launch.go",
+    "test": "TestReservationEffect/epoch",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.CancellationEpoch != effect.Context.CancellationEpoch",
+        "r.CancellationEpoch > 1<<53-1"
+      ]
+    ]
+  },
+  {
+    "id": "lp-effect-target",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/effect-target",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "effect.Context.Target != request.Target",
+        "effect.Context.Target.LifeID == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-phase",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/phase",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "record.Phase != \"sourced\" && record.Phase != \"planned\" && record.Phase != \"spec_retained\"",
+        "record.Phase == \"failed\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-mode",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/mode",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "record.Inputs == nil || r.Mode != mode && !(mode == \"resume\" && (r.Mode == \"adopt\" || r.Mode == \"continue\"))",
+        "record.Inputs == nil"
+      ]
+    ]
+  },
+  {
+    "id": "lp-policy",
+    "file": "launch.go",
+    "test": "TestLaunchConsumer/policy",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchPolicyCurrent(r, retained, policy); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        "\t_ = policy // RED: omit the shared current-policy comparison\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-grant-revoked",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/grant-revoked",
+    "reason": "wanted typed forbidden, got <nil>",
+    "edits": [
+      [
+        "grants.Revoked || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-grant-snapshot",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/grant-generation",
+    "reason": "wanted typed forbidden, got <nil>",
+    "edits": [
+      [
+        "!reflect.DeepEqual(grants, retained)",
+        "!reflect.DeepEqual(grants.ID, retained.ID)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-runtime",
+    "file": "launch.go",
+    "test": "TestLaunchConsumer/enrollment",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "sources.Runtime.Executable != request.Executable || sources.Runtime.Executable != s.deps.Runtime.Executable",
+        "sources.Runtime.Executable.ID == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-original-operation",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/original-provenance",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "metadata.SourceOperationID != r.OperationID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-original-frame",
+    "file": "launch.go",
+    "test": "TestOriginalLaunchFrame",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "original.RequestID != r.RequestID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-original-receipt",
+    "file": "launch.go",
+    "test": "TestLaunchConsumer/receipt",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "!bytes.Equal(receipt.RawRequest, data)",
+        "!bytes.Equal(receipt.RawRequest[:0], data[:0])"
+      ]
+    ]
+  },
+  {
+    "id": "lp-allocation-runtime",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/allocation-runtime",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "a.HelperAllocate.RuntimeManifestID != sources.Runtime.Manifest.ID",
+        "a.HelperAllocate.RuntimeManifestID == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-home-path",
+    "file": "launch.go",
+    "test": "TestLaunchStoragePath",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "storage.Home.Home.VendorDirectory != \".codex\"",
+        "storage.Home.Home.VendorDirectory == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-request-model",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/request-model",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "start.Model != request.Model || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-prompt",
+    "file": "launch.go",
+    "test": "TestLaunchConsumer/prompt",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "turn.Prompt == nil || *turn.Prompt != request.Prompt",
+        "turn.Prompt == nil"
+      ]
+    ]
+  },
+  {
+    "id": "lp-session",
+    "file": "launch.go",
+    "test": "TestLaunchConsumer/session",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "session.ID != request.Session.ID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-input-replay",
+    "file": "launch.go",
+    "test": "TestLaunchGuards/replay-home",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "record.Plan.Data.Home != storage.Home || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-runner-replay",
+    "file": "runner.go",
+    "test": "TestLaunchConsumer/replay",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "!reflect.DeepEqual(input.record.Plan.Runner, plan)",
+        "!reflect.DeepEqual(input.record.Plan.Runner.Driver, plan.Driver)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-recovery",
+    "file": "launch.go",
+    "test": "TestRetainedRecovery/request",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchBindingPlan(bound, *record.Plan); err != nil {\n\t\treturn empty, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-prepared-session",
+    "file": "home.go",
+    "test": "TestPreparedSession",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "\tif h.record.Session.ID == \"\" {\n\t\treturn api.Session{}, problem(api.CodeConflict, \"Codex private home has no prepared session\")\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-shape",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDispositionPins/producer",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateCaptureBinding(binding); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-refused",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDisposition",
+    "reason": "wanted typed not_implemented, got <nil>",
+    "edits": [
+      [
+        "if binding.Status == \"refused\" {",
+        "if binding.Status == \"refused\" && binding.Refusal == nil {"
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-binding",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDispositionPins/binding",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "binding.ID != record.BindingID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-config",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDispositionPins/config",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "binding.Config != config || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-target",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDispositionPins/target",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "binding.Target != record.Target ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-launch",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDispositionPins/launch",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "binding.LaunchID != lane.LaunchID",
+        "binding.LaunchID == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-generation",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDispositionPins/generation",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "state.Generation < binding.Generation || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-sequence",
+    "file": "capture_binding.go",
+    "test": "TestCaptureDispositionPins/sequence",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "state.LastSeq == 0",
+        "state.LastSeq > 1<<53-1"
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-session",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/plan-session",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "plan.Runner.Session.ID != lane.Session.ID",
+        "plan.Runner.Session.ID == \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-home",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/storage-home",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "storage.Home != plan.Data.Home || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-registration",
+    "file": "capture_binding.go",
+    "test": "TestCaptureLaunchBinding/registration",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "boundSeq == 0 || !identity",
+        "!identity"
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-identity",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/identity-event",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "\tif boundSeq == 0 || !identity {\n",
+        "\tidentity = identity || boundSeq > 0\n\tif boundSeq == 0 || !identity {\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-identity-event",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/identity-pin",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "event.ID != bound.Identity.EventID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-registration-cause",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/registration-cause",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        " || event.RequestedBy != binding.RequestedBy",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-stream",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/stream",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "\tif streamID == \"\" {\n\t\treturn empty, problem(api.CodeIntegrity, \"Codex output is not a registered capture stream\")\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-position",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/position-invalid",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "candidate.NextOffset < 0 || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-position-required",
+    "file": "capture_binding.go",
+    "test": "TestCaptureGuards/position-missing",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "\tif !found {\n\t\treturn empty, problem(api.CodeIntegrity, \"Codex capture stream has no retained position\")\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-object-cause",
+    "file": "capture.go",
+    "test": "TestCaptureGuards/object-cause",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "metadata.SourceOperationID != source.state.Binding.OperationID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-range",
+    "file": "capture.go",
+    "test": "TestCaptureLaunchBinding/position",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "int64(len(data)) > source.position.NextOffset",
+        "int64(len(data)) < 0"
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-prefix",
+    "file": "capture.go",
+    "test": "TestCapturePrefixBinding",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "candidate.BindingID != record.BindingID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-gap",
+    "file": "capture.go",
+    "test": "TestCaptureGapBinding",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "gap.BindingID != record.BindingID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-cause",
+    "file": "capture_binding.go",
+    "test": "TestCaptureLaunchBinding/cause",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "event.OperationID == b.OperationID && ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-eof",
+    "file": "capture_binding.go",
+    "test": "TestCaptureEOF",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "!source.position.EOF || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-required",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/missing",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "\treturn false\n}\n",
+        "\treturn source.position.EOF\n}\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-binding",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/binding",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "receipt.BindingID == source.state.Binding.ID",
+        "receipt.BindingID != \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-stream",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/stream",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "receipt.StreamID == source.position.StreamID",
+        "receipt.StreamID != \"\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-offset",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/offset",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "receipt.Offset == size",
+        "receipt.Offset >= size"
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-next",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/next",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "receipt.NextOffset == size",
+        "receipt.NextOffset >= size"
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-generation",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/generation",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "receipt.Generation <= source.state.Generation",
+        "receipt.Generation >= source.state.Generation"
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-sequence",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/sequence",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "receipt.LastSeq == event.Seq",
+        "receipt.LastSeq >= event.Seq"
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-eof",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/eof",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "&& receipt.EOF &&",
+        "&& !receipt.Replayed &&"
+      ]
+    ]
+  },
+  {
+    "id": "lp-recovery-source",
+    "file": "launch.go",
+    "test": "TestRetainedRecovery/provenance",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "metadata.SourceOperationID != record.Reservation.OperationID ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-closure-position",
+    "file": "capture_binding.go",
+    "test": "TestCaptureClosureReceipt/position",
+    "reason": "wanted typed unavailable, got <nil>",
+    "edits": [
+      [
+        "source.position.NextOffset != size",
+        "source.position.NextOffset < size"
+      ]
+    ]
+  },
+  {
+    "id": "lp-cause-request",
+    "file": "capture_binding.go",
+    "test": "TestCaptureCauseBounds/request",
+    "reason": "capture cause accepted a foreign or unacknowledged range",
+    "edits": [
+      [
+        "event.RequestID == b.RequestID && ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-cause-requester",
+    "file": "capture_binding.go",
+    "test": "TestCaptureCauseBounds/requester",
+    "reason": "capture cause accepted a foreign or unacknowledged range",
+    "edits": [
+      [
+        "event.RequestedBy == b.RequestedBy &&\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-cause-registration",
+    "file": "capture_binding.go",
+    "test": "TestCaptureCauseBounds/registration",
+    "reason": "capture cause accepted a foreign or unacknowledged range",
+    "edits": [
+      [
+        "event.Seq > source.boundSeq && ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-cause-identity",
+    "file": "capture_binding.go",
+    "test": "TestCaptureCauseBounds/identity",
+    "reason": "capture cause accepted a foreign or unacknowledged range",
+    "edits": [
+      [
+        "event.Seq > source.identitySeq && ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-cause-acknowledgement",
+    "file": "capture_binding.go",
+    "test": "TestCaptureCauseBounds/acknowledgement",
+    "reason": "capture cause accepted a foreign or unacknowledged range",
+    "edits": [
+      [
+        "event.Seq <= source.state.LastSeq",
+        "event.Seq != 0"
+      ]
+    ]
+  },
+  {
+    "id": "lp-retained-home",
+    "file": "launch.go",
+    "test": "TestRetainedLaunchStorage",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "storage.Home != previous.Plan.Data.Home || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-ready-lane",
+    "file": "runner.go",
+    "test": "TestLaunchConsumer/no-ready-lane",
+    "reason": "launch still required a fabricated ready Lane",
+    "edits": [
+      [
+        "\tinput, err := s.launchInput(ctx, request, mode)\n",
+        "\tif _, err := s.boundLane(ctx, request.Target); err != nil {\n\t\treturn empty, err\n\t}\n\tinput, err := s.launchInput(ctx, request, mode)\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-refused-scope",
+    "file": "capture_binding.go",
+    "test": "TestRefusedCaptureScope",
+    "reason": "foreign refused capture chose another launch's error",
+    "edits": [
+      [
+        "binding.Target != record.Target ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-start-pin-level",
+    "file": "launch.go",
+    "test": "TestLaunchPins/level",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "start.Level != r.Level || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-start-pin-role",
+    "file": "launch.go",
+    "test": "TestLaunchPins/role",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "start.Role != r.Role || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-start-pin-driver",
+    "file": "launch.go",
+    "test": "TestLaunchPins/driver",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        " || start.Driver != r.Driver",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-start-authority",
+    "file": "launch.go",
+    "test": "TestLaunchPins/ticket",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "\t\tif r.RequestedBy.Kind == \"human\" && r.Authority.ID != start.RootTicketID {\n\t\t\treturn 0, problem(api.CodeIntegrity, \"Codex reserved ticket differs from the original start authority\")\n\t\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-reserved-driver",
+    "file": "launch.go",
+    "test": "TestReservedDriver",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.Driver != api.DriverCodex || ",
+        ""
+      ],
+      [
+        " || start.Driver != r.Driver",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-retained-prior-level",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/prior-level",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "previous.Reservation.Level != r.Level || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-retained-prior-role",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/prior-role",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "previous.Reservation.Role != r.Role || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-retained-prior-driver",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/prior-driver",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        " || previous.Reservation.Driver != r.Driver",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-retained-lane-level",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/lane-level",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "lane.Level != r.Level || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-retained-lane-role",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/lane-role",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "lane.Role != r.Role || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-retained-lane-driver",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/lane-driver",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        " || lane.Session.Driver != r.Driver",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-proof-id",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/proof-id",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "r.Authority.ID != original.Proof.ID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-proof-digest",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/proof-digest",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        " || original.Proof.RequestSHA256 != r.RequestSHA256",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-proof-missing",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/proof-missing",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "\tif r.RequestedBy.Kind == \"human\" && (original.Proof == nil || r.Authority.ID != original.Proof.ID || original.Proof.RequestSHA256 != r.RequestSHA256) {\n\t\treturn 0, problem(api.CodeIntegrity, \"Codex reserved proof differs from the original retained-life authority\")\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-continue-capture",
+    "file": "launch.go",
+    "test": "TestRetainedPins/resume/capture-refused",
+    "reason": "wanted typed forbidden, got <nil>",
+    "edits": [
+      [
+        "\tif previous.Capture.Status != \"registered\" {\n\t\treturn 0, problem(api.CodeForbidden, \"Codex continuation requires registered primary capture\")\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-policy-disabled",
+    "file": "capture_binding.go",
+    "test": "TestCapturePolicy/disabled",
+    "reason": "wanted typed invalid_request, got not_implemented",
+    "edits": [
+      [
+        "\t\tif err := api.ValidateCapturePolicy(binding, policy); err != nil {\n\t\t\treturn dependencyError(err)\n\t\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-policy-approval",
+    "file": "capture_binding.go",
+    "test": "TestCapturePolicy/approval",
+    "reason": "wanted typed invalid_request, got not_implemented",
+    "edits": [
+      [
+        "\t\tif err := api.ValidateCapturePolicy(binding, policy); err != nil {\n\t\t\treturn dependencyError(err)\n\t\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-refusal-snapshot",
+    "file": "capture_binding.go",
+    "test": "TestCapturePolicy/snapshot",
+    "reason": "wanted typed invalid_request, got not_implemented",
+    "edits": [
+      [
+        "\tretained, err := s.retainedLaunch(ctx, binding.LaunchID)\n",
+        "\tif dispositionErr != nil && dispositionErr == binding.Refusal {\n\t\treturn empty, dispositionErr\n\t}\n\tretained, err := s.retainedLaunch(ctx, binding.LaunchID)\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-refusal-snapshot-approval",
+    "file": "capture_binding.go",
+    "test": "TestCapturePolicy/snapshot-approval",
+    "reason": "wanted typed invalid_request, got not_implemented",
+    "edits": [
+      [
+        "\tretained, err := s.retainedLaunch(ctx, binding.LaunchID)\n",
+        "\tif dispositionErr != nil && dispositionErr == binding.Refusal {\n\t\treturn empty, dispositionErr\n\t}\n\tretained, err := s.retainedLaunch(ctx, binding.LaunchID)\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-capture-refusal-recovery",
+    "file": "capture_binding.go",
+    "test": "TestCapturePolicy/recovery",
+    "reason": "wanted typed integrity, got not_implemented",
+    "edits": [
+      [
+        "\tretained, err := s.retainedLaunch(ctx, binding.LaunchID)\n",
+        "\tif dispositionErr != nil && dispositionErr == binding.Refusal {\n\t\treturn empty, dispositionErr\n\t}\n\tretained, err := s.retainedLaunch(ctx, binding.LaunchID)\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-agent-binding-kind",
+    "file": "launch.go",
+    "test": "TestAgentBinding/kind",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchBindingPlan(bound, *record.Plan); err != nil {\n\t\treturn empty, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-agent-binding-worker",
+    "file": "launch.go",
+    "test": "TestAgentBinding/worker",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchBindingPlan(bound, *record.Plan); err != nil {\n\t\treturn empty, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-agent-binding-level",
+    "file": "launch.go",
+    "test": "TestAgentBinding/level",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchBindingPlan(bound, *record.Plan); err != nil {\n\t\treturn empty, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-agent-binding-role",
+    "file": "launch.go",
+    "test": "TestAgentBinding/role",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchBindingPlan(bound, *record.Plan); err != nil {\n\t\treturn empty, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-replay-capture-policy",
+    "file": "launch.go",
+    "test": "TestReplayCapturePolicy",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif record.Plan != nil && record.Plan.Capture.Status == \"refused\" {\n\t\tpolicy, err := s.deps.Store.Policy(ctx, s.deps.ReadScope)\n\t\tif err != nil {\n\t\t\treturn empty, dependencyError(err)\n\t\t}\n\t\tif err := api.ValidateCapturePolicy(record.Plan.Capture, policy); err != nil {\n\t\t\treturn empty, dependencyError(err)\n\t\t}\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-policy-advance",
+    "file": "capture_binding.go",
+    "test": "TestCapturePolicyAdvance",
+    "reason": "policy advance blocked the opened launch session",
+    "edits": [
+      [
+        "s.retainedGrants(ctx, plan.Reservation, plan.Inputs.Grants)",
+        "s.launchAuthority(ctx, plan.Reservation, plan.Inputs.Grants)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-policy-unknown",
+    "file": "capture_binding.go",
+    "test": "TestCapturePolicyUnknown",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif _, err := api.PolicyGenerationFor(api.PolicyExactReplay, policy.Generation, plan.Reservation.PolicyGeneration); err != nil {\n\t\treturn empty, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-historical-generation",
+    "file": "launch.go",
+    "test": "TestHistoricalGrants/generation",
+    "reason": "wanted typed forbidden, got <nil>",
+    "edits": [
+      [
+        " || grants.PolicyGeneration != r.PolicyGeneration",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-historical-expiry",
+    "file": "launch.go",
+    "test": "TestHistoricalGrants/expired",
+    "reason": "wanted typed forbidden, got <nil>",
+    "edits": [
+      [
+        "!s.deps.Clock.Now().Before(expires) || ",
+        "!expires.After(expires.Add(-1)) || "
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-missing",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/missing",
+    "reason": "wanted typed prerequisite_missing, got <nil>",
+    "edits": [
+      [
+        "\tif !id(record.DataStageID) {\n\t\treturn problem(api.CodePrerequisite, \"Codex launch has no retained materialization stage\")\n\t}\n",
+        ""
+      ],
+      [
+        "stage.ID != record.DataStageID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-selector",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/foreign",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "stage.ID != record.DataStageID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-parent",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/parent",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "stage.ParentEffectID != parent.Effect.ID ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-state",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/running",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "child.State != api.EffectCompleted || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-outcome",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/outcome",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "child.Outcome.Status != \"succeeded\" || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-result",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/result",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchDataResult(stage, result); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-output",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/output",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "\tif child.Outcome.Output == nil || *child.Outcome.Output != result.ResultReceipt.Result ||\n\t\tchild.Outcome.Observation == nil || !reflect.DeepEqual(*child.Outcome.Observation, result.Observation) {\n\t\treturn problem(api.CodeIntegrity, \"Codex materialization completion differs from measured output\")\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-data-provenance",
+    "file": "materialization.go",
+    "test": "TestDataStageGate/provenance",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "metadata.SourceOperationID != r.OperationID || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-profile",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/profile",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateUsageWindow(evidence, query, producer, s.deps.Clock.Now()); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-producer",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/producer",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateUsageWindow(evidence, query, producer, s.deps.Clock.Now()); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-worker",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/worker",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateUsageWindow(evidence, query, producer, s.deps.Clock.Now()); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-stale",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/stale",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateUsageWindow(evidence, query, producer, s.deps.Clock.Now()); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-pre-exit",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/pre-exit",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateUsageWindow(evidence, query, producer, s.deps.Clock.Now()); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-available",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/available",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateUsageWindow(evidence, query, producer, s.deps.Clock.Now()); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-native",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/native",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateWorkerPrincipal(producer, endpoint, peer, api.WorkerResultAppend, s.deps.Clock.Now()); err != nil {\n\t\treturn api.WorkerPrincipal{}, dependencyError(err)\n\t}\n",
+        ""
+      ],
+      [
+        "\tif err := api.ValidateUsageWindow(evidence, query, producer, s.deps.Clock.Now()); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-reset",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/reset-past",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "if err != nil || !reset.After(s.deps.Clock.Now()) {",
+        "if err != nil || reset.IsZero() {"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-tsv",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/raw-percent",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateUsageSource(evidence, raw, vendorProfile); err != nil {\n\t\treturn empty, dependencyError(err)\n\t}\n",
+        "\t_ = raw\n\t_ = vendorProfile // RED: omit actual TSV validation\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-private",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/private",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "metadata.ACL.Audience != \"service\" || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-origin",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/origin",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "metadata.Origin != \"service\" || ",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-operation",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/object-operation",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "metadata.SourceOperationID != cause.OperationID ||\n\t\t",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-envelope",
+    "file": "usage.go",
+    "test": "TestOutsideUsage/envelope",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "!reflect.DeepEqual(committed, evidence)",
+        "!reflect.DeepEqual(committed.ID, evidence.ID)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f11-usage-reference",
+    "file": "capture.go",
+    "test": "TestUsageEvidence",
+    "reason": "limit omitted exact retained outside usage reference",
+    "edits": [
+      [
+        "UsageEvidence: &usage",
+        "UsageEvidence: &api.BlobRef{ID: usage.ID}"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-turn-plan",
+    "file": "launch.go",
+    "test": "TestTurnPlan",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        " || effect.Context.LogicalTurnID != request.LogicalTurnID",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-turn-event",
+    "file": "capture.go",
+    "test": "TestTurnEvent/missing",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "\t\t\tif event.Kind == \"lane.turn\" && !id(event.LogicalTurnID) {\n\t\t\t\treturn nil, problem(api.CodeIntegrity, \"Codex turn event has no logical turn identity\")\n\t\t\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-policy-head",
+    "file": "launch.go",
+    "test": "TestPolicyHead",
+    "reason": "wanted typed conflict, got <nil>",
+    "edits": [
+      [
+        "s.deps.Store.CurrentApprovedPolicy(ctx, s.deps.ReadScope)",
+        "s.deps.Store.Policy(ctx, s.deps.ReadScope)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-policy-owner",
+    "file": "launch.go",
+    "test": "TestPolicyOwner",
+    "reason": "new launch policy lost its owning recovery route",
+    "edits": [
+      [
+        "\tif err := api.ValidateLaunchPolicyCurrent(r, retained, policy); err != nil {\n\t\treturn dependencyError(err)\n\t}\n",
+        "\tif err := api.ValidateLaunchPolicyCurrent(r, retained, policy); err != nil {\n\t\treturn problem(api.CodeConflict, \"Codex launch policy generation is stale\")\n\t}\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-usage-time",
+    "file": "usage.go",
+    "test": "TestUsageClaimTime",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tcurrent, err := s.usagePrincipal(ctx, endpoint, peer)\n\tif err != nil {\n\t\treturn empty, err\n\t}\n\tif err := s.usageWindow(evidence, query, current); err != nil {\n\t\treturn empty, err\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-data-state",
+    "file": "materialization.go",
+    "test": "TestDataEffectState",
+    "reason": "completed materialization was refused",
+    "edits": [
+      [
+        "child.State != api.EffectCompleted",
+        "child.State != \"succeeded\""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-refresh-proof",
+    "file": "slot.go",
+    "test": "TestRefreshProof",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateCredentialRefresh(record, refresh, now); err != nil {\n\t\treturn Credential{}, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-refresh-source",
+    "file": "slot.go",
+    "test": "TestRefreshSource",
+    "reason": "refresh did not consume exact received bytes",
+    "edits": [
+      [
+        "data, err := readRefreshDescriptor(refresh.File)",
+        "data, err := readPrivate(s.root, \".codex/auth.json\", maxAuthBytes)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-refresh-close",
+    "file": "slot.go",
+    "test": "TestRefreshSource",
+    "reason": "refresh received duplicate remained open",
+    "edits": [
+      [
+        "\tif refresh.File != nil {\n\t\tdefer func() {\n\t\t\tif closeErr := refresh.File.Close(); closeErr != nil {\n\t\t\t\tcredential = Credential{}\n\t\t\t\terr = errors.Join(err, problem(api.CodeUnavailable, \"Codex refresh duplicate could not close\"))\n\t\t\t}\n\t\t}()\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-refresh-linked",
+    "file": "refresh.go",
+    "test": "TestRefreshFD/linked",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "stat.Nlink != 0",
+        "stat.Nlink > 1"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-refresh-writable",
+    "file": "refresh.go",
+    "test": "TestRefreshFD/writable",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "flags&syscall.O_ACCMODE != syscall.O_RDONLY",
+        "flags&syscall.O_ACCMODE == syscall.O_WRONLY"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-refresh-cloexec",
+    "file": "refresh.go",
+    "test": "TestRefreshFD/cloexec",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        " || fdFlags&syscall.FD_CLOEXEC == 0",
+        ""
+      ],
+      [
+        "\tfdFlags, _, fdErr := syscall.Syscall(syscall.SYS_FCNTL, file.Fd(), syscall.F_GETFD, 0)\n",
+        "\tfdFlags, _, fdErr := syscall.Syscall(syscall.SYS_FCNTL, file.Fd(), syscall.F_GETFD, 0)\n\t_ = fdFlags // RED: omit inheritance protection\n"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-native-destination",
+    "file": "slot.go",
+    "test": "TestNativeDestination",
+    "reason": "credential missed the fixed native destination",
+    "edits": [
+      [
+        "writePrivate(s.root, \".codex/auth.json\", \".runnerhome-runtime\", credential.payload, 0600)",
+        "writePrivate(s.root, \".codex/alternate-auth.json\", \".runnerhome-runtime\", credential.payload, 0600)"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-env-early",
+    "file": "environment.go",
+    "test": "TestFinalEnv/early",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateCredentialEnvironment(record, observed); err != nil {\n\t\treturn nil, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-env-root",
+    "file": "environment.go",
+    "test": "TestFinalEnv/root",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateCredentialEnvironment(record, observed); err != nil {\n\t\treturn nil, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-env-caps",
+    "file": "environment.go",
+    "test": "TestFinalEnv/caps",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateCredentialEnvironment(record, observed); err != nil {\n\t\treturn nil, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-env-isolation",
+    "file": "environment.go",
+    "test": "TestFinalEnv/isolation",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateCredentialEnvironment(record, observed); err != nil {\n\t\treturn nil, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-env-earlier",
+    "file": "environment.go",
+    "test": "TestFinalEnv/earlier",
+    "reason": "wanted typed invalid_request, got <nil>",
+    "edits": [
+      [
+        "\tif err := api.ValidateCredentialEnvironment(record, observed); err != nil {\n\t\treturn nil, dependencyError(err)\n\t}\n",
+        ""
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-env-nul",
+    "file": "environment.go",
+    "test": "TestFinalEnv/nul",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "bytes.IndexByte(value, 0) >= 0",
+        "bytes.IndexByte(value, 0) < -1"
+      ]
+    ]
+  },
+  {
+    "id": "lp-f12-env-names",
+    "file": "environment.go",
+    "test": "TestFinalEnv/names",
+    "reason": "wanted typed integrity, got <nil>",
+    "edits": [
+      [
+        "!slices.Equal(names, actual)",
+        "len(names) != len(actual)"
+      ]
+    ]
+  }
+]

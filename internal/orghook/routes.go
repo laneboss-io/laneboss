@@ -8,7 +8,7 @@ const holdRoute = "report this refusal verbatim to the supervisor and wait for c
 const fileRoute = "use an allowed file tool with one literal non-secret path inside the permitted scope; ask the supervisor when no permitted tool or path fits."
 const deviceRoute = "leave device-file targets unchanged; send permitted non-secret output directly to stdout or stderr without file redirection."
 const searchRoute = "narrow the read to a literal non-secret file or folder without protected descendants, symlink directories or multiply linked files."
-const routeScope = "The alternative must still satisfy every applicable tool, secret, command and write-scope rule."
+const routeScope = "The alternative must still pass every applicable blacklist entry and the protected-file, secret-file and lane-boundary checks."
 
 func ruleRoute(kind string) string {
 	switch kind {

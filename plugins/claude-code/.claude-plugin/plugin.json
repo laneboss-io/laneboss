@@ -1,6 +1,6 @@
 {
   "name": "laneboss",
-  "version": "0.6.0-dev4",
+  "version": "0.7.0",
   "description": "Start a supervised laneboss session from Claude Code with one slash command, /laneboss.",
   "license": "Apache-2.0",
   "author": {

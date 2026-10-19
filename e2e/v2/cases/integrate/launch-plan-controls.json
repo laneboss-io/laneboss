@@ -1,0 +1,347 @@
+{
+  "status": "active in red-controls.py; Linux reached-red and candidate evidence pending",
+  "controls": [
+    {
+      "id": "launch-reserved-base",
+      "package": "api",
+      "test": "TestLaunchReservationShape/new_base",
+      "diagnostic": "invalid reservation accepted",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          " || r.BaseGeneration != 0",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "launch-reserved-grant",
+      "package": "api",
+      "test": "TestLaunchInputReservation/grant_id",
+      "diagnostic": "launch inputs escaped their reservation",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "g.ID != r.GrantSetID || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "launch-runtime-manifest",
+      "package": "api",
+      "test": "TestLaunchEnrollmentShape/manifest",
+      "diagnostic": "untrusted launch enrollment accepted",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          " || runtime.Manifest != manifest",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "launch-private-history",
+      "package": "api",
+      "test": "TestLaunchPlanShape/history",
+      "diagnostic": "invalid launch plan accepted",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "runner.Session.HistoryID != home.Home.HistoryID ||",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "launch-spec-runtime",
+      "package": "api",
+      "test": "TestAgentSpecPlanBinding/runtime",
+      "diagnostic": "spec escaped its retained plan",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "spec.RuntimeManifest != plan.Inputs.Sources.Runtime.Manifest || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "launch-original-request",
+      "package": "api",
+      "test": "TestLaunchRecoveryBinding/request",
+      "diagnostic": "recovery escaped its committed binding",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "recovery.OriginalRequest != r.OriginalRequest || ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "launch-retained-handoff",
+      "package": "api",
+      "test": "TestLaunchPlanPhases/handoff_required",
+      "diagnostic": "bound launch omitted its retained handoff",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "valid = record.Handoff != nil",
+          "valid = record.Plan != nil"
+        ]
+      ]
+    },
+    {
+      "id": "capture-integrity-fallback",
+      "package": "api",
+      "test": "TestCaptureBindingShape/fallback",
+      "diagnostic": "invalid capture disposition accepted",
+      "file": "api/capture_validation.go",
+      "edits": [
+        [
+          "b.Refusal.Code != CodeUnsupported ||",
+          "b.Refusal.Code != CodeUnsupported && b.Refusal.Code != CodeIntegrity ||"
+        ]
+      ]
+    },
+    {
+      "id": "capture-one-use-pipe",
+      "package": "api",
+      "test": "TestCaptureBindingShape/shared_pipe",
+      "diagnostic": "invalid capture disposition accepted",
+      "file": "api/capture_validation.go",
+      "edits": [
+        [
+          " || pipes[stream.PipeID]",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "capture-original-operation",
+      "package": "api",
+      "test": "TestCaptureAppendCorrelation/operation",
+      "diagnostic": "uncorrelated capture append accepted",
+      "file": "api/capture_validation.go",
+      "edits": [
+        [
+          "cause.CauseOperationID == b.OperationID && ",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "capture-eof-union",
+      "package": "api",
+      "test": "TestCaptureAppendCorrelation/eof_data",
+      "diagnostic": "uncorrelated capture append accepted",
+      "file": "api/capture_validation.go",
+      "edits": [
+        [
+          " || r.EOF == (r.Data != nil)",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "launch-plan-cas",
+      "package": "api",
+      "test": "TestLaunchPlanWriteAuthority",
+      "diagnostic": "launch plan write omitted its reservation CAS",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "return allowed && cas && cancellation",
+          "return allowed && cancellation"
+        ]
+      ]
+    },
+    {
+      "id": "launch-plan-cancellation",
+      "package": "api",
+      "test": "TestLaunchPlanWriteAuthority",
+      "diagnostic": "launch plan write omitted its cancellation fence",
+      "file": "api/launch_validation.go",
+      "edits": [
+        [
+          "return allowed && cas && cancellation",
+          "return allowed && cas"
+        ]
+      ]
+    },
+    {
+      "id": "launch-plan-d6-outcome",
+      "package": "api",
+      "test": "TestDeferredCompletion/launch_plan",
+      "diagnostic": "second or unrelated final reply was accepted",
+      "file": "api/deferred.go",
+      "edits": [
+        [
+          " || outcome.LaunchPlan != nil",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "reserve-root-ticket", "package": "api", "test": "TestReserveAuthority/root_ticket",
+      "diagnostic": "reservation authority gate was bypassed", "file": "api/launch_authority.go",
+      "edits": [["if tickets != 1 {", "if tickets > 1 {"]]
+    },
+    {
+      "id": "reserve-lane-proof", "package": "api", "test": "TestReserveAuthority/lane_proof",
+      "diagnostic": "reservation authority gate was bypassed", "file": "api/launch_authority.go",
+      "edits": [["REMOVE_BLOCK", "\tif scope.Actor.Kind == \"lane\" && (scope.Request.Proof != nil || proofs != 0 || tickets != 0) {"]]
+    },
+    {
+      "id": "reserve-ticket-principal", "package": "api", "test": "TestReserveAuthority/principal",
+      "diagnostic": "reservation authority gate was bypassed", "file": "api/launch_authority.go",
+      "edits": [["ticket.PrincipalID != scope.Actor.ID || ", ""]]
+    },
+    {
+      "id": "reserve-retained-ticket", "package": "api", "test": "TestReserveRecord/root_ticket",
+      "diagnostic": "reservation retained invalid authority", "file": "api/launch_validation.go",
+      "edits": [["r.Authority.Kind != \"ticket\" || ", ""]]
+    },
+    {
+      "id": "reserve-retained-lane", "package": "api", "test": "TestReserveRecord/lane_proof",
+      "diagnostic": "reservation retained invalid authority", "file": "api/launch_validation.go",
+      "edits": [["} else if r.Authority.Kind != \"starter\" {", "} else if r.Authority.Kind != \"starter\" && r.Authority.Kind != \"proof\" {"]]
+    },
+    {
+      "id": "reserve-child-level", "package": "api", "test": "TestReserveRecord/child_level",
+      "diagnostic": "reservation retained invalid authority", "file": "api/launch_validation.go",
+      "edits": [["r.Level >= r.RequestedBy.Level || ", ""]]
+    },
+    {
+      "id": "prepare-without-plan-bind", "package": "api", "test": "TestLaunchBoundTransaction/no_plan_bind",
+      "diagnostic": "bound launch omitted its atomic ready binding", "file": "api/validation.go",
+      "edits": [["\t\tif !validPreparedPlanBindings(transaction) {\n\t\t\treturn invalid()\n\t\t}\n", ""]]
+    },
+    {
+      "id": "prepare-without-plan-lane", "package": "api", "test": "TestLaunchBoundTransaction/no_plan_lane",
+      "diagnostic": "bound launch omitted its atomic ready binding", "file": "api/validation.go",
+      "edits": [["\t\tif !validPreparedPlanBindings(transaction) {\n\t\t\treturn invalid()\n\t\t}\n", ""]]
+    },
+    {
+      "id": "launch-level-pin", "package": "api", "test": "TestReservedRolePins/level",
+      "diagnostic": "bound record changed reserved role", "file": "api/launch_validation.go",
+      "edits": [["record.Actor.Level != r.Level || ", ""]]
+    },
+    {
+      "id": "launch-role-pin", "package": "api", "test": "TestReservedRolePins/role",
+      "diagnostic": "bound record changed reserved role", "file": "api/launch_validation.go",
+      "edits": [["record.Actor.Role != r.Role ||", ""]]
+    },
+    {
+      "id": "launch-driver-pin", "package": "api", "test": "TestReservedRolePins/driver",
+      "diagnostic": "plan changed reserved driver", "file": "api/launch_validation.go",
+      "edits": [["runner.Driver != r.Driver || ", ""]]
+    },
+    {
+      "id": "launch-bound-life-cas", "package": "api", "test": "TestLaunchBoundTransaction/life_cas",
+      "diagnostic": "bound launch omitted its atomic ready binding", "file": "api/launch_validation.go",
+      "edits": [["if record.Phase == \"bound\" {", "if record.Phase == \"opened\" {"]]
+    },
+    {
+      "id": "launch-plan-kind-union", "package": "api", "test": "TestLaunchPlanEffectUnion/other_kind",
+      "diagnostic": "invalid launch-plan effect union accepted", "file": "api/validation.go",
+      "edits": [["return kind == InternalLaunchPlan &&", "return (kind == InternalLaunchPlan || kind == InternalObjectRetain) &&"]]
+    },
+    {
+      "id": "capture-policy-required", "package": "api", "test": "TestCaptureRefusalPolicy/disabled",
+      "diagnostic": "unapproved capture refusal accepted", "file": "api/capture_validation.go",
+      "edits": [["!policy.AllowCaptureRefusal || ", ""]]
+    },
+    {
+      "id": "capture-producer-pin", "package": "api", "test": "TestCaptureAppendCorrelation/producer",
+      "diagnostic": "uncorrelated capture append accepted", "file": "api/capture_validation.go",
+      "edits": [["cause.Actor.ID == b.ProducerID && ", ""]]
+    },
+    {
+      "id": "capture-run-pin", "package": "api", "test": "TestCaptureAppendCorrelation/run",
+      "diagnostic": "uncorrelated capture append accepted", "file": "api/capture_validation.go",
+      "edits": [["cause.Target == b.Target && ", ""]]
+    },
+    {
+      "id": "capture-refused-producer", "package": "api", "test": "TestCaptureProducerGate",
+      "diagnostic": "refused capture producer was admitted", "file": "api/capture_validation.go",
+      "edits": [["b.Status == \"registered\" && ", ""]]
+    },
+    {
+      "id": "check-natural-state", "package": "api", "test": "TestCheckNaturalStateWrite",
+      "diagnostic": "natural completion state transition was refused", "file": "api/write_catalog.go",
+      "edits": [["events: \"run.observed lane.lost lane.ended lane.state\"", "events: \"run.observed lane.lost lane.ended\""]]
+    },
+    {
+      "id": "review-closed-coverage", "package": "api", "test": "TestReviewCoverageSchema/coverage",
+      "diagnostic": "review evidence gate was bypassed", "file": "api/review_validation.go",
+      "edits": [["!validCoverage(e.Coverage) || ", ""]]
+    },
+    {
+      "id": "review-run-end-pin", "package": "api", "test": "TestReviewCoverageSchema/end",
+      "diagnostic": "review evidence gate was bypassed", "file": "api/review_validation.go",
+      "edits": [["!reflect.DeepEqual(e.Subject, s) || ", "!reflect.DeepEqual(e.Subject.Target, s.Target) || "]]
+    },
+    {
+      "id": "review-check-snapshot", "package": "api", "test": "TestReviewCoverageSchema/snapshot",
+      "diagnostic": "review evidence gate was bypassed", "file": "api/review_validation.go",
+      "edits": [["check.SnapshotSHA256 != s.Snapshot.SHA256 || ", ""]]
+    },
+    {
+      "id": "review-tool-coverage", "package": "api", "test": "TestReviewAcceptance/tool_gap",
+      "diagnostic": "review acceptance gate was bypassed", "file": "api/review_validation.go",
+      "edits": [[" || e.Inventory.ToolCoverage != CoverageComplete", ""]]
+    },
+    {
+      "id": "review-required-check", "package": "api", "test": "TestReviewAcceptance/required",
+      "diagnostic": "review acceptance gate was bypassed", "file": "api/review_validation.go",
+      "edits": [["if !checks[name] {", "if name == \"\" && !checks[name] {"]]
+    },
+    {
+      "id": "review-stream-eof", "package": "api", "test": "TestReviewAcceptance/eof",
+      "diagnostic": "review acceptance gate was bypassed", "file": "api/review_validation.go",
+      "edits": [[" && stream.EOF", ""]]
+    },
+    {
+      "id": "channel-fixed-runtime", "package": "api", "test": "TestChannelWorkerHandoff/runtime",
+      "diagnostic": "channel fixed worker handoff was bypassed", "file": "api/channel_validation.go",
+      "edits": [["s.Worker.Executable != j.Runtime.Executable || ", ""]]
+    },
+    {
+      "id": "channel-fixed-input", "package": "api", "test": "TestChannelWorkerHandoff/input",
+      "diagnostic": "channel fixed worker handoff was bypassed", "file": "api/channel_validation.go",
+      "edits": [[" || s.Worker.Input != j.Lease.Input", ""]]
+    },
+    {
+      "id": "channel-fixed-argv", "package": "api", "test": "TestChannelWorkerHandoff/argv",
+      "diagnostic": "channel fixed worker handoff was bypassed", "file": "api/channel_validation.go",
+      "edits": [["!slices.Equal(s.Worker.Argv, argv)", "len(argv) == 0"]]
+    },
+    {
+      "id": "channel-readback-payload", "package": "api", "test": "TestChannelMeasuredResult/payload",
+      "diagnostic": "unmeasured channel confirmation accepted", "file": "api/channel_validation.go",
+      "edits": [[" || e.ReadBack.PayloadSHA256 != j.Payload.SHA256", ""]]
+    },
+    {
+      "id": "channel-result-operation", "package": "api", "test": "TestChannelMeasuredResult/operation",
+      "diagnostic": "unmeasured channel confirmation accepted", "file": "api/channel_validation.go",
+      "edits": [[" || e.OperationID != j.Lease.OperationID", ""]]
+    },
+    {
+      "id": "continue-swap-operation", "package": "api", "test": "TestContinueOperation/swap",
+      "diagnostic": "continuation operation contract was bypassed", "file": "api/continuation_validation.go",
+      "edits": [[" || intent.Swap.OperationID != intent.OperationID", ""]]
+    },
+    {
+      "id": "continue-result-operation", "package": "api", "test": "TestContinueOperation/result",
+      "diagnostic": "continuation operation contract was bypassed", "file": "api/continuation_validation.go",
+      "edits": [[" || operation.ID != intent.OperationID", ""]]
+    },
+    {
+      "id": "continue-pending-result", "package": "api", "test": "TestContinueOperation/pending_success",
+      "diagnostic": "continuation operation contract was bypassed", "file": "api/continuation_validation.go",
+      "edits": [["operation.Status != \"pending\" && operation.Status != \"running\"", "operation.Status != \"pending\" && operation.Status != \"running\" && operation.Status != \"succeeded\""]]
+    }
+  ]
+}

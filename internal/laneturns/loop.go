@@ -107,7 +107,7 @@ func due(row object, now time.Time) (string, error) {
 func latestClosing(s *laneSession, lane string) (object, error) {
 	var latest object
 	for _, kind := range []string{"lane.ended", "lane.lost", "lane.gone"} {
-		e, err := s.store.last(lane, kind)
+		e, err := s.last(lane, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +138,7 @@ func loopWait(s *laneSession, lane string, backoff, limitBackoff float64) (time.
 	return at.Add(time.Duration(seconds * float64(time.Second))), object{"run": p["run"], "reason": reason}, nil
 }
 func badEnds(s *laneSession, lane string) (int, error) {
-	events, err := s.store.events(lane, "")
+	events, err := s.events(lane, "")
 	if err != nil {
 		return 0, err
 	}
@@ -633,14 +633,18 @@ func (l *laneLoop) pass() error {
 		return err
 	}
 	passStarted := map[string]int{}
-	for _, row := range rows {
+	for _, observed := range rows {
 		if l.stopped() {
 			return nil
 		}
-		if !declared(row) {
+		lane := str(observed["lane"])
+		row, err := s.recordedRow(lane)
+		if err != nil {
+			return err
+		}
+		if row == nil || !declared(row) {
 			continue
 		}
-		lane := str(row["lane"])
 		if flag(row["running"]) {
 			if err = checkLost(s, lane); err != nil {
 				if isExpectedError(err) {
@@ -687,7 +691,7 @@ func (l *laneLoop) pass() error {
 			}
 			continue
 		}
-		a := arguments{action: "turn", values: map[string]string{"lane": lane}, flags: map[string]bool{"idle": kind == "idle"}}
+		a := arguments{action: "turn", values: map[string]string{"lane": lane}, flags: map[string]bool{"idle": kind == "idle", "automatic": true}}
 		result, err := turn(c, a, l.environment, passStarted)
 		if err != nil {
 			var busy *busyStoreError
@@ -839,8 +843,11 @@ func checkLost(s *laneSession, lane string) error {
 	if err := s.drain(lane); err != nil {
 		return err
 	}
-	row, err := s.known(lane)
+	row, err := s.recordedRow(lane)
 	if err != nil || !flag(row["running"]) {
+		return err
+	}
+	if err := s.checkLaunchProjection(lane, row); err != nil {
 		return err
 	}
 	p, err := s.latest(lane)
@@ -869,7 +876,7 @@ func checkLost(s *laneSession, lane string) error {
 	if err = s.refresh(); err != nil {
 		return err
 	}
-	row, err = s.known(lane)
+	row, err = s.recordedRow(lane)
 	if err != nil {
 		return err
 	}

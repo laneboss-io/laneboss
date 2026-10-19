@@ -444,11 +444,11 @@ func refuseLive(s *laneSession, lane string) error {
 			return err
 		}
 		if record == nil {
-			ended, err := s.store.last(lane, "lane.ended")
+			ended, err := s.last(lane, "lane.ended")
 			if err != nil {
 				return err
 			}
-			gone, err := s.store.last(lane, "lane.gone")
+			gone, err := s.last(lane, "lane.gone")
 			if err != nil {
 				return err
 			}

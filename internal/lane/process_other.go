@@ -10,7 +10,6 @@ import (
 )
 
 func nativeSignal(id object, sig syscall.Signal) (bool, bool, error) { return false, false, nil }
-func becomeSubreaper() bool                                          { return false }
 func fifoAt(f *os.File, directory, name string) error {
 	p, err := syscall.BytePtrFromString(name)
 	if err != nil {

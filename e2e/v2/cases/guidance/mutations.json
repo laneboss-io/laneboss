@@ -1,0 +1,2340 @@
+{
+  "schema": "laneboss.guidance-mutations.v1",
+  "mutations": [
+    {
+      "id": "recency-off",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "time-weighted ranking"
+      ],
+      "test": [
+        "TestRankClockAndHalfLife"
+      ],
+      "failure_contains": "controlled clock or configured half-life was ignored",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "(eligible[index].age-minAge)/float64(halfLife)",
+          "after": "0"
+        }
+      ]
+    },
+    {
+      "id": "weight-off",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "recency weight metadata"
+      ],
+      "test": [
+        "TestRankDefaultHalfLife"
+      ],
+      "failure_contains": "default half-life did not preserve the fourteen-day weight",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "weight := math.Exp2(-age / float64(halfLife))",
+          "after": "weight := float64(1)"
+        }
+      ]
+    },
+    {
+      "id": "ignore-clock",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "controlled service clock"
+      ],
+      "test": [
+        "TestEvaluateUsesClock"
+      ],
+      "failure_contains": "service clock was ignored by selection",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "now := s.deps.Clock.Now()",
+          "after": "now := time.Unix(0, 0)"
+        }
+      ]
+    },
+    {
+      "id": "default-half-life",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "fourteen-day default"
+      ],
+      "test": [
+        "TestRankDefaultHalfLife"
+      ],
+      "failure_contains": "default half-life did not preserve the fourteen-day weight",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "defaultHalfLife = 14 * 24 * 60 * 60",
+          "after": "defaultHalfLife = 7 * 24 * 60 * 60"
+        }
+      ]
+    },
+    {
+      "id": "ignore-half-life",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "configured recency half-life"
+      ],
+      "test": [
+        "TestRankClockAndHalfLife"
+      ],
+      "failure_contains": "controlled clock or configured half-life was ignored",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if halfLife == 0 {",
+          "after": "if halfLife >= 0 {"
+        }
+      ]
+    },
+    {
+      "id": "unrelated-fill",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "relevance cutoff before ranking"
+      ],
+      "test": [
+        "TestRankRelevance"
+      ],
+      "failure_contains": "below-cutoff decisions filled historical reminder slots",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if probability < cutoff {",
+          "after": "if false && probability < cutoff {"
+        }
+      ]
+    },
+    {
+      "id": "six-reminders",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "at most five reminders"
+      ],
+      "test": [
+        "TestRankCapAndMean"
+      ],
+      "failure_contains": "five reminders plus every binding source and omission notice are required",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "reminderLimit   = 5",
+          "after": "reminderLimit   = 6"
+        }
+      ]
+    },
+    {
+      "id": "binding-decay",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "binding context never ages out"
+      ],
+      "test": [
+        "TestRankBindingContext"
+      ],
+      "failure_contains": "old binding policy was scored or decayed",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "AgeSeconds: age.seconds, Weight: 1, Binding: true,",
+          "after": "AgeSeconds: age.seconds, Weight: math.Exp2(-age.exact / float64(halfLife)), Binding: true,"
+        }
+      ]
+    },
+    {
+      "id": "binding-drop",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "binding context survives empty history"
+      ],
+      "test": [
+        "TestRankBindingContext"
+      ],
+      "failure_contains": "binding context was lost without history",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if candidate.Binding {",
+          "after": "if false && candidate.Binding {"
+        }
+      ]
+    },
+    {
+      "id": "binding-spends-slot",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "five reminders plus binding context"
+      ],
+      "test": [
+        "TestRankCapAndMean"
+      ],
+      "failure_contains": "five reminders plus every binding source and omission notice are required",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if index < reminderLimit {",
+          "after": "if index+len(result.Items) < reminderLimit {"
+        }
+      ]
+    },
+    {
+      "id": "top-five-mean",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "mean covers the eligible set"
+      ],
+      "test": [
+        "TestRankCapAndMean"
+      ],
+      "failure_contains": "want 0.81",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "for index, candidate := range eligible {\n\t\tweight :=",
+          "after": "for index, candidate := range eligible {\n\t\tif index >= reminderLimit {\n\t\t\tcontinue\n\t\t}\n\t\tweight :="
+        }
+      ]
+    },
+    {
+      "id": "fake-zero",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "unavailable is not scored zero"
+      ],
+      "test": [
+        "TestRankUnscored",
+        "partial"
+      ],
+      "failure_contains": "unscored input became success/zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "Items: []api.GuidanceItem{}, Status: \"unavailable\", JudgmentIDs: []api.ID{},",
+          "after": "Items: []api.GuidanceItem{}, Status: \"unavailable\", JudgmentIDs: []api.ID{},\n\t\tWeightedScore: new(float64),"
+        }
+      ]
+    },
+    {
+      "id": "empty-as-outage",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "empty is distinct from unavailable"
+      ],
+      "test": [
+        "TestRankEmpty"
+      ],
+      "failure_contains": "actual empty set did not yield an explicit zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "result.Status, result.WeightedScore = \"empty\", &zero",
+          "after": "result.Status, result.WeightedScore = \"unavailable\", &zero"
+        }
+      ]
+    },
+    {
+      "id": "partial-as-scored",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "complete judgments only"
+      ],
+      "test": [
+        "TestRankUnscored",
+        "partial"
+      ],
+      "failure_contains": "unscored input became success/zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if reply.Status != \"scored\" || !validID(reply.ID)",
+          "after": "if false || !validID(reply.ID)"
+        }
+      ]
+    },
+    {
+      "id": "missing-as-zero",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "missing probability is unscored"
+      ],
+      "test": [
+        "TestRankUnscored",
+        "nil"
+      ],
+      "failure_contains": "unscored input became success/zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "for _, answer := range reply.Results {\n\t\tcandidate, exists :=",
+          "after": "for _, answer := range reply.Results {\n\t\tif answer.Probability == nil {\n\t\t\tanswer.Probability = new(float64)\n\t\t}\n\t\tcandidate, exists :="
+        }
+      ]
+    },
+    {
+      "id": "duplicate-answer",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "bijective judgment coverage"
+      ],
+      "test": [
+        "TestRankUnscored",
+        "duplicate"
+      ],
+      "failure_contains": "unscored input became success/zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "!exists || candidate.Binding || duplicate || answer.Status != \"scored\"",
+          "after": "!exists || candidate.Binding || (false && duplicate) || answer.Status != \"scored\""
+        }
+      ]
+    },
+    {
+      "id": "unknown-answer",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "bijective judgment coverage"
+      ],
+      "test": [
+        "TestRankUnscored",
+        "unknown"
+      ],
+      "failure_contains": "unscored input became success/zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if !exists || candidate.Binding || duplicate ||",
+          "after": "if (false && !exists) || candidate.Binding || duplicate ||"
+        }
+      ]
+    },
+    {
+      "id": "future-age",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "future age is clamped to zero"
+      ],
+      "test": [
+        "TestRankFutureAge"
+      ],
+      "failure_contains": "future age was not clamped",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if seconds < 0 {",
+          "after": "if false && seconds < 0 {"
+        }
+      ]
+    },
+    {
+      "id": "saturate-age",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "old history does not expire numerically"
+      ],
+      "test": [
+        "TestRankAncientHistory"
+      ],
+      "failure_contains": "old ages saturated or underflow changed the ranking",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "seconds := now.Unix() - effective.Unix()",
+          "after": "seconds := int64(now.Sub(effective) / time.Second)"
+        }
+      ]
+    },
+    {
+      "id": "unstable-ties",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "deterministic ranking"
+      ],
+      "test": [
+        "TestRankStableTies"
+      ],
+      "failure_contains": "input order changed a tied selection",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "return eligible[i].item.DecisionID < eligible[j].item.DecisionID",
+          "after": "return eligible[i].item.DecisionID > eligible[j].item.DecisionID"
+        }
+      ]
+    },
+    {
+      "id": "ignored-task",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "task reaches judged selection"
+      ],
+      "test": [
+        "TestEvaluateEveryTask"
+      ],
+      "failure_contains": "task data was truncated, replaced or turned into a command/rule",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "batch.Decisions = history[offset:min(offset+config.MaxQuestions, len(history))]",
+          "after": "batch.Decisions = history[offset:min(offset+config.MaxQuestions, len(history))]\n\t\tbatch.Task = nil"
+        }
+      ]
+    },
+    {
+      "id": "reminder-cooldown",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "each distinct turn selects"
+      ],
+      "test": [
+        "TestEvaluateEveryTask"
+      ],
+      "failure_contains": "distinct turn was cooled down or changed task was ignored",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/service.go",
+          "before": "type Service struct {\n\tdeps Dependencies\n}",
+          "after": "type Service struct {\n\tdeps Dependencies\n\tpreviousSelection *api.Guidance\n}"
+        },
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "if request.Purpose != \"guidance\"",
+          "after": "if s.previousSelection != nil {\n\t\treturn *s.previousSelection, nil\n\t}\n\tif request.Purpose != \"guidance\""
+        },
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "result.LogicalTurnID, result.JudgmentIDs = request.Context.LogicalTurnID, ids",
+          "after": "result.LogicalTurnID, result.JudgmentIDs = request.Context.LogicalTurnID, ids\n\ts.previousSelection = &result"
+        }
+      ]
+    },
+    {
+      "id": "binding-judged",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "binding is not a relevance question"
+      ],
+      "test": [
+        "TestEvaluateEveryTask"
+      ],
+      "failure_contains": "authoritative context or candidate bytes changed, or binding policy was judged",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "if !item.Binding {",
+          "after": "if true {"
+        }
+      ]
+    },
+    {
+      "id": "unproved-fit",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "prove complete input fit"
+      ],
+      "test": [
+        "TestEvaluateFitGuard",
+        "unproved"
+      ],
+      "failure_contains": "unproved fit reached inference or became a scored zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "if !fit.Proved || fit.InputBytes <= 0",
+          "after": "if (false && !fit.Proved) || fit.InputBytes <= 0"
+        }
+      ]
+    },
+    {
+      "id": "fit-bytes",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "complete input byte bound"
+      ],
+      "test": [
+        "TestEvaluateFitGuard",
+        "bytes"
+      ],
+      "failure_contains": "unproved fit reached inference or became a scored zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "fit.InputBytes > config.MaxBytes",
+          "after": "(false && fit.InputBytes > config.MaxBytes)"
+        }
+      ]
+    },
+    {
+      "id": "fit-tokenizer",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "pinned tokenizer fit"
+      ],
+      "test": [
+        "TestEvaluateFitGuard",
+        "tokenizer"
+      ],
+      "failure_contains": "unproved fit reached inference or became a scored zero",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "fit.TokenizerSHA256 != config.TokenizerSHA256",
+          "after": "(false && fit.TokenizerSHA256 != config.TokenizerSHA256)"
+        }
+      ]
+    },
+    {
+      "id": "truncate-task",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "complete task bytes reach fit"
+      ],
+      "test": [
+        "TestEvaluateFullInput"
+      ],
+      "failure_contains": "input was truncated to make it fit",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "batch.Decisions = history[offset:min(offset+config.MaxQuestions, len(history))]",
+          "after": "batch.Decisions = history[offset:min(offset+config.MaxQuestions, len(history))]\n\t\tbatch.Task = batch.Task[:32]"
+        }
+      ]
+    },
+    {
+      "id": "batch-truncate",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "over-bound history is unavailable"
+      ],
+      "test": [
+        "TestEvaluateEmptyAndBound"
+      ],
+      "failure_contains": "over-bound history was silently truncated or called empty",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "all := []api.Judgment{}",
+          "after": "if len(history) > config.MaxQuestions {\n\t\thistory = history[:config.MaxQuestions]\n\t}\n\tall := []api.Judgment{}"
+        }
+      ]
+    },
+    {
+      "id": "reset-parent-deadline",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "total deadline includes upstream wait"
+      ],
+      "test": [
+        "TestEvaluateParentDeadline"
+      ],
+      "failure_contains": "parent selection deadline was replaced",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "context.WithTimeout(ctx, budget)",
+          "after": "context.WithTimeout(context.Background(), budget)"
+        }
+      ]
+    },
+    {
+      "id": "reset-fit-deadline",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "fit and evaluation share a deadline"
+      ],
+      "test": [
+        "TestEvaluateSharedDeadline"
+      ],
+      "failure_contains": "fit and evaluation did not share one deadline",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "request.DeadlineMS = remainingMS(ctx)\n\treply, err := s.deps.Judge.EvaluateForScope(ctx, scope, request)",
+          "after": "ctx, resetCancel := context.WithTimeout(context.Background(), 5*time.Second)\n\tdefer resetCancel()\n\trequest.DeadlineMS = remainingMS(ctx)\n\treply, err := s.deps.Judge.EvaluateForScope(ctx, scope, request)"
+        }
+      ]
+    },
+    {
+      "id": "stub-as-outage",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "unfinished dependency stays typed"
+      ],
+      "test": [
+        "TestEvaluateErrorsStayTyped",
+        "not_implemented-fit-true"
+      ],
+      "failure_contains": "typed dependency error was swallowed or replaced",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "case api.CodeUnavailable, api.CodeUnscored, api.CodeBudget, api.CodeDeadline:",
+          "after": "case api.CodeNotImplemented, api.CodeUnavailable, api.CodeUnscored, api.CodeBudget, api.CodeDeadline:"
+        }
+      ]
+    },
+    {
+      "id": "missing-rpc-hook",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "guidance RPC registration"
+      ],
+      "test": [
+        "TestRegisterFrozenMethod"
+      ],
+      "failure_contains": "guidance did not register exactly its frozen method",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/service.go",
+          "before": "registry.Register(\"guidance.select\", func",
+          "after": "registry.Register(\"guidance.other\", func"
+        }
+      ]
+    },
+    {
+      "id": "stale-turn",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "current logical-turn binding"
+      ],
+      "test": [
+        "TestSelectRejectsStaleTurn",
+        "turn"
+      ],
+      "failure_contains": "want typed conflict",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/service.go",
+          "before": "lane.LogicalTurnID != request.LogicalTurnID",
+          "after": "(false && lane.LogicalTurnID != request.LogicalTurnID)"
+        }
+      ]
+    },
+    {
+      "id": "fake-completion",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "unfinished reserve dependency cannot produce fake success"
+      ],
+      "test": [
+        "TestSelectContractIsUnavailable"
+      ],
+      "failure_contains": "want typed not_implemented",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "reservation, err := s.deps.Store.ReserveGuidance(ctx, scope, claim)\n\tif err != nil {\n\t\treturn api.Guidance{}, err\n\t}",
+          "after": "reservation, err := s.deps.Store.ReserveGuidance(ctx, scope, claim)\n\tif err != nil {\n\t\treturn api.Guidance{}, nil\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "request-duplicates",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "strict RPC input shape"
+      ],
+      "test": [
+        "TestRequestShape",
+        "duplicate"
+      ],
+      "failure_contains": "want typed invalid_request",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/request.go",
+          "before": "if _, duplicate := values[name]; duplicate {",
+          "after": "if _, duplicate := values[name]; false && duplicate {"
+        }
+      ]
+    },
+    {
+      "id": "unapproved-single",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "single-batch judge pins match approved policy"
+      ],
+      "test": [
+        "TestEvaluateApprovedPins",
+        "single",
+        "deployment"
+      ],
+      "failure_contains": "want typed forbidden",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "api.ResolveJudgeForScope(scope, request, policy)",
+          "after": "api.ResolveJudgeConfig(request.Config)"
+        }
+      ]
+    },
+    {
+      "id": "unapproved-batches",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "multi-batch input cannot override approved judge pins"
+      ],
+      "test": [
+        "TestEvaluateApprovedPins",
+        "batches",
+        "deployment"
+      ],
+      "failure_contains": "want typed forbidden",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "api.ResolveJudgeForScope(scope, request, policy)",
+          "after": "api.ResolveJudgeConfig(policy.Judge)"
+        }
+      ]
+    },
+    {
+      "id": "rpc-task-class",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "guidance request refuses a non-task object class"
+      ],
+      "test": [
+        "TestRequestShape",
+        "class"
+      ],
+      "failure_contains": "want typed invalid_request",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/request.go",
+          "before": "request.Task.Class != \"task\"",
+          "after": "(false && request.Task.Class != \"task\")"
+        }
+      ]
+    },
+    {
+      "id": "cli-hook-zero-run",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "specific guidance CLI predicate before transport: zero-run"
+      ],
+      "test": [
+        "TestCLIRejectsMalformedFile",
+        "zero-run"
+      ],
+      "failure_contains": "invalid request did not fail before transport",
+      "edits": [
+        {
+          "file": "internal/v2/cli/commands_guidance.go",
+          "before": "result.Target.Run == 0",
+          "after": "(false && result.Target.Run == 0)"
+        }
+      ]
+    },
+    {
+      "id": "cli-hook-class",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "specific guidance CLI predicate before transport: class"
+      ],
+      "test": [
+        "TestCLIRejectsMalformedFile",
+        "class"
+      ],
+      "failure_contains": "invalid request did not fail before transport",
+      "edits": [
+        {
+          "file": "internal/v2/cli/commands_guidance.go",
+          "before": "result.Task.Class != \"task\"",
+          "after": "(false && result.Task.Class != \"task\")"
+        }
+      ]
+    },
+    {
+      "id": "cli-hook-large-task",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "specific guidance CLI predicate before transport: large-task"
+      ],
+      "test": [
+        "TestCLIRejectsMalformedFile",
+        "large-task"
+      ],
+      "failure_contains": "invalid request did not fail before transport",
+      "edits": [
+        {
+          "file": "internal/v2/cli/commands_guidance.go",
+          "before": "result.Task.Bytes > api.MaxObjectBytes",
+          "after": "(false && result.Task.Bytes > api.MaxObjectBytes)"
+        }
+      ]
+    },
+    {
+      "id": "cli-hook-negative",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "specific guidance CLI predicate before transport: negative"
+      ],
+      "test": [
+        "TestCLIRejectsMalformedFile",
+        "negative"
+      ],
+      "failure_contains": "invalid request did not fail before transport",
+      "edits": [
+        {
+          "file": "internal/v2/cli/commands_guidance.go",
+          "before": "result.Task.Bytes < 0",
+          "after": "(false && result.Task.Bytes < 0)"
+        }
+      ]
+    },
+    {
+      "id": "cli-rejects-valid",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "valid guidance file passes semantic validation to the real transport boundary"
+      ],
+      "test": [
+        "TestCLIValidFileReachesTransport"
+      ],
+      "failure_contains": "valid guidance file did not reach client.Open",
+      "edits": [
+        {
+          "file": "internal/v2/cli/commands_guidance.go",
+          "before": "_, err := lbV2GuidanceFileRequest(raw)\n\treturn err",
+          "after": "_, err := lbV2GuidanceFileRequest(raw)\n\tif err == nil {\n\t\treturn lbV2GuidanceInputError(\"valid guidance input rejected\")\n\t}\n\treturn err"
+        }
+      ]
+    },
+    {
+      "id": "cli-duplicates",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "strict file-backed CLI input"
+      ],
+      "test": [
+        "TestCLIRejectsMalformedFile",
+        "duplicate"
+      ],
+      "failure_contains": "invalid request did not fail before transport",
+      "intended_mutation": "Remove duplicate-key rejection from the shared decoder reached before the registered guidance semantic hook. Integration owns that shared-parser red artifact; the original local edit remains preserved and blocked.",
+      "requires": [
+        "shared CLI request validation route",
+        "integrator-owned shared-parser red artifact or feature-validation hook"
+      ],
+      "edits": [],
+      "blocked_edits": [
+        {
+          "file": "internal/v2/cli/commands_guidance.go",
+          "before": "if _, duplicate := values[name]; duplicate {",
+          "after": "if _, duplicate := values[name]; false && duplicate {"
+        }
+      ]
+    },
+    {
+      "id": "retained-task",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "exact retained turn task"
+      ],
+      "test": [
+        "TestSelectTaskIsRetained"
+      ],
+      "failure_contains": "want typed conflict",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/service.go",
+          "before": "turn.Task != request.Task",
+          "after": "(false && turn.Task != request.Task)"
+        }
+      ]
+    },
+    {
+      "id": "pending-as-new",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "pending reservation never starts another selection"
+      ],
+      "test": [
+        "TestPendingDoesNotRejudge"
+      ],
+      "failure_contains": "pending observation bypassed retained await",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "if r.Status == \"pending\" {",
+          "after": "if false && r.Status == \"pending\" {"
+        }
+      ]
+    },
+    {
+      "id": "replay-zero",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "unavailable retained guidance has no score"
+      ],
+      "test": [
+        "TestReplayRejectsCorruption",
+        "fake-zero"
+      ],
+      "failure_contains": "want typed integrity at retained unavailable guidance was changed into a score",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "if result.WeightedScore != nil || result.Notice == \"\" {",
+          "after": "if (false && result.WeightedScore != nil) || result.Notice == \"\" {"
+        }
+      ]
+    },
+    {
+      "id": "replay-rewrite",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "replay seals only an RPC receipt"
+      ],
+      "test": [
+        "TestSelectRetainedReplay"
+      ],
+      "failure_contains": "retained selection changed on continuation: invalid_request: invalid typed transaction shape",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "transaction := api.Transaction{Scope: scope, Reply: &api.RPCReply{Result: payload},",
+          "after": "transaction := api.Transaction{Scope: scope, Reply: &api.RPCReply{Result: payload},\n\t\tWrites: api.StateWrites{Guidance: []api.GuidanceSelection{{Result: result}}},"
+        }
+      ]
+    },
+    {
+      "id": "first-page-only",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "complete candidate snapshot"
+      ],
+      "test": [
+        "TestCandidatePagesComplete"
+      ],
+      "failure_contains": "candidate retrieval lost a page, binding source or immutable snapshot",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "if page.Complete {",
+          "after": "if page.Complete || page.Cursor != \"\" {"
+        },
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "if page.Cursor != \"\" {",
+          "after": "if false && page.Cursor != \"\" {"
+        }
+      ]
+    },
+    {
+      "id": "mixed-snapshots",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "one immutable snapshot across pages"
+      ],
+      "test": [
+        "TestCandidatePageFailures",
+        "snapshot"
+      ],
+      "failure_contains": "want typed integrity at candidate backend mixed immutable snapshots",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "} else if page.SnapshotID != snapshot || page.AsOf != asOf {",
+          "after": "} else if false && (page.SnapshotID != snapshot || page.AsOf != asOf) {"
+        }
+      ]
+    },
+    {
+      "id": "task-prefix",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "retain the entire actual task object"
+      ],
+      "test": [
+        "TestTaskObjectBytes"
+      ],
+      "failure_contains": "want typed integrity",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "len(end.Data) != 0 || end.SHA256 != digestBytes(nil)",
+          "after": "(false && len(end.Data) != 0) || (false && end.SHA256 != digestBytes(nil))"
+        }
+      ]
+    },
+    {
+      "id": "ignored-cutoff",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "approved relevance scalar"
+      ],
+      "test": [
+        "TestRankApprovedCutoff"
+      ],
+      "failure_contains": "approved cutoff was ignored",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if probability < cutoff {",
+          "after": "if probability < relevanceCutoff {"
+        }
+      ]
+    },
+    {
+      "id": "lost-judge-scope",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "scoped judge receives original scope"
+      ],
+      "test": [
+        "TestEvaluateScopedAuthority"
+      ],
+      "failure_contains": "scoped judge did not receive the original authenticated scope",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "s.deps.Judge.EvaluateForScope(ctx, scope, request)",
+          "after": "s.deps.Judge.EvaluateForScope(ctx, api.Scope{}, request)"
+        }
+      ]
+    },
+    {
+      "id": "ignored-judge-default",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "R108 provider resolution preserves pins"
+      ],
+      "test": [
+        "TestEvaluateJudgeDefault"
+      ],
+      "failure_contains": "R108 resolution changed provider policy or tokenizer pins",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "batch.Config = config",
+          "after": "_ = config"
+        }
+      ]
+    },
+    {
+      "id": "batch-suffix-loss",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "all candidate batches are covered"
+      ],
+      "test": [
+        "TestBatchesCoverEveryCandidate"
+      ],
+      "failure_contains": "multi-batch selection lost coverage, provenance or binding slots",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "offset < len(history)",
+          "after": "offset+config.MaxQuestions <= len(history)"
+        }
+      ]
+    },
+    {
+      "id": "partial-batch-zero",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "partial batch outcome is unscored"
+      ],
+      "test": [
+        "TestBatchFailureKeepsBinding"
+      ],
+      "failure_contains": "partial batch success became scored guidance or lost binding context",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "baseline.Status, baseline.WeightedScore = \"unavailable\", nil",
+          "after": "baseline.Status, baseline.WeightedScore = \"unavailable\", new(float64)"
+        }
+      ]
+    },
+    {
+      "id": "missing-hook-initial",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "selection on initial prompt delivery"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Omit the guidance selection call in the initial delivery path.",
+      "requires": [
+        "authoritative turn inputs",
+        "lifecycle delivery wiring",
+        "authenticated CLI workload"
+      ],
+      "edits": []
+    },
+    {
+      "id": "missing-hook-resume",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "selection on resume prompt delivery"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Omit the guidance selection call in the resume delivery path.",
+      "requires": [
+        "authoritative turn inputs",
+        "lifecycle delivery wiring",
+        "authenticated CLI workload"
+      ],
+      "edits": []
+    },
+    {
+      "id": "missing-hook-mail",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "selection on mail prompt delivery"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Omit the guidance selection call in the mail delivery path.",
+      "requires": [
+        "authoritative turn inputs",
+        "lifecycle delivery wiring",
+        "authenticated CLI workload"
+      ],
+      "edits": []
+    },
+    {
+      "id": "missing-hook-idle",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "selection on idle prompt delivery"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Omit the guidance selection call in the idle delivery path.",
+      "requires": [
+        "authoritative turn inputs",
+        "lifecycle delivery wiring",
+        "authenticated CLI workload"
+      ],
+      "edits": []
+    },
+    {
+      "id": "repeat-selection",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "profile continuation selects only once"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Remove the durable logical-turn replay check so a continuation independently judges and charges again.",
+      "requires": [
+        "durable turn reservation and replay",
+        "profile continuation implementation"
+      ],
+      "edits": []
+    },
+    {
+      "id": "drop-input",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "retained prompt includes task and selected source text"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Remove selected source rendering from the actual delivered prompt.",
+      "requires": [
+        "exact source text lookup",
+        "templates and lifecycle prompt retention"
+      ],
+      "edits": []
+    },
+    {
+      "id": "missing-receipt",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "retained guidance receipt per delivery"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Omit the durable guidance.selected event while delivering a prompt.",
+      "requires": [
+        "durable selection completion",
+        "service receipt commit"
+      ],
+      "edits": []
+    },
+    {
+      "id": "proposal-poisoning",
+      "state": "not_implemented",
+      "scope": "integration",
+      "acceptance": [
+        "only authoritative applicable history"
+      ],
+      "test": [
+        "GUIDE-TURN"
+      ],
+      "intended_mutation": "Remove the authoritative provenance or scope filter from candidate retrieval.",
+      "requires": [
+        "authoritative candidate projection",
+        "decisions mutation provenance"
+      ],
+      "edits": []
+    },
+    {
+      "id": "cli-missing-registration",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "registered guidance validator precedes transport"
+      ],
+      "test": [
+        "TestCLIRejectsMalformedFile",
+        "zero-run"
+      ],
+      "failure_contains": "invalid request did not fail before transport",
+      "edits": [
+        {
+          "file": "internal/v2/cli/commands_guidance.go",
+          "before": "\tif err := RegisterInputValidator(\"guidance.select\", \"lb-v2-guidance\", lbV2GuidanceValidateInput); err != nil {\n\t\tpanic(err)\n\t}",
+          "after": "\t// Deliberate mutation: omit guidance semantic registration."
+        }
+      ]
+    },
+    {
+      "id": "foreign-life",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "self is authenticated own life"
+      ],
+      "test": [
+        "TestSelectSelfAuthority",
+        "other-life"
+      ],
+      "failure_contains": "self authority failure reached a store read or judge",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": "scope.Actor.LifeID != target.LifeID",
+          "after": "(false && scope.Actor.LifeID != target.LifeID)"
+        }
+      ]
+    },
+    {
+      "id": "ancestor-as-self",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "ancestor visibility and labels do not grant self"
+      ],
+      "test": [
+        "TestSelectSelfAuthority",
+        "ancestor"
+      ],
+      "failure_contains": "self authority failure reached a store read or judge",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": "scope.Actor.LifeID != target.LifeID",
+          "after": "(scope.Actor.Level < 6 && scope.Actor.LifeID != target.LifeID)"
+        }
+      ]
+    },
+    {
+      "id": "worker-as-self",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "worker cannot select lane guidance"
+      ],
+      "test": [
+        "TestSelectSelfAuthority",
+        "worker"
+      ],
+      "failure_contains": "self authority failure reached a store read or judge",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": "return api.Scope{}, forbidden(\"guidance self access requires a lane or verified human\")",
+          "after": "return scope, nil"
+        }
+      ]
+    },
+    {
+      "id": "lane-operation-proof",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "lane preview cannot carry human proof"
+      ],
+      "test": [
+        "TestSelectSelfAuthority",
+        "proof"
+      ],
+      "failure_contains": "self authority failure reached a store read or judge",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": "if scope.Request.Proof != nil {",
+          "after": "if false && scope.Request.Proof != nil {"
+        }
+      ]
+    },
+    {
+      "id": "lane-read-authority",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "lane preview cannot carry human read authority"
+      ],
+      "test": [
+        "TestSelectSelfAuthority",
+        "read-authority"
+      ],
+      "failure_contains": "self authority failure reached a store read or judge",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": " || scope.ReadAuthority != nil {",
+          "after": " {"
+        }
+      ]
+    },
+    {
+      "id": "foreign-run-binding",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "authenticated run binding constrains guidance target"
+      ],
+      "test": [
+        "TestSelectSelfAuthority",
+        "run"
+      ],
+      "failure_contains": "self authority failure reached a store read or judge",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": " || *binding.Target != target",
+          "after": " || (false && *binding.Target != target)"
+        }
+      ]
+    },
+    {
+      "id": "foreign-judge-config",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "judge context config equals authenticated scope"
+      ],
+      "test": [
+        "TestStageSelfAuthority",
+        "single",
+        "config"
+      ],
+      "failure_contains": "foreign judge context reached fit or inference",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": "if request.Context.Config != scope.Config {",
+          "after": "if false && request.Context.Config != scope.Config {"
+        }
+      ]
+    },
+    {
+      "id": "stale-human-session",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "replay refreshes the current connection session"
+      ],
+      "test": [
+        "TestReplayRechecksLiveSession"
+      ],
+      "failure_contains": "replay trusted stale authority without a live session check",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": "resolved, err := api.WithReadAuthority(ctx, scope)",
+          "after": "resolved, err := scope, error(nil)"
+        }
+      ]
+    },
+    {
+      "id": "human-proof-guard",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "human session replay has no operation proof guard"
+      ],
+      "test": [
+        "TestHumanSessionReplay"
+      ],
+      "failure_contains": "bound human session could not replay: invalid_request:",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "if err := api.ValidateTransactionShape(transaction); err != nil {",
+          "after": "transaction.Guards = []api.TransactionGuard{{Proof: &api.ProofUse{}}}\n\tif err := api.ValidateTransactionShape(transaction); err != nil {"
+        }
+      ]
+    },
+    {
+      "id": "human-source-port",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "human decisions resolve through Decision not org Source"
+      ],
+      "test": [
+        "TestHumanDecisionProvenance",
+        "reminder"
+      ],
+      "failure_contains": "pathless human decision did not resolve through its canonical projection",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "if candidate.Authority.Kind == \"human\" {",
+          "after": "if false && candidate.Authority.Kind == \"human\" {"
+        }
+      ]
+    },
+    {
+      "id": "human-authority-mismatch",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "human snapshot authority matches canonical record"
+      ],
+      "test": [
+        "TestHumanDecisionProvenance",
+        "reminder"
+      ],
+      "failure_contains": "want typed integrity at human decision differs from its retained canonical projection",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "projection.Candidate.Authority != candidate.Authority",
+          "after": "(false && projection.Candidate.Authority != candidate.Authority)"
+        }
+      ]
+    },
+    {
+      "id": "human-replay-path",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "human retained source path may be empty"
+      ],
+      "test": [
+        "TestHumanReceiptPathless"
+      ],
+      "failure_contains": "pathless human receipt could not replay:",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "!validID(item.Source.ID) || !validDigest(item.Source.SHA256)",
+          "after": "item.Source.Path == \"\" || !validID(item.Source.ID) || !validDigest(item.Source.SHA256)"
+        }
+      ]
+    },
+    {
+      "id": "proposal-authority",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "lane proposal is never authoritative history"
+      ],
+      "test": [
+        "TestCandidateAuthorityKinds",
+        "proposal"
+      ],
+      "failure_contains": "want typed integrity",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "case \"d6\":",
+          "after": "case \"d6\", \"proposal\":"
+        }
+      ]
+    },
+    {
+      "id": "d6-zero-generation",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "D6 authority retains a positive org generation"
+      ],
+      "test": [
+        "TestCandidateAuthorityKinds",
+        "d6-zero"
+      ],
+      "failure_contains": "want typed integrity",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "return authority.OrgGeneration > 0 && candidate.Source.Path != \"\"",
+          "after": "return candidate.Source.Path != \"\""
+        }
+      ]
+    },
+    {
+      "id": "replay-turn-policy",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "retained claim is compared with its turn policy rather than current D6 generation"
+      ],
+      "test": [
+        "TestReplayPolicyGeneration",
+        "turn"
+      ],
+      "failure_contains": "D6 policy advance changed or blocked retained guidance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "r.PolicyGeneration != turn.PolicyGeneration",
+          "after": "r.PolicyGeneration != policy.Generation"
+        }
+      ]
+    },
+    {
+      "id": "replay-scope-policy",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "current authorization cannot rewrite the retained turn generation"
+      ],
+      "test": [
+        "TestReplayPolicyGeneration",
+        "scope"
+      ],
+      "failure_contains": "D6 policy advance changed or blocked retained guidance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/service.go",
+          "before": "if found {\n\t\treturn s.observeClaim",
+          "after": "if found {\n\t\tturn.PolicyGeneration = policy.Generation\n\t\treturn s.observeClaim"
+        }
+      ]
+    },
+    {
+      "id": "replay-reservation-policy",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "consistent old receipt and reservation cannot override the turn policy"
+      ],
+      "test": [
+        "TestReplayPolicyGeneration",
+        "reservation"
+      ],
+      "failure_contains": "policy mismatch reached retained replay before generation validation",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "r.PolicyGeneration != turn.PolicyGeneration",
+          "after": "(false && r.PolicyGeneration != turn.PolicyGeneration)"
+        },
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "reservation.PolicyGeneration != generation",
+          "after": "(false && reservation.PolicyGeneration != generation)"
+        }
+      ]
+    },
+    {
+      "id": "scored-without-judgments",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "scored receipts retain actual judgment IDs"
+      ],
+      "test": [
+        "TestReplayJudgmentProvenance",
+        "scored-missing"
+      ],
+      "failure_contains": "want typed integrity at retained guidance status differs from its judgment provenance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "result.Status == \"scored\" && len(result.JudgmentIDs) == 0",
+          "after": "false && result.Status == \"scored\" && len(result.JudgmentIDs) == 0"
+        }
+      ]
+    },
+    {
+      "id": "empty-with-judgments",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "empty receipts contain no judgment provenance"
+      ],
+      "test": [
+        "TestReplayJudgmentProvenance",
+        "empty-ids"
+      ],
+      "failure_contains": "want typed integrity at retained guidance status differs from its judgment provenance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": "result.Status == \"empty\" && (len(result.JudgmentIDs) != 0 || result.JudgmentID != \"\")",
+          "after": "false && result.Status == \"empty\" && (len(result.JudgmentIDs) != 0 || result.JudgmentID != \"\")"
+        }
+      ]
+    },
+    {
+      "id": "replay-non-utc",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "retained selection clock is UTC Z"
+      ],
+      "test": [
+        "TestReplayJudgmentProvenance",
+        "clock"
+      ],
+      "failure_contains": "want typed integrity at retained guidance receipt has an invalid clock",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": " || !strings.HasSuffix(string(result.AsOf), \"Z\")",
+          "after": " || (false && !strings.HasSuffix(string(result.AsOf), \"Z\"))"
+        }
+      ]
+    },
+    {
+      "id": "snapshot-non-utc",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "snapshot clock is UTC Z"
+      ],
+      "test": [
+        "TestCandidateAuthorityKinds",
+        "clock"
+      ],
+      "failure_contains": "want typed integrity at candidate snapshot has no valid clock",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/snapshot.go",
+          "before": " || !strings.HasSuffix(string(asOf), \"Z\")",
+          "after": " || (false && !strings.HasSuffix(string(asOf), \"Z\"))"
+        }
+      ]
+    },
+    {
+      "id": "zero-cutoff-default",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "zero minimum relevance uses the 0.50 contract default"
+      ],
+      "test": [
+        "TestRankApprovedCutoff"
+      ],
+      "failure_contains": "zero policy cutoff did not use the 0.50 default",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/rank.go",
+          "before": "if cutoff == 0 {",
+          "after": "if false && cutoff == 0 {"
+        }
+      ]
+    },
+    {
+      "id": "reply-model",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "actual reply audit must match pins and measured bounds: model"
+      ],
+      "test": [
+        "TestEvaluateReplyAudit",
+        "single",
+        "model"
+      ],
+      "failure_contains": "unapproved reply audit became scored guidance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "reply.SelectedModel != config.Model",
+          "after": "(false && reply.SelectedModel != config.Model)"
+        }
+      ]
+    },
+    {
+      "id": "reply-deployment",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "actual reply audit must match pins and measured bounds: deployment"
+      ],
+      "test": [
+        "TestEvaluateReplyAudit",
+        "single",
+        "deployment"
+      ],
+      "failure_contains": "unapproved reply audit became scored guidance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "reply.DeploymentSHA256 != config.DeploymentSHA256",
+          "after": "(false && reply.DeploymentSHA256 != config.DeploymentSHA256)"
+        }
+      ]
+    },
+    {
+      "id": "reply-negative-cost",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "actual reply audit must match pins and measured bounds: negative-cost"
+      ],
+      "test": [
+        "TestEvaluateReplyAudit",
+        "single",
+        "negative-cost"
+      ],
+      "failure_contains": "unapproved reply audit became scored guidance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "reply.CostMicros < 0",
+          "after": "(false && reply.CostMicros < 0)"
+        }
+      ]
+    },
+    {
+      "id": "reply-over-cost",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "actual reply audit must match pins and measured bounds: over-cost"
+      ],
+      "test": [
+        "TestEvaluateReplyAudit",
+        "single",
+        "over-cost"
+      ],
+      "failure_contains": "unapproved reply audit became scored guidance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "reply.CostMicros > request.MaxCostMicros",
+          "after": "(false && reply.CostMicros > request.MaxCostMicros)"
+        }
+      ]
+    },
+    {
+      "id": "reply-negative-latency",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "actual reply audit must match pins and measured bounds: negative-latency"
+      ],
+      "test": [
+        "TestEvaluateReplyAudit",
+        "single",
+        "negative-latency"
+      ],
+      "failure_contains": "unapproved reply audit became scored guidance",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "reply.LatencyMS < 0",
+          "after": "(false && reply.LatencyMS < 0)"
+        }
+      ]
+    },
+    {
+      "id": "zero-cost-cap",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "private evaluation requires an explicit positive cost cap"
+      ],
+      "test": [
+        "TestEvaluateExplicitCostCap",
+        "single",
+        "0"
+      ],
+      "failure_contains": "want typed invalid_request",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "request.MaxCostMicros <= 0",
+          "after": "request.MaxCostMicros < 0"
+        }
+      ]
+    },
+    {
+      "id": "costed-reply-rejected",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "positive cost within cap is valid"
+      ],
+      "test": [
+        "TestCostedJudgment",
+        "single"
+      ],
+      "failure_contains": "costed reply within the explicit cap was refused",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "reply.CostMicros > request.MaxCostMicros",
+          "after": "reply.CostMicros > 0"
+        }
+      ]
+    },
+    {
+      "id": "batch-cost-renewed",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "all batches share a decreasing total cost budget"
+      ],
+      "test": [
+        "TestBatchesShareCostCap",
+        "over-false"
+      ],
+      "failure_contains": "batches did not share the remaining cost cap",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "remainingCost -= reply.CostMicros",
+          "after": "_ = reply.CostMicros"
+        }
+      ]
+    },
+    {
+      "id": "long-guidance-deadline",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "entry and configured deadlines cannot exceed five seconds"
+      ],
+      "test": [
+        "TestEvaluateDeadlineCap",
+        "single"
+      ],
+      "failure_contains": "approved long deadline exceeded five seconds",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "context.WithTimeout(ctx, 5*time.Second)",
+          "after": "context.WithCancel(ctx)"
+        },
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "budget := 5 * time.Second",
+          "after": "budget := 9 * time.Second"
+        }
+      ]
+    },
+    {
+      "id": "unavailable-keeps-score",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "deadline fallback clears empty/scored status and score"
+      ],
+      "test": [
+        "TestUnavailableClearsScore",
+        "empty"
+      ],
+      "failure_contains": "unavailable fallback retained an empty or scored result",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/evaluate.go",
+          "before": "baseline.Status, baseline.WeightedScore = \"unavailable\", nil",
+          "after": "baseline.Status, baseline.WeightedScore = \"unavailable\", new(float64)"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-win",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "an observed reserve invocation awaits rather than evaluates or refuses as a new owner"
+      ],
+      "test": [
+        "TestClaimObserver"
+      ],
+      "failure_contains": "observed claim bypassed retained await or became an evaluator",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "if !reservation.Acquired {",
+          "after": "if false && !reservation.Acquired {"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-owner",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "owner attempt and frozen inputs are checked before fit or judgment"
+      ],
+      "test": [
+        "TestClaimOwnerMismatch"
+      ],
+      "failure_contains": "foreign attempt reached judge or completion",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "if !api.GuidanceCanEvaluate(claim, reservation, s.deps.Clock.Now()) {",
+          "after": "if false && !api.GuidanceCanEvaluate(claim, reservation, s.deps.Clock.Now()) {"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-rejudge",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "interrupted original owner recovers without any new provider call"
+      ],
+      "test": [
+        "TestClaimRecovery"
+      ],
+      "failure_contains": "interrupted recovery judged again",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "result := api.Guidance{Status: \"unavailable\",",
+          "after": "_, _ = s.deps.Judge.EvaluateForScope(ctx, scope, api.JudgeRequest{})\n\tresult := api.Guidance{Status: \"unavailable\","
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-cause",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "completion uses original owner operation and request"
+      ],
+      "test": [
+        "TestFreshGuidanceClaim"
+      ],
+      "failure_contains": "fresh guidance did not complete one actual claim: invalid_request: guidance completion differs from its one owner claim",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "CauseOperationID: r.OwnerOperationID, CauseRequestID: r.OwnerRequestID",
+          "after": "CauseOperationID: \"foreign-operation\", CauseRequestID: r.OwnerRequestID"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-cas",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "completion commits the pending guidance CAS"
+      ],
+      "test": [
+        "TestFreshGuidanceClaim"
+      ],
+      "failure_contains": "fresh guidance did not complete one actual claim: invalid_request: invalid typed transaction shape",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "Compare: []api.Compare{{Kind: api.CompareGuidance, ID: r.ID, Generation: r.Generation}},",
+          "after": "Compare: nil,"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-epoch",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "completion carries the original life cancellation epoch"
+      ],
+      "test": [
+        "TestFreshGuidanceClaim"
+      ],
+      "failure_contains": "fresh guidance did not complete one actual claim: invalid_request: invalid typed transaction shape",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "Guards:  []api.TransactionGuard{{Cancellation: &api.CancellationCheck{LifeID: r.Target.LifeID, Epoch: r.CancellationEpoch}}},",
+          "after": "Guards: nil,"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-current",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "fresh selection uses approved current policy"
+      ],
+      "test": [
+        "TestFreshPolicyGeneration"
+      ],
+      "failure_contains": "fresh selection did not use current D6 policy",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "api.PolicyGenerationFor(api.PolicyNewSelection, policy.Generation, 0)",
+          "after": "api.PolicyGenerationFor(api.PolicyRetainedSelection, policy.Generation, turn.PolicyGeneration)"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-budget",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "judge receives actual authoritative positive cost budget"
+      ],
+      "test": [
+        "TestFreshGuidanceClaim"
+      ],
+      "failure_contains": "fresh guidance did not complete one actual claim: invalid_request: invalid service guidance batch bounds or input",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "Config: policy.Judge, MaxCostMicros: reservation.MaxCostMicros,",
+          "after": "Config: policy.Judge, MaxCostMicros: 0,"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-no-budget",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "exhausted life budget refuses before reserving or inferring"
+      ],
+      "test": [
+        "TestClaimBudget"
+      ],
+      "failure_contains": "exhausted budget reached claim or judge",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "lane.BudgetRemaining.SpendMicros <= 0",
+          "after": "(false && lane.BudgetRemaining.SpendMicros <= 0)"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-exact",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "exact receipt lookup precedes mutable turn preflight"
+      ],
+      "test": [
+        "TestExactReceiptAfterD6"
+      ],
+      "failure_contains": "exact receipt replay used fresh turn or policy preflight",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/service.go",
+          "before": "if result, found, err := s.exactReply(ctx, scope, request); found || err != nil {",
+          "after": "if result, found, err := s.exactReply(ctx, scope, request); false && (found || err != nil) {"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-empty",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "known empty corpus remains empty if context expires after ranking"
+      ],
+      "test": [
+        "TestEmptyAfterRankingCancel"
+      ],
+      "failure_contains": "known empty history became unavailable after ranking",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "if baseline.Status == \"empty\" {\n\t\treturn baseline, nil\n\t}\n\tif err := contextError(ctx); err != nil {\n\t\treturn unavailableJudge(baseline, err)\n\t}",
+          "after": "if err := contextError(ctx); err != nil {\n\t\treturn unavailableJudge(baseline, err)\n\t}\n\tif baseline.Status == \"empty\" {\n\t\treturn baseline, nil\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-method",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "internal calls use an empty method and cannot relabel lane.turn"
+      ],
+      "test": [
+        "TestInternalMethodContract"
+      ],
+      "failure_contains": "want typed forbidden",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/authority.go",
+          "before": "scope.Request.Method != \"guidance.select\"",
+          "after": "(false && scope.Request.Method != \"guidance.select\")"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-recover-new",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "recovery cannot reserve a missing claim"
+      ],
+      "test": [
+        "TestRecoveryDoesNotReserve"
+      ],
+      "failure_contains": "recovery created a fresh evaluator",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "return api.Guidance{}, &api.Error{Code: api.CodeNotFound, Owner: \"lb-v2-guidance\", Message: \"guidance recovery has no retained claim\"}",
+          "after": "return s.GuidanceSelect(ctx, scope, request)"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-cancelled",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "cancelled epoch cannot be revived for recovery"
+      ],
+      "test": [
+        "TestClaimEpochCancellation"
+      ],
+      "failure_contains": "want typed forbidden",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "if lane.CancellationEpoch != r.CancellationEpoch {",
+          "after": "if false && lane.CancellationEpoch != r.CancellationEpoch {"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-event",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "selection event retains actual complete receipt bytes"
+      ],
+      "test": [
+        "TestClaimEventBytes"
+      ],
+      "failure_contains": "selection event did not contain its actual receipt",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "RequestID: r.OwnerRequestID, Payload: payload",
+          "after": "RequestID: r.OwnerRequestID, Payload: payload[:0]"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-two-keys",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "a second key really waits while the original evaluator is pending"
+      ],
+      "test": [
+        "TestTwoClaimKeys"
+      ],
+      "failure_contains": "second key returned before pending completion",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "if r.Status == \"pending\" {",
+          "after": "if false && r.Status == \"pending\" {"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-task",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "fresh judge receives the complete retained task bytes"
+      ],
+      "test": [
+        "TestFreshGuidanceClaim"
+      ],
+      "failure_contains": "fresh guidance did not complete one actual claim: integrity: fresh judge lost actual task or grant context",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "Decisions: candidates, Task: task,",
+          "after": "Decisions: candidates, Task: task[:0],"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-await-expiry",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "an expired protected await recovers the same original claim without evaluation"
+      ],
+      "test": [
+        "TestAwaitExpiryRecovery"
+      ],
+      "failure_contains": "expired await did not recover the original claim without judging",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/claims.go",
+          "before": "if errors.As(err, &typed) && typed.Code == api.CodeDeadline && ctx.Err() == nil && !s.deps.Clock.Now().Before(deadline) {",
+          "after": "if false && errors.As(err, &typed) && typed.Code == api.CodeDeadline && ctx.Err() == nil && !s.deps.Clock.Now().Before(deadline) {"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-clock",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": [
+        "claim as-of snapshot remains fixed despite post-reservation time"
+      ],
+      "test": [
+        "TestClaimClockSnapshot"
+      ],
+      "failure_contains": "claim ranking replaced its retained clock snapshot",
+      "edits": [
+        {
+          "file": "internal/v2/guidance/batches.go",
+          "before": "if !asOf.IsZero() {",
+          "after": "if false && !asOf.IsZero() {"
+        }
+      ]
+    },
+    {
+      "id": "f11-guidance-retained-owner",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": ["completed claims retain original owner facts"],
+      "test": ["TestReplayClaimContract", "completed", "owner-attempt"],
+      "failure_contains": "retained claim owner or deadline was accepted:",
+      "edits": [{
+        "file": "internal/v2/guidance/claims.go",
+        "before": "if err := api.ValidateGuidanceReservation(r); err != nil {\n\t\treturn err\n\t}",
+        "after": "if err := api.ValidateGuidanceReservation(r); false && err != nil {\n\t\treturn err\n\t}"
+      }]
+    },
+    {
+      "id": "f11-guidance-retained-deadline",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": ["completed claims retain the original total deadline"],
+      "test": ["TestReplayClaimContract", "completed", "deadline"],
+      "failure_contains": "retained claim owner or deadline was accepted:",
+      "edits": [{
+        "file": "internal/v2/guidance/claims.go",
+        "before": "if err := api.ValidateGuidanceReservation(r); err != nil {\n\t\treturn err\n\t}",
+        "after": "if err := api.ValidateGuidanceReservation(r); false && err != nil {\n\t\treturn err\n\t}"
+      }]
+    },
+    {
+      "id": "f11-guidance-exact-continuation",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": ["same-key continuation replays the original run selection"],
+      "test": ["TestSelectRetainedReplay"],
+      "failure_contains": "exact continuation replay changed the original selection:",
+      "edits": [{
+        "file": "internal/v2/guidance/replay.go",
+        "before": "result.Target.LifeID != request.Target.LifeID ||\n\t\tresult.Target.Run == 0 || result.Target.Run > request.Target.Run",
+        "after": "result.Target != request.Target"
+      }]
+    },
+    {
+      "id": "f11-guidance-exact-target",
+      "state": "ready",
+      "scope": "component",
+      "acceptance": ["foreign and future exact receipt targets refuse before claim reads"],
+      "test": ["TestExactReceiptTarget", "future-run"],
+      "failure_contains": "want typed integrity at guidance exact receipt differs from its authenticated request",
+      "edits": [{
+        "file": "internal/v2/guidance/replay.go",
+        "before": "result.Target.Run > request.Target.Run",
+        "after": "(false && result.Target.Run > request.Target.Run)"
+      }]
+    }
+  ],
+  "contract_revision": "v2.0-draft.4"
+}

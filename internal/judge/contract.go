@@ -190,6 +190,11 @@ func optionalIdentifier(value any) (*string, bool) {
 type answer struct {
 	p              *float64
 	model, request *string
+
+	command      string
+	confidence   float64
+	nouls        map[string]float64
+	distribution map[string]float64
 }
 
 func readAnswer(raw []byte) (answer, bool) {
@@ -322,11 +327,23 @@ func parseLogLine(raw []byte) (map[string]any, error) {
 		return nil, errJSON
 	}
 	if event == "sent" {
-		if !exactKeys(m, "at ask event judge question lane request_sha256 request_bytes withheld cut") {
+		fields := "at ask event judge question lane request_sha256 request_bytes withheld cut"
+		if reserve, batch := m["outcome_reserve"]; batch {
+			// Only the bounded batch class may extend the scalar sent schema.
+			if reserve != json.Number(strconv.Itoa(batchOutcomeReserve)) {
+				return nil, errJSON
+			}
+			fields += " outcome_reserve"
+		}
+		if !exactKeys(m, fields) {
 			return nil, errJSON
 		}
 	} else if event == "outcome" {
-		if !exactKeys(m, "at ask event outcome probability model request duration_ms") {
+		fields := "at ask event outcome probability model request duration_ms"
+		if _, batch := m["probabilities"]; batch {
+			fields += " probabilities"
+		}
+		if !exactKeys(m, fields) {
 			return nil, errJSON
 		}
 	} else {
@@ -367,10 +384,26 @@ func parseLogLine(raw []byte) (map[string]any, error) {
 			return nil, errJSON
 		}
 		if outcome == "answered" {
-			if _, ok := probability(m["probability"]); !ok {
+			if values, batch := m["probabilities"]; batch {
+				nouls, ok := values.(map[string]any)
+				if !ok || len(nouls) == 0 || len(nouls) > maxBatchQuestions || m["probability"] != nil {
+					return nil, errJSON
+				}
+				for key, value := range nouls {
+					if len(key) > 64 || !identifierPattern.MatchString(key) || hasCredential(key) {
+						return nil, errJSON
+					}
+					if _, ok := probability(value); !ok {
+						return nil, errJSON
+					}
+				}
+			} else if _, ok := probability(m["probability"]); !ok {
 				return nil, errJSON
 			}
 		} else if outcome == "timeout" || outcome == "exit" || outcome == "output" || outcome == "not-found" {
+			if _, batch := m["probabilities"]; batch {
+				return nil, errJSON
+			}
 			if m["probability"] != nil || m["model"] != nil || m["request"] != nil {
 				return nil, errJSON
 			}
@@ -379,6 +412,15 @@ func parseLogLine(raw []byte) (map[string]any, error) {
 		}
 	}
 	return m, nil
+}
+
+// Call only for validated sent records. The absent marker preserves the
+// original scalar schema and its 1024-byte capacity contract.
+func sentOutcomeReserve(record map[string]any) int {
+	if _, batch := record["outcome_reserve"]; batch {
+		return batchOutcomeReserve
+	}
+	return outcomeReserve
 }
 
 // Python counts unfinished sends using its spaced JSON markers. Keep those

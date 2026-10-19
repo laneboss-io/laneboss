@@ -1,0 +1,2624 @@
+{
+  "schema": "laneboss.ladder-ready.v2",
+  "as_of": "83c3926b (converged source audit; runtime acceptance pending)",
+  "contract_revision": "v2.0-draft.4",
+  "contract_fixes": [
+    10,
+    11
+  ],
+  "lanes": {
+    "lb-v2-messaging": true,
+    "lb-v2-judge2": true,
+    "lb-v2-guidance": true,
+    "lb-v2-claudock": true,
+    "lb-v2-approval": true,
+    "lb-v2-identity": true,
+    "lb-v2-codex": true,
+    "lb-v2-policy": true,
+    "lb-v2-service": true,
+    "lb-v2-admin": true,
+    "lb-v2-lifecycle": true,
+    "lb-v2-linux": true,
+    "lb-v2-grants": true,
+    "lb-v2-secrets": true,
+    "lb-v2-watchdog": true,
+    "lb-v2-templates": true,
+    "lb-v2-dashboard": true,
+    "lb-v2-migration": true
+  },
+  "instances": [
+    {
+      "name": "l6",
+      "level": 6,
+      "parent": "",
+      "driver": "claudock-cli"
+    },
+    {
+      "name": "l5a",
+      "level": 5,
+      "parent": "l6",
+      "driver": "claudock-cli"
+    },
+    {
+      "name": "l5b",
+      "level": 5,
+      "parent": "l6",
+      "driver": "claudock-cli"
+    },
+    {
+      "name": "l4a",
+      "level": 4,
+      "parent": "l5a",
+      "driver": "claudock-cli"
+    },
+    {
+      "name": "l4b",
+      "level": 4,
+      "parent": "l5a",
+      "driver": "claudock-cli"
+    },
+    {
+      "name": "l4c",
+      "level": 4,
+      "parent": "l5b",
+      "driver": "claudock-cli"
+    },
+    {
+      "name": "l3a",
+      "level": 3,
+      "parent": "l4a",
+      "driver": "draw"
+    },
+    {
+      "name": "l3b",
+      "level": 3,
+      "parent": "l4a",
+      "driver": "draw"
+    },
+    {
+      "name": "l3c",
+      "level": 3,
+      "parent": "l4b",
+      "driver": "draw"
+    },
+    {
+      "name": "l3d",
+      "level": 3,
+      "parent": "l4c",
+      "driver": "draw"
+    }
+  ],
+  "rows": [
+    {
+      "id": "READY-HEALTH",
+      "phase": "service",
+      "instances": [
+        "l6"
+      ],
+      "seconds": [
+        5,
+        30
+      ],
+      "check": "typed-reply",
+      "commands": [
+        "health"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "Health",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/stub.go",
+              "symbol": "Health("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "READY-SESSION",
+      "phase": "service",
+      "instances": [
+        "l6"
+      ],
+      "seconds": [
+        10,
+        90
+      ],
+      "check": "read-auth",
+      "commands": [
+        "human session",
+        "identity self"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "HumanSession / refreshReadSession",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/identity/service.go",
+              "symbol": "HumanSession("
+            },
+            {
+              "file": "internal/v2/identity/read_refresh.go",
+              "symbol": "refreshReadSession("
+            },
+            {
+              "file": "internal/v2/identity/service.go",
+              "symbol": "IdentitySelf("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "RefreshReadSession / same-connection authority",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/read_session.go",
+              "symbol": "RefreshReadSession("
+            },
+            {
+              "file": "internal/v2/identity/read_refresh.go",
+              "symbol": "refreshReadSession("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "READY-PRESENCE",
+      "phase": "service",
+      "instances": [
+        "l6"
+      ],
+      "seconds": [
+        30,
+        120
+      ],
+      "check": "presence",
+      "commands": [
+        "human confirm",
+        "human session"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "ValidateEnrollment / ValidateProofPresence",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/identity/enrollment.go",
+              "symbol": "ValidateEnrollment("
+            },
+            {
+              "file": "internal/v2/api/human_presence.go",
+              "symbol": "ValidateProofPresence("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "dedicated tagged verification / untagged credential refusal",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/api/human_presence.go",
+              "symbol": "ValidateCredentialPresence"
+            },
+            {
+              "file": "internal/v2/api/human_presence_release.go",
+              "symbol": "softwareAuthenticatorBuild"
+            },
+            {
+              "directory": "internal/v2/api",
+              "file": "human_presence_testbuild.go",
+              "symbol": "softwareAuthenticatorBuild"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-approval",
+          "port": "ChangeApproval simulated-presence propagation",
+          "status": "missing",
+          "landed": false,
+          "evidence": [
+            {
+              "file": "internal/v2/approval/proof.go",
+              "symbol": "result := api.ChangeApproval"
+            },
+            {
+              "file": "internal/v2/approval/proof.go",
+              "symbol": "ApprovedAt:"
+            }
+          ],
+          "note": "ChangeApproval has a simulated_presence field, but approvalFromProof does not propagate verified proof presence. Hardware approval remains unproved."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "initial private enrollment ceremony / receipt",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/human_enrollment.go",
+              "symbol": "RunEnrollment("
+            },
+            {
+              "file": "internal/v2/admin/enroll_commit.go",
+              "symbol": "SimulatedPresence:"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "BeginHumanEnrollment / CompleteHumanEnrollment / inventory",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/enrollment.go",
+              "symbol": "BeginHumanEnrollment("
+            },
+            {
+              "file": "internal/v2/service/enrollment.go",
+              "symbol": "CompleteHumanEnrollment("
+            },
+            {
+              "file": "internal/v2/store/enrollment.go",
+              "symbol": "HumanEnrollments("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "READY-POLICY",
+      "phase": "service",
+      "instances": [
+        "l6"
+      ],
+      "seconds": [
+        5,
+        60
+      ],
+      "check": "policy-generation",
+      "commands": [
+        "policy get"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-policy",
+          "port": "PolicyGet / current approved snapshot",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/policy/service.go",
+              "symbol": "PolicyGet("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "Policy / receipt policy generation",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/read.go",
+              "symbol": "Policy("
+            },
+            {
+              "file": "internal/v2/store/receipts.go",
+              "symbol": "LookupReceipt"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "READY-DASHBOARD",
+      "phase": "service",
+      "instances": [
+        "l6"
+      ],
+      "seconds": [
+        5,
+        60
+      ],
+      "check": "bindings",
+      "commands": [
+        "dashboard tree",
+        "dashboard refusals"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-dashboard",
+          "port": "DashboardTree / DashboardRefusals / presence display",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/dashboard/views.go",
+              "symbol": "DashboardTree("
+            },
+            {
+              "file": "internal/v2/dashboard/views.go",
+              "symbol": "DashboardRefusals("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "Lanes / Events / current authorized projections",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/read.go",
+              "symbol": "Lanes("
+            },
+            {
+              "file": "internal/v2/store/read.go",
+              "symbol": "Events("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "READY-MIGRATION",
+      "phase": "service",
+      "instances": [
+        "l6"
+      ],
+      "seconds": [
+        10,
+        120
+      ],
+      "check": "source-tree",
+      "commands": [
+        "migration plan"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-migration",
+          "port": "MigrationPlan / unchanged retained source",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/migration/stub.go",
+              "symbol": "MigrationPlan"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-GRAPH",
+      "phase": "launch",
+      "instances": [
+        "*"
+      ],
+      "seconds": [
+        60,
+        600
+      ],
+      "check": "graph",
+      "commands": [
+        "lane start",
+        "lane status"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "LaneStart / LaneStatus",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/launch.go",
+              "symbol": "LaneStart("
+            },
+            {
+              "file": "internal/v2/lifecycle/read.go",
+              "symbol": "LaneStatus("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "PlanLaunch / unopened-plan policy fence",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/launch_plan_stubs.go",
+              "symbol": "PlanLaunch("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "Resolve / reserved D9 child subset",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/grants/launch.go",
+              "symbol": "Resolve("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "GrantsRoot nonempty protected profile enrollment",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/grants/root_profiles.go",
+              "symbol": "issueProfileRoot("
+            }
+          ],
+          "note": "Protected profile issuance exists in issueProfileRoot. Nonempty secret/network/resource root handles still refuse in issueRoot; live enrollment and quotas remain prerequisites."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "ReserveLaunch / receipt / effect claim",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/launch_reservation.go",
+              "symbol": "ReserveLaunch("
+            },
+            {
+              "file": "internal/v2/store/receipts.go",
+              "symbol": "LookupReceipt"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "installed automatic root-turn scheduler",
+          "status": "missing",
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/loop.go",
+              "symbol": "ReserveLoop("
+            },
+            {
+              "file": "internal/v2/assembly/assembly.go",
+              "symbol": "func build("
+            }
+          ],
+          "note": "Loop reservation exists, but the installed assembly does not enroll and schedule its private scheduler capability. No owner confirmation or automatic turn is inferred.",
+          "landed": false
+        }
+      ]
+    },
+    {
+      "id": "LADDER-BIND",
+      "phase": "launch",
+      "instances": [
+        "*"
+      ],
+      "seconds": [
+        30,
+        300
+      ],
+      "check": "launch-pins",
+      "commands": [
+        "lane start",
+        "lane resume",
+        "blob read",
+        "event tail"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "RegisterSpec / Prepare / OpenGate",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/spec.go",
+              "symbol": "RegisterSpec("
+            },
+            {
+              "file": "internal/v2/admin/stub.go",
+              "symbol": "Prepare("
+            },
+            {
+              "file": "internal/v2/admin/open.go",
+              "symbol": "OpenGate("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "ProjectCredentials / native endpoint and environment projections",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/credentials.go",
+              "symbol": "ProjectCredentials("
+            },
+            {
+              "file": "internal/v2/admin/credexec_linux.go",
+              "symbol": "finalCredentialEnvironment("
+            }
+          ],
+          "note": "Native held credential projection and final unprivileged exec handoff exist. Installed runner selectors/mode validators and controlled network remain separate gates."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "BindLaunch / committed permit",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/identity/service.go",
+              "symbol": "BindLaunch("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-linux",
+          "port": "Prepare / native containment",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/isolation/linux/service.go",
+              "symbol": "Prepare"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "Plan / LaunchBinding / retained audit objects",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/launch_control.go",
+              "symbol": "Plan"
+            },
+            {
+              "file": "internal/v2/store/contract_stubs.go",
+              "symbol": "LaunchBinding("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-DATA",
+      "phase": "launch",
+      "instances": [
+        "*"
+      ],
+      "seconds": [
+        30,
+        300
+      ],
+      "check": "answers",
+      "commands": [
+        "grants get",
+        "lane start",
+        "blob read"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "MaterializeLaunch / retained materialization",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/dataworker/launch.go",
+              "symbol": "MaterializeLaunch("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "OpenLaunchDataStorage / fixed data-worker gates",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/data.go",
+              "symbol": "OpenLaunchDataStorage("
+            },
+            {
+              "file": "internal/v2/admin/data.go",
+              "symbol": "OpenDataWorker"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "MaterializationStage / WorkerResult / private worker client",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/materialization.go",
+              "symbol": "MaterializationStage("
+            },
+            {
+              "file": "internal/v2/service/materialization.go",
+              "symbol": "WorkerResult"
+            },
+            {
+              "file": "internal/v2/dataworker/internal.go",
+              "symbol": "RunInternal("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "workerPrincipal / sealed worker bootstrap",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/identity/worker.go",
+              "symbol": "workerPrincipal"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "WorkerBinding",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/worker_bootstrap.go",
+              "symbol": "WorkerBinding("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "fixed worker input and endpoint projection",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/worker_linux.go",
+              "symbol": "startDataGate("
+            }
+          ],
+          "note": "Fixed materialization worker uses startDataGate with sealed input and pinned endpoint. Generic unsupported worker modes remain refused."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-DRIVERS",
+      "phase": "launch",
+      "instances": [
+        "*"
+      ],
+      "seconds": [
+        120,
+        1800
+      ],
+      "check": "runtime",
+      "commands": [
+        "lane start",
+        "lane turn",
+        "event tail"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-claudock",
+          "port": "Start / Resume / Turn / SessionFromCapture",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/runner/claudock/service.go",
+              "symbol": "Start("
+            },
+            {
+              "file": "internal/v2/runner/claudock/service.go",
+              "symbol": "Resume("
+            },
+            {
+              "file": "internal/v2/runner/claudock/service.go",
+              "symbol": "Turn("
+            },
+            {
+              "file": "internal/v2/runner/claudock/capture.go",
+              "symbol": "SessionFromCapture("
+            }
+          ],
+          "note": "Strict per-run adapter exists. Assembly does not yet supply protected SelectLaunch/runtime/slot/mode/capture callbacks."
+        },
+        {
+          "lane": "lb-v2-codex",
+          "port": "Start / Resume / Turn / SessionFromCapture",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/runner/codex/runner.go",
+              "symbol": "Start("
+            },
+            {
+              "file": "internal/v2/runner/codex/runner.go",
+              "symbol": "Resume("
+            },
+            {
+              "file": "internal/v2/runner/codex/runner.go",
+              "symbol": "Turn("
+            },
+            {
+              "file": "internal/v2/runner/codex/capture.go",
+              "symbol": "SessionFromCapture("
+            }
+          ],
+          "note": "Strict per-run adapter exists. Installed construction leaves Runtime unfilled; installedRuntime refuses a vendor operation until enrolled."
+        },
+        {
+          "lane": "lb-v2-secrets",
+          "port": "Acquire / Inject / enrolled credential handles",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/secrets/broker.go",
+              "symbol": "Acquire("
+            },
+            {
+              "file": "internal/v2/secrets/broker.go",
+              "symbol": "Inject("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-secrets",
+          "port": "internal.credential fixed job and protected material channel",
+          "status": "stub",
+          "landed": false,
+          "evidence": [
+            {
+              "file": "internal/v2/secrets/internal.go",
+              "symbol": "RunInternal"
+            }
+          ],
+          "note": ""
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "ProjectCredentials / native endpoint and environment projections",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/credentials.go",
+              "symbol": "ProjectCredentials("
+            },
+            {
+              "file": "internal/v2/admin/credexec_linux.go",
+              "symbol": "finalCredentialEnvironment("
+            }
+          ],
+          "note": "Native held credential projection and final unprivileged exec handoff exist. Installed runner selectors/mode validators and controlled network remain separate gates."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "GrantsRoot nonempty protected profile enrollment",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/grants/root_profiles.go",
+              "symbol": "issueProfileRoot("
+            }
+          ],
+          "note": "Protected profile issuance exists in issueProfileRoot. Nonempty secret/network/resource root handles still refuse in issueRoot; live enrollment and quotas remain prerequisites."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "LaneResume / LaneTurn / same history and remaining budget",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/launch.go",
+              "symbol": "LaneResume("
+            },
+            {
+              "file": "internal/v2/lifecycle/launch.go",
+              "symbol": "LaneTurn("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-claudock",
+          "port": "installed per-run vendor enrollment and protected callbacks",
+          "status": "missing",
+          "evidence": [
+            {
+              "file": "internal/v2/assembly/runners.go",
+              "symbol": "func realRunners("
+            },
+            {
+              "file": "internal/v2/runner/claudock/service.go",
+              "symbol": "New"
+            },
+            {
+              "file": "internal/v2/runner/codex/runner.go",
+              "symbol": "api.NotImplemented(\"lb-v2-codex\", \"installed vendor runtime enrollment\")"
+            }
+          ],
+          "note": "Both source adapters exist. The installed graph omits the strict per-run selectors, exact vendor/runtime pins, mode/slot validators and whole-run provenance required for live work. Item 2F/7A must enroll real dependencies.",
+          "landed": false
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "controlled live network forwarding",
+          "status": "stub",
+          "evidence": [
+            {
+              "file": "internal/v2/admin/gate_linux.go",
+              "symbol": "\"controlled egress namespace is not enrolled\""
+            }
+          ],
+          "note": "The native gate explicitly refuses network grants without controlled forwarding. A host-network fallback cannot clear this port.",
+          "landed": false
+        }
+      ]
+    },
+    {
+      "id": "LADDER-CAPTURE",
+      "phase": "launch",
+      "instances": [
+        "*"
+      ],
+      "seconds": [
+        60,
+        600
+      ],
+      "check": "transcript",
+      "commands": [
+        "event tail",
+        "blob read",
+        "lane review"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "RegisterCapture / ReconcileCapture / native outside pipes",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/launch_capture.go",
+              "symbol": "RegisterCapture("
+            },
+            {
+              "file": "internal/v2/admin/launch_capture.go",
+              "symbol": "ReconcileCapture("
+            },
+            {
+              "file": "internal/v2/admin/capture_io_linux.go",
+              "symbol": "registerNativeCapture("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "CaptureState / AppendCapture / EOF",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/capture.go",
+              "symbol": "CaptureState"
+            },
+            {
+              "file": "internal/v2/service/capture.go",
+              "symbol": "AppendCapture"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-linux",
+          "port": "Launch / outside-worker containment",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/isolation/linux/service.go",
+              "symbol": "Launch("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "workerPrincipal / sealed worker bootstrap",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/identity/worker.go",
+              "symbol": "workerPrincipal"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "WorkerBinding",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/worker_bootstrap.go",
+              "symbol": "WorkerBinding("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-MAIL",
+      "phase": "launch",
+      "instances": [
+        "*"
+      ],
+      "seconds": [
+        30,
+        300
+      ],
+      "check": "ping-pong",
+      "commands": [
+        "mail send",
+        "lane turn",
+        "report submit",
+        "event tail"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-messaging",
+          "port": "MailSend / ReportSubmit / BeginDelivery / RecordDelivery",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/messaging/stub.go",
+              "symbol": "MailSend"
+            },
+            {
+              "file": "internal/v2/messaging/stub.go",
+              "symbol": "ReportSubmit"
+            },
+            {
+              "file": "internal/v2/messaging/delivery.go",
+              "symbol": "BeginDelivery("
+            },
+            {
+              "file": "internal/v2/messaging/delivery.go",
+              "symbol": "RecordDelivery("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "LaneResume / LaneTurn / same history and remaining budget",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/launch.go",
+              "symbol": "LaneResume("
+            },
+            {
+              "file": "internal/v2/lifecycle/launch.go",
+              "symbol": "LaneTurn("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "Transact / LookupReceipt / ObjectMetadata",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/transaction.go",
+              "symbol": "Transact("
+            },
+            {
+              "file": "internal/v2/store/receipts.go",
+              "symbol": "LookupReceipt"
+            },
+            {
+              "file": "internal/v2/store/objects.go",
+              "symbol": "ObjectMetadata("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "durable commit and actual parent-receive timing",
+          "status": "missing",
+          "landed": false,
+          "evidence": [
+            {
+              "file": "internal/v2/store/transaction.go",
+              "symbol": "Transact("
+            }
+          ],
+          "note": "Transact commits durably, but no protected producer correlates actual durable-commit and authenticated parent-receive monotonic instants. Source symbols cannot certify two-second delivery."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "durable Deliver / ApplyChange / generic Worker coordinators",
+          "status": "stub",
+          "evidence": [
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "\"effect execution requires its owning coordinator\""
+            }
+          ],
+          "note": "The installed effect dispatcher explicitly refuses these payloads. Land the owning durable claimed coordinators; source planners or result labels are not execution.",
+          "landed": false
+        }
+      ]
+    },
+    {
+      "id": "LADDER-PRIVACY",
+      "phase": "launch",
+      "instances": [
+        "l3a",
+        "l3b",
+        "l5a",
+        "l5b"
+      ],
+      "seconds": [
+        10,
+        120
+      ],
+      "check": "privacy",
+      "commands": [
+        "grants get",
+        "blob read",
+        "mail list"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-linux",
+          "port": "Observe / registered confined canary / real process census",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/isolation/linux/service.go",
+              "symbol": "Observe"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "Resolve / reserved D9 child subset",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/grants/launch.go",
+              "symbol": "Resolve("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "Authenticate / Authorize / current connector and frame writer",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/identity/service.go",
+              "symbol": "Authenticate("
+            },
+            {
+              "file": "internal/v2/identity/service.go",
+              "symbol": "Authorize("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-GUIDANCE",
+      "phase": "launch",
+      "instances": [
+        "l5b",
+        "l3c"
+      ],
+      "seconds": [
+        5,
+        30
+      ],
+      "check": "policy-generation",
+      "commands": [
+        "guidance select",
+        "event tail"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-guidance",
+          "port": "selectFresh / observeClaim / RecoverGuidance",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/guidance/claims.go",
+              "symbol": "selectFresh("
+            },
+            {
+              "file": "internal/v2/guidance/claims.go",
+              "symbol": "observeClaim"
+            },
+            {
+              "file": "internal/v2/guidance/claims.go",
+              "symbol": "RecoverGuidance("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-judge2",
+          "port": "JudgeAsk / bounded Fit and Evaluate / approved deployment",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/judge/stub.go",
+              "symbol": "JudgeAsk("
+            },
+            {
+              "file": "internal/v2/judge/wire/adapter.go",
+              "symbol": "Fit("
+            },
+            {
+              "file": "internal/v2/judge/wire/adapter.go",
+              "symbol": "Evaluate("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "ReserveGuidance / AwaitGuidance / one event CAS",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/guidance.go",
+              "symbol": "ReserveGuidance("
+            },
+            {
+              "file": "internal/v2/store/guidance.go",
+              "symbol": "AwaitGuidance("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-JUDGE",
+      "phase": "launch",
+      "instances": [
+        "l4b",
+        "l3d"
+      ],
+      "seconds": [
+        5,
+        60
+      ],
+      "check": "typed-reply",
+      "commands": [
+        "judge ask",
+        "policy evaluate"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-judge2",
+          "port": "JudgeAsk / bounded Fit and Evaluate / approved deployment",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/judge/stub.go",
+              "symbol": "JudgeAsk("
+            },
+            {
+              "file": "internal/v2/judge/wire/adapter.go",
+              "symbol": "Fit("
+            },
+            {
+              "file": "internal/v2/judge/wire/adapter.go",
+              "symbol": "Evaluate("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-policy",
+          "port": "PolicyGet / PolicyEvaluate / exact replay",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/policy/service.go",
+              "symbol": "PolicyGet("
+            },
+            {
+              "file": "internal/v2/policy/evaluate.go",
+              "symbol": "PolicyEvaluate("
+            },
+            {
+              "file": "internal/v2/policy/generation.go",
+              "symbol": "replayPolicy("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-secrets",
+          "port": "Acquire / Inject / enrolled credential handles",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/secrets/broker.go",
+              "symbol": "Acquire("
+            },
+            {
+              "file": "internal/v2/secrets/broker.go",
+              "symbol": "Inject("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-secrets",
+          "port": "internal.credential fixed job and protected material channel",
+          "status": "stub",
+          "landed": false,
+          "evidence": [
+            {
+              "file": "internal/v2/secrets/internal.go",
+              "symbol": "RunInternal"
+            }
+          ],
+          "note": ""
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "controlled live network forwarding",
+          "status": "stub",
+          "evidence": [
+            {
+              "file": "internal/v2/admin/gate_linux.go",
+              "symbol": "\"controlled egress namespace is not enrolled\""
+            }
+          ],
+          "note": "The native gate explicitly refuses network grants without controlled forwarding. A host-network fallback cannot clear this port.",
+          "landed": false
+        }
+      ]
+    },
+    {
+      "id": "LADDER-POLICY",
+      "phase": "launch",
+      "instances": [
+        "l5b",
+        "l3c"
+      ],
+      "seconds": [
+        30,
+        120
+      ],
+      "check": "policy-generation",
+      "commands": [
+        "policy evaluate",
+        "guidance select",
+        "lane turn",
+        "event tail"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-policy",
+          "port": "replayPolicy / advanceLanePolicy / PolicyGenerationFor",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/policy/generation.go",
+              "symbol": "replayPolicy("
+            },
+            {
+              "file": "internal/v2/policy/generation.go",
+              "symbol": "advanceLanePolicy("
+            },
+            {
+              "file": "internal/v2/api/policy_generation.go",
+              "symbol": "PolicyGenerationFor"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "PolicyAt / RefreshLanePolicy / lane.policy",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/policy_generation.go",
+              "symbol": "PolicyAt("
+            },
+            {
+              "file": "internal/v2/store/policy_generation.go",
+              "symbol": "RefreshLanePolicy("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-approval",
+          "port": "OrgChangeApply / approved disposable fixture D6 advance",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/approval/service.go",
+              "symbol": "OrgChangeApply("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "PlanLaunch / unopened-plan policy fence",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/launch_plan_stubs.go",
+              "symbol": "PlanLaunch("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "durable Deliver / ApplyChange / generic Worker coordinators",
+          "status": "stub",
+          "evidence": [
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "\"effect execution requires its owning coordinator\""
+            }
+          ],
+          "note": "The installed effect dispatcher explicitly refuses these payloads. Land the owning durable claimed coordinators; source planners or result labels are not execution.",
+          "landed": false
+        }
+      ]
+    },
+    {
+      "id": "LADDER-TEMPLATE",
+      "phase": "launch",
+      "instances": [
+        "l4c",
+        "l3d"
+      ],
+      "seconds": [
+        10,
+        120
+      ],
+      "check": "transcript",
+      "commands": [
+        "brief render",
+        "lane start",
+        "blob read"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-templates",
+          "port": "BriefRender / BriefStart / pinned task and prompt",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/templates/stub.go",
+              "symbol": "BriefRender("
+            },
+            {
+              "file": "internal/v2/templates/stub.go",
+              "symbol": "BriefStart("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "dataworker.Render confined render job",
+          "status": "stub",
+          "landed": false,
+          "evidence": [
+            {
+              "file": "internal/v2/dataworker/render.go",
+              "symbol": "Render"
+            }
+          ],
+          "note": "Render validates inputs/confinement, then explicitly refuses the pinned renderer/staged-source/output worker."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "durable Deliver / ApplyChange / generic Worker coordinators",
+          "status": "stub",
+          "evidence": [
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "\"effect execution requires its owning coordinator\""
+            }
+          ],
+          "note": "The installed effect dispatcher explicitly refuses these payloads. Land the owning durable claimed coordinators; source planners or result labels are not execution.",
+          "landed": false
+        }
+      ]
+    },
+    {
+      "id": "LADDER-USAGE",
+      "phase": "launch",
+      "instances": [
+        "l4c"
+      ],
+      "seconds": [
+        30,
+        120
+      ],
+      "check": "runtime",
+      "commands": [
+        "lane status",
+        "event tail",
+        "blob read"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-claudock",
+          "port": "LimitFromCapture / actual UsageEvidence",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/runner/claudock/capture.go",
+              "symbol": "LimitFromCapture("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-secrets",
+          "port": "ReadUsageWindow / outside RunUsageCommand",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/secrets/usage_source.go",
+              "symbol": "ReadUsageWindow("
+            },
+            {
+              "file": "internal/v2/secrets/usage_command.go",
+              "symbol": "RunUsageCommand("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-secrets",
+          "port": "internal.credential fixed job and protected material channel",
+          "status": "stub",
+          "landed": false,
+          "evidence": [
+            {
+              "file": "internal/v2/secrets/internal.go",
+              "symbol": "RunInternal"
+            }
+          ],
+          "note": ""
+        },
+        {
+          "lane": "lb-v2-watchdog",
+          "port": "ObserveLimit / Reconcile / one retained continuation operation",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/watchdog/service.go",
+              "symbol": "ObserveLimit("
+            },
+            {
+              "file": "internal/v2/watchdog/service.go",
+              "symbol": "Reconcile("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "Continue / fenced ProfileSwap",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/continuation.go",
+              "symbol": "Continue("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-claudock",
+          "port": "installed per-run vendor enrollment and protected callbacks",
+          "status": "missing",
+          "evidence": [
+            {
+              "file": "internal/v2/assembly/runners.go",
+              "symbol": "func realRunners("
+            },
+            {
+              "file": "internal/v2/runner/claudock/service.go",
+              "symbol": "New"
+            },
+            {
+              "file": "internal/v2/runner/codex/runner.go",
+              "symbol": "api.NotImplemented(\"lb-v2-codex\", \"installed vendor runtime enrollment\")"
+            }
+          ],
+          "note": "Both source adapters exist. The installed graph omits the strict per-run selectors, exact vendor/runtime pins, mode/slot validators and whole-run provenance required for live work. Item 2F/7A must enroll real dependencies.",
+          "landed": false
+        }
+      ]
+    },
+    {
+      "id": "LADDER-REVIEW",
+      "phase": "launch",
+      "instances": [
+        "l6",
+        "l5a",
+        "l5b",
+        "l4a",
+        "l4b",
+        "l4c"
+      ],
+      "seconds": [
+        60,
+        600
+      ],
+      "check": "cleanup",
+      "commands": [
+        "grants test-child",
+        "lane review",
+        "lane mark"
+      ],
+      "landed": false,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "LaneReview / LaneMark / frozen acceptance",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/review.go",
+              "symbol": "LaneReview("
+            },
+            {
+              "file": "internal/v2/lifecycle/review.go",
+              "symbol": "LaneMark("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "VerifyReview / authentic test and snapshot facts",
+          "status": "stub",
+          "landed": false,
+          "evidence": [
+            {
+              "file": "internal/v2/dataworker/review_stubs.go",
+              "symbol": "VerifyReview"
+            }
+          ],
+          "note": "VerifyReview checks the retained claimed job, then explicitly refuses the confined snapshot/check/capture measurement handoff."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "Transact / LookupReceipt / ObjectMetadata",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/store/transaction.go",
+              "symbol": "Transact("
+            },
+            {
+              "file": "internal/v2/store/receipts.go",
+              "symbol": "LookupReceipt"
+            },
+            {
+              "file": "internal/v2/store/objects.go",
+              "symbol": "ObjectMetadata("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-COLLECT",
+      "phase": "launch",
+      "instances": [
+        "l6",
+        "l5a",
+        "l5b",
+        "l4a",
+        "l4b",
+        "l4c"
+      ],
+      "seconds": [
+        30,
+        300
+      ],
+      "check": "release",
+      "commands": [
+        "lane archive",
+        "lane clean",
+        "event tail",
+        "blob read"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-lifecycle",
+          "port": "LaneArchive / LaneClean / cancellation increments",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/lifecycle/archive.go",
+              "symbol": "LaneArchive("
+            },
+            {
+              "file": "internal/v2/lifecycle/archive.go",
+              "symbol": "LaneClean("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-grants",
+          "port": "runArchive / RunArchive / independent persisted read-back",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/archive.go",
+              "symbol": "runArchive("
+            },
+            {
+              "file": "internal/v2/dataworker/archive.go",
+              "symbol": "RunArchive("
+            }
+          ],
+          "note": "Installed archive effects use Server.runArchive and the fixed RunArchive worker with retained claims; generic DataWorker.Archive remains a stub outside this execution path."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "Release / helper-measured collection receipt",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/stub.go",
+              "symbol": "Release"
+            },
+            {
+              "file": "internal/v2/admin/lease.go",
+              "symbol": "release"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-linux",
+          "port": "Collect / kernel zero-survivor census",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/isolation/linux/service.go",
+              "symbol": "Collect("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-secrets",
+          "port": "Release / RevokeInjection after quiescence",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/secrets/broker.go",
+              "symbol": "Release("
+            },
+            {
+              "file": "internal/v2/secrets/broker.go",
+              "symbol": "RevokeInjection("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "WithdrawCredentials / measured projection collection",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/admin/credentials.go",
+              "symbol": "WithdrawCredentials("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-CONCURRENT",
+      "phase": "launch",
+      "instances": [
+        "*"
+      ],
+      "seconds": [
+        30,
+        300
+      ],
+      "check": "concurrency",
+      "commands": [
+        "lane start",
+        "event tail"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-admin",
+          "port": "boot provision / separately installed bindings and UID pools",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "scripts/v2-admin/boot.py",
+              "symbol": "def provision("
+            },
+            {
+              "file": "internal/v2/admin/lease.go",
+              "symbol": "allocate"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-linux",
+          "port": "Observe / registered confined canary / real process census",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/isolation/linux/service.go",
+              "symbol": "Observe"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    },
+    {
+      "id": "LADDER-AGGREGATE",
+      "phase": "launch",
+      "instances": [
+        "l6"
+      ],
+      "seconds": [
+        5,
+        60
+      ],
+      "check": "answers",
+      "commands": [
+        "report submit",
+        "blob commit",
+        "blob read"
+      ],
+      "landed": true,
+      "depends": [
+        {
+          "lane": "lb-v2-service",
+          "port": "NewServer / ServeInstalled / client.Open / Call / Close",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/server.go",
+              "symbol": "NewServer("
+            },
+            {
+              "file": "internal/v2/service/host.go",
+              "symbol": "ServeInstalled("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "func Open("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Call("
+            },
+            {
+              "file": "internal/v2/client/client.go",
+              "symbol": "Client.Close"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-messaging",
+          "port": "MailSend / ReportSubmit / BeginDelivery / RecordDelivery",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/messaging/stub.go",
+              "symbol": "MailSend"
+            },
+            {
+              "file": "internal/v2/messaging/stub.go",
+              "symbol": "ReportSubmit"
+            },
+            {
+              "file": "internal/v2/messaging/delivery.go",
+              "symbol": "BeginDelivery("
+            },
+            {
+              "file": "internal/v2/messaging/delivery.go",
+              "symbol": "RecordDelivery("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-service",
+          "port": "BlobCommit / BlobRead / immutable results",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/service/stub.go",
+              "symbol": "BlobCommit("
+            },
+            {
+              "file": "internal/v2/service/stub.go",
+              "symbol": "BlobRead("
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        },
+        {
+          "lane": "lb-v2-identity",
+          "port": "issueTicket / issueReadSession / retained presence",
+          "status": "implemented",
+          "landed": true,
+          "evidence": [
+            {
+              "file": "internal/v2/identity/human.go",
+              "symbol": "issueTicket"
+            },
+            {
+              "file": "internal/v2/identity/human.go",
+              "symbol": "issueReadSession"
+            }
+          ],
+          "note": "Source implementation at 83c3926b; requires its enrolled dependencies and installed controls. This flag is not runtime acceptance."
+        }
+      ]
+    }
+  ]
+}

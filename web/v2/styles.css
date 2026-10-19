@@ -1,0 +1,125 @@
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6f4;
+  --surface: #ffffff;
+  --ink: #182a20;
+  --muted: #4b6356;
+  --line: #cfe0d4;
+  --accent: #1b6541;
+  --warn: #7c5614;
+  --bad: #9b3b31;
+  --tint: #e4f1e8;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #101714;
+    --surface: #18231e;
+    --ink: #e7efe9;
+    --muted: #9fb2a7;
+    --line: #32463b;
+    --accent: #95d5b2;
+    --warn: #e8c288;
+    --bad: #eeaba3;
+    --tint: #233a2e;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101714;
+  --surface: #18231e;
+  --ink: #e7efe9;
+  --muted: #9fb2a7;
+  --line: #32463b;
+  --accent: #95d5b2;
+  --warn: #e8c288;
+  --bad: #eeaba3;
+  --tint: #233a2e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, sans-serif;
+}
+main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+nav a:hover {
+  color: var(--accent);
+  background: var(--surface);
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.full { grid-column: 1 / -1; }
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.body { padding: 16px 18px; }
+.scroll { overflow: auto; max-height: 420px; }
+.error { color: var(--bad); margin: 0; padding: 0 18px; }
+.muted { color: var(--muted); }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+th, td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+pre.inert-raw {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  margin: 0;
+}
+button, input, select, textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px 10px;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); background: var(--tint); }
