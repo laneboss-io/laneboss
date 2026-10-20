@@ -1368,9 +1368,19 @@ func (s *Service) DashboardRefusals(ctx context.Context, scope api.Scope, reques
 			}
 		case "lane.reviewed":
 			var rr api.ReviewReceipt
-			if json.Unmarshal(ev.Payload, &rr) == nil && (rr.Coverage != api.CoverageComplete || rr.Evidence == nil ||
-				rr.Evidence.Coverage != api.CoverageComplete || rr.Evidence.Inventory.ToolCoverage != api.CoverageComplete) {
-				unknownByLevel[lvl] = true
+			if json.Unmarshal(ev.Payload, &rr) == nil {
+				if rr.Coverage != api.CoverageComplete || rr.Evidence == nil || rr.Evidence.Untrusted ||
+					rr.Evidence.Coverage != api.CoverageComplete || rr.Evidence.Inventory.ToolCoverage != api.CoverageComplete {
+					unknownByLevel[lvl] = true
+				}
+				if rr.Evidence != nil {
+					// The existing dashboard table and CLI JSON display RuleID
+					// beside coverage. Keep findings visible for partial and
+					// untrusted results, independently of the coverage branch.
+					for _, finding := range rr.Evidence.Findings {
+						getBucket(api.ID(finding.Kind), lvl).Warned++
+					}
+				}
 			}
 		}
 	}

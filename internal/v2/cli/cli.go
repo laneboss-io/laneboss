@@ -500,6 +500,9 @@ func (call Invocation) integrateWriteResponse(request api.Request, response api.
 	if _, err := call.Stdout.Write(append(append([]byte(nil), response.Result...), '\n')); err != nil {
 		return err
 	}
+	if receipt, ok := result.(*api.ReviewReceipt); ok {
+		return writeReviewFindings(call.Stderr, *receipt)
+	}
 	return nil
 }
 

@@ -59,6 +59,21 @@ type ReviewResolution struct {
 	Evidence  BlobRef  `json:"evidence"`
 }
 
+type ReviewFindingKind string
+
+const (
+	ReviewFindingFakeOnlyDiff ReviewFindingKind = "fake_only_diff"
+	ReviewFindingEmptyDiff    ReviewFindingKind = "empty_diff"
+)
+
+// ReviewFinding is advisory evidence for the independent reviewer. It does
+// not change measured coverage or prevent recording a result. A human or judge
+// must clear the concern before treating the passing checks as proof of work.
+type ReviewFinding struct {
+	Kind    ReviewFindingKind `json:"kind"`
+	Message string            `json:"message"`
+}
+
 type ReviewEvidence struct {
 	Schema          string             `json:"schema"`
 	Subject         ReviewSubject      `json:"subject"`
@@ -68,6 +83,8 @@ type ReviewEvidence struct {
 	Inventory       ReviewInventory    `json:"inventory"`
 	Resolutions     []ReviewResolution `json:"resolutions"`
 	Coverage        string             `json:"coverage"`
+	Findings        []ReviewFinding    `json:"findings,omitempty"`
+	Untrusted       bool               `json:"untrusted,omitempty"`
 }
 
 type ReviewVerifyRequest struct {

@@ -158,6 +158,8 @@ func RunReview(ctx context.Context, job ReviewJob) (api.WorkerResultReceipt, err
 	}
 	evidence := api.ReviewEvidence{Schema: "laneboss.review.v2", Subject: input.Subject, VerifierLeaseID: p.Lease.ID,
 		Diff: input.Request.Diff, Checks: input.Checks, Inventory: input.Inventory, Resolutions: input.Resolutions, Coverage: api.CoveragePartial}
+	evidence.Findings = reviewjob.DiffFindings(diff, input.Checks)
+	evidence.Untrusted = len(evidence.Findings) != 0
 	if err := api.ValidateReviewEvidence(evidence, input.Subject); err != nil {
 		return zero, err
 	}

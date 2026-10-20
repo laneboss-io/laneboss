@@ -18,6 +18,14 @@ func ValidateReviewEvidence(evidence ReviewEvidence, expected ReviewSubject) err
 		!launchBlob(e.Diff, "diff") || !launchBlob(e.Inventory.Manifest, "manifest") || e.Inventory.ThroughSeq != s.InventorySeq {
 		return launchInvalid("review evidence differs from its frozen run and end")
 	}
+	if len(e.Findings) > 1 || e.Untrusted != (len(e.Findings) != 0) {
+		return launchInvalid("review findings differ from the advisory trust marker")
+	}
+	for _, finding := range e.Findings {
+		if finding.Kind != ReviewFindingFakeOnlyDiff && finding.Kind != ReviewFindingEmptyDiff || finding.Message == "" || len(finding.Message) > 1024 {
+			return launchInvalid("review evidence contains an invalid advisory finding")
+		}
+	}
 	expectedStreams, streamKinds := map[ID]bool{}, map[string]bool{}
 	for _, stream := range s.Streams {
 		if !launchID(stream.ID) || !launchID(stream.PipeID) || expectedStreams[stream.ID] || streamKinds[stream.Stream] ||

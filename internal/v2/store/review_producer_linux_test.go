@@ -4,6 +4,7 @@ package store_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -279,7 +280,31 @@ func reviewCandidateInput(t *testing.T, f *fx.Fixture, subject api.ReviewSubject
 }
 
 func TestReviewWorkerRetained(t *testing.T) {
+	raw := reviewWorkerRetained(t, "current.txt")
+	var evidence api.ReviewEvidence
+	if err := api.DecodeObject(raw, &evidence); err != nil {
+		t.Fatal(err)
+	}
+	if evidence.Untrusted || len(evidence.Findings) != 0 {
+		t.Fatal("production current.txt edit acquired an untrusted finding")
+	}
+}
+
+func reviewWorkerRetained(t *testing.T, changedPath string) []byte {
+	t.Helper()
 	f, source, native := reviewProducerScene(t, true)
+	// Preserve the real writer, freeze, object closure and verifier. Change
+	// only the measured workspace path before the native snapshot is sealed.
+	object := &native.snapshot.Objects[len(native.snapshot.Objects)-1]
+	var tree api.ObjectManifest
+	if err := api.DecodeObject(object.Bytes, &tree); err != nil {
+		t.Fatal(err)
+	}
+	tree.Entries[0].Path = "workspace/" + changedPath
+	object.Bytes = fx.JSON(t, tree)
+	object.SHA256 = fx.Digest(object.Bytes)
+	native.snapshot.Freeze.Snapshot.SHA256 = object.SHA256
+	native.snapshot.Freeze.Snapshot.Bytes = int64(len(object.Bytes))
 	ctx := context.Background()
 	subject, err := source.ReviewSnapshot(ctx, f.Execution, f.Reservation.Target)
 	if err != nil {
@@ -405,5 +430,26 @@ func TestReviewWorkerRetained(t *testing.T) {
 	}
 	if err := api.ValidateReviewAcceptance(caller, api.ReviewReceipt{ID: job.ID, Reviewer: caller.Actor, Diff: request.Diff, Checks: request.Checks, RecordInventory: request.RecordInventory, RefusalResolution: request.RefusalResolution, Coverage: evidence.Coverage, Evidence: &evidence}, subject, []string{"unit"}); err == nil {
 		t.Fatal("partial evidence authorized acceptance")
+	}
+	return chunk.Data
+}
+
+func TestReviewDiffFindingsRetained(t *testing.T) {
+	for _, name := range []string{"fakes/runner.go", "fixtures/input.json", "checks_test.py"} {
+		t.Run(name, func(t *testing.T) {
+			raw := reviewWorkerRetained(t, name)
+			var result struct {
+				Findings []struct {
+					Kind string `json:"kind"`
+				} `json:"findings"`
+				Untrusted bool `json:"untrusted"`
+			}
+			if err := json.Unmarshal(raw, &result); err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Findings) != 1 || result.Findings[0].Kind != "fake_only_diff" || !result.Untrusted {
+				t.Fatal("real writer lost the fixed verifier's untrusted fake-only finding")
+			}
+		})
 	}
 }
