@@ -25,14 +25,14 @@ func Manifest(raw []byte) (api.ObjectManifest, error) {
 	if err := api.DecodeObject(raw, &tree); err != nil {
 		return tree, fault("archive snapshot is not an object manifest")
 	}
-	if err := manifest.Object(tree); err != nil {
+	if err := manifest.Archived(tree); err != nil {
 		return tree, err
 	}
 	return tree, nil
 }
 
 func entries(tree api.ObjectManifest) ([]api.ObjectEntry, []byte, error) {
-	if err := manifest.Object(tree); err != nil {
+	if err := manifest.Archived(tree); err != nil {
 		return nil, nil, err
 	}
 	raw, err := json.Marshal(tree)

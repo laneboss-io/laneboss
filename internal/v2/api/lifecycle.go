@@ -179,6 +179,24 @@ type ArchiveReceipt struct {
 	StoreID        ID        `json:"store_id"`
 }
 
+type RestoreRequest struct {
+	Target             LifeRef    `json:"target"`
+	ExpectedGeneration Generation `json:"expected_generation"`
+	Path               string     `json:"path"`
+	ArchiveReceiptID   ID         `json:"archive_receipt_id,omitempty"`
+	AllowNestedGit     bool       `json:"allow_nested_git,omitempty"`
+}
+
+type RestoreReceipt struct {
+	Target           LifeRef  `json:"target"`
+	Path             string   `json:"path"`
+	Head             string   `json:"head"`
+	ArchiveReceiptID ID       `json:"archive_receipt_id"`
+	Manifest         BlobRef  `json:"manifest"`
+	ClearedModes     []string `json:"cleared_modes,omitempty"`
+	SkippedPaths     []string `json:"skipped_paths,omitempty"`
+}
+
 type EventTailRequest struct {
 	LifeID     ID        `json:"life_id"`
 	Run        RunNumber `json:"run"`

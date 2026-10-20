@@ -39,6 +39,7 @@ var Methods = map[Method]MethodSpec{
 	"lane.review":         {reflect.TypeFor[ReviewRequest](), reflect.TypeFor[ReviewReceipt](), true, "reviewer", "lb-v2-lifecycle"},
 	"lane.clean":          {reflect.TypeFor[CleanRequest](), reflect.TypeFor[Operation](), true, "parent", "lb-v2-lifecycle"},
 	"lane.archive":        {reflect.TypeFor[ArchiveRequest](), reflect.TypeFor[ArchiveReceipt](), true, "parent", "lb-v2-lifecycle"},
+	"lane.restore":        {reflect.TypeFor[RestoreRequest](), reflect.TypeFor[RestoreReceipt](), true, "parent", "lb-v2-lifecycle"},
 	"lane.status":         {reflect.TypeFor[LifeRef](), reflect.TypeFor[Lane](), false, "tree", "lb-v2-lifecycle"},
 	"lane.list":           {reflect.TypeFor[ListRequest](), reflect.TypeFor[LanePage](), false, "tree", "lb-v2-lifecycle"},
 	"lane.check":          {reflect.TypeFor[LifeRef](), reflect.TypeFor[ProcessObservation](), true, "control", "lb-v2-lifecycle"},

@@ -254,6 +254,7 @@ func serveHelperRequest(parent context.Context, connection *net.UnixConn, b inst
 		request.Generation != b.Generation || request.ArtifactSHA256 != b.Artifact.SHA256 {
 		return replyError(failure(api.CodeVersion, "helper request does not match its installed binding"))
 	}
+	trace.nonce, trace.caller = nonce, int(peer.credentials.Pid)
 	trace.stage("caller_role")
 	if err := enrollmentCaller(rootCaller, request.Method); err != nil {
 		return replyError(err)
@@ -279,7 +280,10 @@ func serveHelperRequest(parent context.Context, connection *net.UnixConn, b inst
 		return replyError(failure(api.CodeForbidden, "credential metadata endpoint refuses state-changing operations"))
 	}
 	trace.stage("operation_wait")
-	ctx, finishTurn := manager.beginHelperTurn(ctx, metadata, request.Method, trace.timing)
+	ctx, finishTurn, err := manager.beginHelperTurn(ctx, metadata, request.Method, request.Params, trace.timing)
+	if err != nil {
+		return replyError(err)
+	}
 	defer finishTurn()
 	if request.Attempt != nil {
 		attempt := *request.Attempt
@@ -349,6 +353,14 @@ func serveHelperRequest(parent context.Context, connection *net.UnixConn, b inst
 		return replyError(failure(api.CodeIntegrity, "cannot encode helper operation result"))
 	}
 	response := helperResponse{Protocol: helperProtocol, Revision: api.ContractRevision, Nonce: nonce, Result: encoded}
+	if request.Method == "containment_live" {
+		// The operation lock still protects the validated state. Queue wait
+		// precedes this observation and cannot consume its sharing lifetime.
+		response.Observed, err = containmentNow()
+		if err != nil {
+			return replyError(err)
+		}
+	}
 	// Validate the complete envelope before writing any transport bytes, so
 	// a malformed/oversize RawMessage becomes a correlated typed refusal.
 	if _, err := encodeHelperFrame(response); err != nil {

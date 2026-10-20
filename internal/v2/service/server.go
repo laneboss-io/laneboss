@@ -22,6 +22,8 @@ type Options struct {
 	BindingFile     string
 }
 
+const rpcReplyTimeout = 5 * time.Second
+
 type Server struct {
 	judgeWorker         *nativeJudge
 	usageSource         usageSource
@@ -55,6 +57,8 @@ type Server struct {
 	laneEndpoints       map[api.ID]*laneEndpoint
 	fault               error
 	admissions          map[string]int
+	refusalActive       int
+	refusalDrops        uint64
 	principalWatchers   map[string]int
 	closeDone           chan struct{}
 	closeResult         error
@@ -192,10 +196,7 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 				s.serveConnection(runCtx, connection)
 			}()
 		default:
-			if err := connection.Close(); err != nil {
-				cancel()
-				return serviceError(api.CodeIntegrity, "overloaded connection close failed")
-			}
+			s.refuseOverload(runCtx, connection, serviceError(api.CodeUnavailable, "service connection admission limit reached"), &workers)
 		}
 	}
 }
@@ -247,7 +248,12 @@ func (s *Server) serveBoundConnection(ctx context.Context, connection net.Conn, 
 	defer cancelLifetime()
 	s.mu.Lock()
 	if s.closed || s.revokedLaunches[lifetime.Binding().LaunchID] {
+		reason := "revoked_entry"
+		if s.closed {
+			reason = "closed_entry"
+		}
 		s.mu.Unlock()
+		s.journalLaneClose(binding, lifetime.ID(), reason)
 		return
 	}
 	if s.connections == nil {
@@ -278,7 +284,7 @@ func (s *Server) serveBoundConnection(ctx context.Context, connection net.Conn, 
 		}
 		if s.admissions[admissionKey] >= 8 {
 			s.mu.Unlock()
-			s.journalConnection("admission", serviceError(api.CodeUnavailable, "native connection admission limit reached"))
+			s.refuseAdmission(connection, serviceError(api.CodeUnavailable, "native connection admission limit reached"))
 			return
 		}
 		s.admissions[admissionKey]++
@@ -292,13 +298,38 @@ func (s *Server) serveBoundConnection(ctx context.Context, connection net.Conn, 
 			s.mu.Unlock()
 		}()
 	}
-	stop := context.AfterFunc(ctx, func() { s.closeResource(lifetime) })
+	stop := context.AfterFunc(ctx, func() {
+		// Cancel work and interrupt a pending read, but retain the existing
+		// bounded write window for a correlated refusal. Closing here races
+		// authentication's refusal and turns a named error into an EOF.
+		select {
+		case <-lifetime.finished:
+			return
+		default:
+		}
+		if err := connection.SetReadDeadline(time.Now()); err != nil && !errors.Is(err, net.ErrClosed) {
+			s.journalConnection("deadline", typedError(err))
+		}
+		timer := time.NewTimer(rpcReplyTimeout)
+		defer timer.Stop()
+		select {
+		case <-lifetime.finished:
+		case <-timer.C:
+			s.closeResource(lifetime)
+		}
+	})
 	defer stop()
 	first := true
 	admitted := false
 	for {
 		if err := connection.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
 			s.journalConnection("deadline", typedError(err))
+			return
+		}
+		// Cancellation may have interrupted the previous turn just before
+		// this deadline reset. Do not start another idle read after it.
+		if ctx.Err() != nil {
+			s.journalLaneClose(binding, lifetime.ID(), "cancelled_idle")
 			return
 		}
 		var data []byte
@@ -367,6 +398,9 @@ func (s *Server) serveBoundConnection(ctx context.Context, connection net.Conn, 
 		closeWindow := &authenticationReplyWindow{ConnectionContext: lifetime}
 		requestCtx = context.WithValue(requestCtx, authenticationReplyKey{}, closeWindow)
 		result, scope, err := s.dispatchWithAdmission(requestCtx, lifetime, request, admit)
+		if err == nil && requestCtx.Err() != nil {
+			result, err = nil, contextError(requestCtx.Err())
+		}
 		requestCancel()
 		if scope.ReadView != nil {
 			response.LastSeq = scope.ReadView.Snapshot().LastSeq
@@ -383,9 +417,7 @@ func (s *Server) serveBoundConnection(ctx context.Context, connection net.Conn, 
 			s.journalConnection(entry.stage, typedError(entry.cause))
 		}
 		if writeErr := s.writeResponse(connection, response); writeErr != nil {
-			if entryFailed {
-				s.journalConnection("response_write", typedError(writeErr))
-			}
+			s.journalConnection("response_write", typedError(writeErr))
 			return
 		}
 		if entryFailed || closeWindow.closeRequested.Load() {
@@ -557,7 +589,7 @@ func stringsHumanMethod(method api.Method) bool {
 }
 
 func (s *Server) writeResponse(connection net.Conn, response api.Response) error {
-	if err := connection.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := connection.SetWriteDeadline(time.Now().Add(rpcReplyTimeout)); err != nil {
 		return err
 	}
 	data, err := json.Marshal(response)

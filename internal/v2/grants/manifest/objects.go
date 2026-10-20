@@ -13,18 +13,35 @@ const MaxEntries = 100000
 // Object validates a byte-defined tree. Host files, hardlinks and mount aliases
 // have no representation here; broker volumes require a separate pinned lease.
 func Object(value api.ObjectManifest) error {
+	return objectTree(value, false)
+}
+
+// Archived validates inert archive data, including original special bits and
+// Git names. The ordinary Object validator keeps its stricter import policy.
+func Archived(value api.ObjectManifest) error {
+	return objectTree(value, true)
+}
+
+func objectTree(value api.ObjectManifest, archived bool) error {
 	if value.Schema != "laneboss.objects.v2" || value.Entries == nil || len(value.Entries) > MaxEntries {
 		return Invalid("invalid object manifest schema or entries")
 	}
+	if value.Git != nil && (!GitHead(value.Git.Head) || Relative(value.Git.Branch) != nil) {
+		return Invalid("invalid archived Git head or branch")
+	}
 	entries := make(map[string]api.ObjectEntry, len(value.Entries))
 	for _, entry := range value.Entries {
-		if err := Relative(entry.Path); err != nil {
+		if err := relativeName(entry.Path, archived); err != nil {
 			return err
 		}
 		if _, duplicate := entries[entry.Path]; duplicate {
 			return Invalid("duplicate object path")
 		}
-		if entry.Mode & ^uint32(0777) != 0 {
+		allowedMode := uint32(0777)
+		if archived {
+			allowedMode = 07777
+		}
+		if entry.Mode & ^allowedMode != 0 {
 			return Invalid("object mode contains special permission bits")
 		}
 		if entry.Path == "." && entry.Kind != "directory" {
@@ -83,12 +100,24 @@ func Object(value api.ObjectManifest) error {
 	}
 	for name, entry := range entries {
 		if entry.Kind == "symlink" {
-			if _, err := resolve(entries, name, "."); err != nil {
+			if _, err := resolveTree(entries, name, ".", archived); err != nil {
 				return err
 			}
 		}
 	}
-	return directoryCycles(entries)
+	return treeCycles(entries, archived)
+}
+
+func GitHead(head string) bool {
+	if len(head) != 40 && len(head) != 64 {
+		return false
+	}
+	for _, c := range head {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func foldRune(value rune) rune {
@@ -102,13 +131,17 @@ func foldRune(value rune) rune {
 }
 
 func directoryCycles(entries map[string]api.ObjectEntry) error {
+	return treeCycles(entries, false)
+}
+
+func treeCycles(entries map[string]api.ObjectEntry, archived bool) error {
 	edges := map[string][]string{}
 	for name, entry := range entries {
 		if entry.Kind == "directory" && name != "." {
 			edges[path.Dir(name)] = append(edges[path.Dir(name)], name)
 		}
 		if entry.Kind == "symlink" {
-			target, err := resolve(entries, name, ".")
+			target, err := resolveTree(entries, name, ".", archived)
 			if err != nil {
 				return err
 			}
@@ -176,7 +209,15 @@ func ContentRefs(entry api.ObjectEntry) []api.BlobRef {
 // a link itself is refused: an alias cannot silently change the requested root.
 // Links beneath a directory must remain inside that directory after resolution.
 func Select(value api.ObjectManifest, relative string) ([]api.ObjectEntry, error) {
-	if err := Object(value); err != nil {
+	return selectEntries(value, relative, false)
+}
+
+func SelectArchive(value api.ObjectManifest, relative string) ([]api.ObjectEntry, error) {
+	return selectEntries(value, relative, true)
+}
+
+func selectEntries(value api.ObjectManifest, relative string, archived bool) ([]api.ObjectEntry, error) {
+	if err := objectTree(value, archived); err != nil {
 		return nil, err
 	}
 	if err := Relative(relative); err != nil {
@@ -189,7 +230,7 @@ func Select(value api.ObjectManifest, relative string) ([]api.ObjectEntry, error
 	if err := addDirectories(entries); err != nil {
 		return nil, err
 	}
-	resolved, err := resolve(entries, relative, ".")
+	resolved, err := resolveTree(entries, relative, ".", archived)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +243,7 @@ func Select(value api.ObjectManifest, relative string) ([]api.ObjectEntry, error
 			continue
 		}
 		if entry.Kind == "symlink" {
-			target, err := resolve(entries, entry.Path, relative)
+			target, err := resolveTree(entries, entry.Path, relative, archived)
 			if err != nil {
 				return nil, err
 			}
@@ -216,6 +257,10 @@ func Select(value api.ObjectManifest, relative string) ([]api.ObjectEntry, error
 }
 
 func resolve(entries map[string]api.ObjectEntry, name, root string) (string, error) {
+	return resolveTree(entries, name, root, false)
+}
+
+func resolveTree(entries map[string]api.ObjectEntry, name, root string, archived bool) (string, error) {
 	if name == "." {
 		return ".", nil
 	}
@@ -243,7 +288,7 @@ func resolve(entries map[string]api.ObjectEntry, name, root string) (string, err
 			stack = stack[:len(stack)-1]
 			continue
 		}
-		if err := Relative(component); err != nil {
+		if err := relativeName(component, archived); err != nil {
 			return "", err
 		}
 		current := strings.Join(append(append([]string{}, stack...), component), "/")

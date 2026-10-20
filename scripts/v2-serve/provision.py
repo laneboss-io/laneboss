@@ -452,7 +452,7 @@ def fixture_initial(inputs, objects_root, boot_input, output, agent, source, too
         data["real_claude"] = real_vendor["claude"]["executable"]
     bundle = (item_inputs or {}).get("bundle", {})
     require(isinstance(bundle, dict) and set(bundle) <= {
-        "documents", "sources", "contexts", "projects", "root_grants", "budget"},
+        "documents", "sources", "contexts", "projects", "root_grants", "budget", "task"},
         "case bundle contains an unsupported assembler field")
     data["sources"].extend(bundle.get("sources", []))
     data.update({key: value for key, value in bundle.items() if key != "sources"})

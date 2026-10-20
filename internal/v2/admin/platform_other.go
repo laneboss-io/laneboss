@@ -60,7 +60,7 @@ func (m *leaseManager) verifyCaptureSpool(context.Context, leaseRecord, captureJ
 	return failure(api.CodeUnsupported, "Linux capture spool ownership requires Linux")
 }
 
-func (s *Service) call(context.Context, string, any, any) error {
+func (s *Service) call(context.Context, string, any, any, ...*int64) error {
 	return failure(api.CodeUnsupported, "Linux helper transport is unavailable on this platform")
 }
 

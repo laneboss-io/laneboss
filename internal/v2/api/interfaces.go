@@ -252,6 +252,7 @@ type LifecycleAPI interface {
 	LaneReview(context.Context, Scope, ReviewRequest) (ReviewReceipt, error)
 	LaneClean(context.Context, Scope, CleanRequest) (Operation, error)
 	LaneArchive(context.Context, Scope, ArchiveRequest) (ArchiveReceipt, error)
+	LaneRestore(context.Context, Scope, RestoreRequest) (RestoreReceipt, error)
 	LaneStatus(context.Context, Scope, LifeRef) (Lane, error)
 	LaneList(context.Context, Scope, ListRequest) (LanePage, error)
 	LaneCheck(context.Context, Scope, LifeRef) (ProcessObservation, error)

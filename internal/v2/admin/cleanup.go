@@ -28,10 +28,13 @@ type cleanupQuery struct {
 
 var _ api.WorkspaceCollector = (*Service)(nil)
 
-// Terminal workspace retention releases identities only after the independent
-// native worker collector has proved quiescence and durably collected it.
+// Retention leaves the life in launch recovery, which still scans its UID.
+// Only actual workspace removal can retire that ownership. Collection of the
+// independent archive worker releases its own UID, never the retained lane's.
 func cleanupReleasesUIDs(r leaseRecord) bool {
-	return r.Cleanup != nil && (r.Cleanup.Phase == "complete" || r.Cleanup.Phase == "retained_unmerged") &&
+	return r.Cleanup != nil && r.Cleanup.Phase == "complete" && r.Cleanup.Removal != nil &&
+		r.Cleanup.Removal.Action == "remove_clean" && r.Cleanup.Removal.After.WorktreeState == "absent" &&
+		r.Cleanup.Removal.After.BranchState == "absent" &&
 		r.Archive != nil && r.Archive.Worker != nil && r.Archive.Worker.Collected
 }
 

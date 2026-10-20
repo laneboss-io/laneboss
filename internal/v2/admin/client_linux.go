@@ -11,7 +11,7 @@ import (
 	"laneboss.io/laneboss/internal/v2/api"
 )
 
-func (s *Service) call(parent context.Context, method string, params any, result any) (resultErr error) {
+func (s *Service) call(parent context.Context, method string, params any, result any, observed ...*int64) (resultErr error) {
 	if method == "open_gate" {
 		registration, ok := params.(gateOpenRegistration)
 		if !ok {
@@ -22,6 +22,8 @@ func (s *Service) call(parent context.Context, method string, params any, result
 			if err := s.bindAgentContainment(parent, registration); err != nil {
 				return err
 			}
+			finish := s.beginContainment(registration.Binding.Record.ContainmentID)
+			defer finish()
 		}
 	}
 	if session := s.workerSession(parent); session != nil && !credentialMetadataMethod(method) {
@@ -108,6 +110,8 @@ func (s *Service) call(parent context.Context, method string, params any, result
 	request := helperRequest{Protocol: helperProtocol, Revision: api.ContractRevision, Config: s.deps.Config,
 		Generation: s.binding.Generation, ArtifactSHA256: s.binding.Artifact.SHA256,
 		Nonce: nonce, Method: method, Params: body}
+	finishJournal := journalHelperCall(ctx, method, nonce)
+	defer func() { finishJournal(resultErr, check) }()
 	if attempt, ok := api.EffectLeaseFromContext(ctx); ok {
 		request.Attempt = &attempt
 	}
@@ -154,5 +158,8 @@ func (s *Service) call(parent context.Context, method string, params any, result
 		return err
 	}
 	check = "reply_result"
+	if len(observed) == 1 && observed[0] != nil {
+		*observed[0] = response.Observed
+	}
 	return decodeReply(response.Result, result)
 }

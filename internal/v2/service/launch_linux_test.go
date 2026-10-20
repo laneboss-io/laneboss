@@ -37,6 +37,150 @@ func launchServer(t *testing.T, f *fx.Fixture) *Server {
 	return s
 }
 
+// Native helper observations are component inputs here; the root admin twin
+// measures real processes. Inventory, cleanup, recovery and Close are real.
+type uidRecoveryHelper struct {
+	api.HelperControl
+	ledgers map[api.ID]*recoveryLedger
+	faults  map[api.ID]error
+}
+
+func (h *uidRecoveryHelper) ReconcileGate(ctx context.Context, q api.HelperReconcileRequest) (api.LaunchReconciliation, error) {
+	ledger := h.ledgers[q.LaunchID]
+	if ledger == nil {
+		return api.LaunchReconciliation{}, serviceError(api.CodeIntegrity, "recovery scanned a retired life after UID reuse")
+	}
+	actual, err := ledger.ReconcileGate(ctx, q)
+	if err == nil {
+		err = h.faults[q.LaunchID]
+	}
+	return actual, err
+}
+
+func (h *uidRecoveryHelper) ReconcileCapture(ctx context.Context, q api.CaptureBinding) (api.CaptureBinding, error) {
+	ledger := h.ledgers[q.LaunchID]
+	if ledger == nil {
+		return api.CaptureBinding{}, serviceError(api.CodeIntegrity, "recovery scanned a retired capture after UID reuse")
+	}
+	return ledger.ReconcileCapture(ctx, q)
+}
+
+// Build the child with a distinct native identity before sealing its plan.
+// The generic Child fixture uses the test UID, which is also this host's UID.
+func uidChild(t *testing.T, f *fx.Fixture) fx.Fixture {
+	t.Helper()
+	f.Opened(t)
+	parent := *f
+	scope := f.LaneScope(t)
+	raw := []byte("UID recovery child task")
+	task, err := f.State.RetainObject(context.Background(), f.Execution, api.RetainObjectRequest{
+		Intent: f.Intent(t, api.InternalObjectRetain), Object: api.ObjectWrite{ObjectKey: fx.ID(t), Class: "task",
+			Bytes: raw, SHA256: fx.Digest(raw), Origin: "service",
+			ACL: api.ObjectACL{Config: f.Deps.Config, Owner: scope.Actor, Audience: "owner", Generation: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Ceiling = f.Plan.Inputs.Grants
+	f.Start.Lane = string(fx.ID(t))
+	f.Start.Level, f.Start.Role, f.Start.RootTicketID, f.Start.Task = 3, "executor", "", task
+	f.Start.Grants.Data = append([]api.DataGrantRequest{}, f.Start.Grants.Data...)
+	f.Start.Grants.Profiles = append([]api.ProfileDelegation{}, f.Start.Grants.Profiles...)
+	f.Start.Grants.Data[0].ParentGrantID = f.Ceiling.Data[0].ID
+	f.Start.Grants.Profiles[0].ParentGrantID = f.Ceiling.Profiles[0].ID
+	expires := api.Timestamp(time.Now().Add(10 * time.Minute).UTC().Format(time.RFC3339Nano))
+	f.Start.Grants.Data[0].ExpiresAt, f.Start.Grants.Profiles[0].ExpiresAt = expires, expires
+	f.Start.ProfileGrantID, f.Human = f.Ceiling.Profiles[0].ID, scope
+	f.Admit(t, "lane.start", f.Start)
+	f.Reserve(t)
+	f.Source(t)
+	f.BuildPlanForIdentity(t, true, parent.Plan.Lease.UID+1, parent.Plan.Lease.GID+1)
+	f.Spec(t)
+	f.PreparedClaim = api.EffectLease{}
+	f.Bind(t)
+	return parent
+}
+
+func TestUIDReuseRecoveryClose(t *testing.T) {
+	for _, mode := range []string{"clean-reuse", "helper-survivor"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
+			f := fx.ReadyForIdentity(t, true, uint32(os.Geteuid())+1000, uint32(os.Getegid())+1000)
+			parent := uidChild(t, f)
+			scene := f.PrepareCleanup(t, func(ctx context.Context, scope api.Scope, p api.WorkerPrincipal) (api.WorkerResultReceipt, error) {
+				return dataworker.RunArchive(ctx, dataworker.ArchiveJob{Principal: p, Scope: scope, Bootstrap: f.State,
+					Read: func(ctx context.Context, q api.BlobReadRequest) (api.BlobChunk, error) {
+						return f.State.WorkerObject(ctx, scope, q)
+					}, Sink: f.State, Clock: f.Deps.Clock})
+			}, nil, true)
+			host := launchServer(t, f)
+			worker, err := dataworker.New(dataworker.Dependencies{Config: f.Deps.Config, Store: f.State,
+				Helper: &recoveryGroup{}, Launcher: &reconcileObserver{}, Clock: f.Deps.Clock, Workspace: scene.Workspace})
+			if err != nil {
+				t.Fatal(err)
+			}
+			host.runtime = api.RuntimeServices{Store: f.State, Worker: worker}
+			if host.reconcileEffect(ctx, scene.Effect, make(effectRetries)) != attemptNext || host.fault != nil {
+				t.Fatal("dirty retention stopped the service", host.fault)
+			}
+			lane, err := f.State.Lane(ctx, f.Execution, f.Reservation.Target)
+			if err != nil || lane.Cleaned {
+				t.Fatal("dirty life was falsely cleaned", err)
+			}
+			old := &recoveryLedger{fixture: f, gate: f.Observation(t, "exited")}
+			helper := &uidRecoveryHelper{ledgers: map[api.ID]*recoveryLedger{
+				parent.Reservation.LaunchID: {fixture: &parent, gate: parent.Observation(t, "running")},
+				f.Reservation.LaunchID:      old,
+			}, faults: make(map[api.ID]error)}
+			if mode == "helper-survivor" {
+				refused := &api.Error{Code: api.CodeContainmentUnknown, Owner: "lb-v2-admin", Message: "lane UID still owns a live process; retain its lease"}
+				helper.faults[f.Reservation.LaunchID] = refused
+				host.runtime.Helper, host.launchConfigured = helper, true
+				host.launchRecoveryLoop(ctx)
+				if old.gateCalls != 1 || !errors.Is(host.fault, refused) {
+					t.Fatal("recovery skipped or discarded its retained survivor refusal", host.fault)
+				}
+				if closed := host.Close(); !errors.Is(closed, refused) {
+					t.Fatal("service close discarded its real recovery fault", closed)
+				}
+				return
+			}
+			if err := host.reconcileLaunches(ctx, api.RuntimeServices{Store: f.State, Helper: helper}); err != nil || old.gateCalls != 1 {
+				t.Fatal("retained life left launch recovery", err)
+			}
+			scene.SetDirty(false)
+			if host.reconcileEffect(ctx, scene.Request(t), make(effectRetries)) != attemptNext || host.fault != nil {
+				t.Fatal("repaired retained life did not clean", host.fault)
+			}
+			lane, err = f.State.Lane(ctx, f.Execution, f.Reservation.Target)
+			if err != nil || !lane.Cleaned {
+				t.Fatal("cleanup did not commit its retired life", err)
+			}
+			next := fx.NewIn(t, f.State, f.Deps)
+			f.State, parent.State, host.deps.Store = next.State, next.State, next.State
+			next.Reserve(t)
+			next.Source(t)
+			next.BuildPlanForIdentity(t, true, f.Plan.Lease.UID, f.Plan.Lease.GID)
+			next.Spec(t)
+			next.Bind(t)
+			next.Opened(t)
+			if next.Plan.Lease.UID != f.Plan.Lease.UID || next.Plan.Lease.ID == f.Plan.Lease.ID {
+				t.Fatal("successor did not use the same UID under a new lease")
+			}
+			delete(helper.ledgers, f.Reservation.LaunchID)
+			helper.ledgers[next.Reservation.LaunchID] = &recoveryLedger{fixture: next, gate: next.Observation(t, "running")}
+			if err := host.reconcileLaunches(ctx, api.RuntimeServices{Store: next.State, Helper: helper}); err != nil {
+				t.Fatal("cleaned life caused a false survivor after UID reuse", err)
+			}
+			if old.gateCalls != 1 || helper.ledgers[next.Reservation.LaunchID].gateCalls != 1 {
+				t.Fatal("recovery scanned the old life or omitted the new life")
+			}
+			if err := host.Close(); err != nil {
+				t.Fatal("service did not close cleanly after UID reuse", err)
+			}
+		})
+	}
+}
+
 func TestLaunchControlRetained(t *testing.T) {
 	f := fx.New(t)
 	f.Reserve(t)

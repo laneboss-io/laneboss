@@ -16,6 +16,7 @@ import (
 
 type effectAttempt struct {
 	server          *Server
+	effect          api.Effect
 	kind            string
 	outcome, reason string
 	// detail: the error's fixed message (owner R191-R192 usable-by-noon diagnosis; review after noon).
@@ -72,20 +73,34 @@ func (a *effectAttempt) errorReason(err error) string {
 	return reason
 }
 
-// Started and final records are each one line. Their closed vocabulary contains
-// no IDs, payloads, paths, error messages or other caller-controlled values.
+// Started and final records are each one line. IDs come from the retained
+// effect; payloads, paths and arbitrary caller values never enter the record.
 func (a *effectAttempt) write(outcome, reason string) error {
 	return a.writeTo(os.Stderr, outcome, reason)
 }
 
 func (a *effectAttempt) writeTo(writer io.Writer, outcome, reason string) error {
+	var target api.LifeRef
+	var reservation api.ID
+	if a.effect.Context != nil {
+		target = a.effect.Context.Target
+	}
+	if a.effect.PlanLaunch != nil {
+		reservation = a.effect.PlanLaunch.ReservationID
+	}
 	data, err := json.Marshal(struct {
-		Event   string `json:"event"`
-		Kind    string `json:"kind"`
-		Outcome string `json:"outcome"`
-		Reason  string `json:"reason"`
-		Detail  string `json:"detail,omitempty"`
-	}{"effect_attempt", a.kind, outcome, reason, a.detail})
+		Event       string        `json:"event"`
+		Kind        string        `json:"kind"`
+		Outcome     string        `json:"outcome"`
+		Reason      string        `json:"reason"`
+		Detail      string        `json:"detail,omitempty"`
+		Effect      api.ID        `json:"effect_id,omitempty"`
+		Operation   api.ID        `json:"operation_id,omitempty"`
+		Life        api.ID        `json:"life_id,omitempty"`
+		Run         api.RunNumber `json:"run,omitempty"`
+		Reservation api.ID        `json:"reservation_id,omitempty"`
+	}{"effect_attempt", a.kind, outcome, reason, a.detail, a.effect.ID, a.effect.OperationID,
+		target.LifeID, target.Run, reservation})
 	if err != nil {
 		return serviceError(api.CodeIntegrity, "cannot encode effect attempt journal")
 	}

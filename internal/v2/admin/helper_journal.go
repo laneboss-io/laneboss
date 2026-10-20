@@ -22,6 +22,35 @@ type helperRequestTrace struct {
 	timing  io.Writer
 	stageAt time.Time
 	stages  []helperStageTiming
+	match   *uidMatch
+	nonce   api.ID
+	lease   api.ID
+	life    api.ID
+	run     api.RunNumber
+	launch  api.ID
+	caller  int
+}
+
+// These are native comparison facts for a refused UID scan, never authority,
+// command lines, paths or caller-supplied process descriptions.
+type uidMatch struct {
+	UID     uint32 `json:"uid"`
+	PID     int    `json:"pid"`
+	TID     int    `json:"tid"`
+	Start   string `json:"start_time,omitempty"`
+	LifeID  api.ID `json:"life_id,omitempty"`
+	LeaseID api.ID `json:"lease_id,omitempty"`
+}
+
+// Only a validated retained helper record supplies these selectors. They are
+// diagnostics, never request authority and never include credential contents.
+func helperLaneIDs(ctx context.Context, record leaseRecord) {
+	trace, _ := ctx.Value(helperTimingKey{}).(*helperRequestTrace)
+	if trace == nil || record.Spec == nil {
+		return
+	}
+	spec := record.Spec.Handoff.Spec
+	trace.lease, trace.life, trace.run, trace.launch = record.Lease.ID, spec.Target.LifeID, spec.Target.Run, spec.LaunchID
 }
 
 type helperStageTiming struct {
@@ -45,6 +74,9 @@ func (t *helperRequestTrace) finishTiming() {
 	}
 	t.stage(t.check)
 	for _, elapsed := range t.stages {
+		if elapsed.wait < helperSlowTurn && elapsed.hold < helperSlowTurn {
+			continue
+		}
 		journalHelperTurn(t.timing, t.method, elapsed.stage, elapsed.wait, elapsed.hold)
 	}
 }
@@ -114,7 +146,7 @@ func helperMethod(method string) string {
 		return method
 	case "review_freeze", "review_check", "review_bytes", "review_lease", "review_register", "review_prepare", "review_open", "review_observe", "review_reconcile", "review_retire":
 		return method
-	case "archive_freeze", "archive_check", "archive_bytes", "archive_lease", "archive_register", "archive_prepare", "archive_open", "archive_observe", "archive_reconcile", "archive_retire",
+	case "restore_begin", "restore_chunk", "restore_stage", "restore_publish", "restore_abort", "restore_roots", "archive_freeze", "archive_check", "archive_bytes", "archive_lease", "archive_register", "archive_prepare", "archive_open", "archive_observe", "archive_reconcile", "archive_retire",
 		"cleanup_resolve", "cleanup_inspect", "cleanup_remove", "cleanup_journal", "cleanup_read",
 		"data_open", "data_query", "data_selector", "data_lease", "data_register", "data_prepare", "data_gate", "data_observe", "data_measure", "data_revoke", "data_collect", "data_native",
 		"resolve_runtime", "open_gate", "observe_gate", "stop_gate", "reconcile_gate", "register_capture", "reconcile_capture", "allocate_launch", "resolve_storage",
@@ -128,7 +160,7 @@ func helperMethod(method string) string {
 func (t *helperRequestTrace) write(writer io.Writer, cause error) error {
 	if cause == nil {
 		switch t.method {
-		case "data_open", "data_prepare", "data_gate":
+		case "data_open", "data_prepare", "data_gate", "containment_live", "open_gate":
 		default:
 			return nil
 		}
@@ -163,13 +195,44 @@ func (t *helperRequestTrace) write(writer io.Writer, cause error) error {
 	if typed != nil && strings.HasPrefix(t.method, "archive_") {
 		detail = typed.Message
 	}
+	match := t.match
+	if reason != "uid_survivor" {
+		match = nil
+	}
+	lease, life := t.lease, t.life
+	var requestLease, requestLife api.ID
+	if match != nil {
+		// The flat IDs belong to the measured UID owner. Preserve a distinct
+		// retained request target without letting it hide that observation.
+		if lease != match.LeaseID {
+			requestLease = lease
+		}
+		if life != match.LifeID {
+			requestLife = life
+		}
+		lease, life = match.LeaseID, match.LifeID
+	}
 	data, err := json.Marshal(struct {
 		Event  string        `json:"event"`
 		Method string        `json:"method"`
 		Code   api.ErrorCode `json:"code"`
 		Reason string        `json:"reason"`
 		Detail string        `json:"detail,omitempty"`
-	}{"helper_request", helperMethod(t.method), code, reason, detail})
+		*uidMatch
+		Nonce        api.ID        `json:"helper_nonce,omitempty"`
+		Lease        api.ID        `json:"lease_id,omitempty"`
+		Life         api.ID        `json:"life_id,omitempty"`
+		Run          api.RunNumber `json:"run,omitempty"`
+		Launch       api.ID        `json:"launch_id,omitempty"`
+		Caller       int           `json:"caller_pid,omitempty"`
+		RequestLease api.ID        `json:"request_lease_id,omitempty"`
+		RequestLife  api.ID        `json:"request_life_id,omitempty"`
+	}{
+		Event: "helper_request", Method: helperMethod(t.method), Code: code, Reason: reason,
+		Detail: detail, uidMatch: match, Nonce: t.nonce, Lease: lease, Life: life,
+		Run: t.run, Launch: t.launch, Caller: t.caller,
+		RequestLease: requestLease, RequestLife: requestLife,
+	})
 	if err != nil {
 		return errors.Join(errHelperJournal, err)
 	}

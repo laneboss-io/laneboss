@@ -17,7 +17,10 @@ func TestStopEndedJournal(t *testing.T) {
 	stopEndedJournal(t, 0)
 }
 
-func stopEndedJournal(t *testing.T, exitCode int, afterStop ...func(*fx.Fixture, api.Operation)) {
+type stoppedFixture = fx.Fixture
+type stoppedFrame = fx.Frame
+
+func stopEndedJournal(t *testing.T, exitCode int, afterStop ...func(*stoppedFixture, api.Operation)) {
 	t.Helper()
 	var f *fx.Fixture
 	if len(afterStop) == 0 {

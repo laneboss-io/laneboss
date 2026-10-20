@@ -31,7 +31,8 @@ func verifyWorkspacePointer(root *os.File, gitDir string) error {
 	return dataNoAttributes(file)
 }
 
-func workspaceLive(ctx context.Context, p leaseRecord, job dataJob, q dataMeasure) error {
+func workspaceLive(ctx context.Context, p leaseRecord, job dataJob, q dataMeasure) (resultErr error) {
+	defer helperCheck(&resultErr, "materialization_claim")
 	if err := contextError(ctx); err != nil {
 		return err
 	}

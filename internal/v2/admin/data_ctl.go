@@ -484,7 +484,9 @@ func (m *leaseManager) observeData(ctx context.Context, r dataReg) (api.ProcessO
 	return observation, nil
 }
 
-func (m *leaseManager) measureData(ctx context.Context, query dataMeasure) (api.LaunchDataResult, error) {
+func (m *leaseManager) measureData(ctx context.Context, query dataMeasure) (_ api.LaunchDataResult, resultErr error) {
+	check := "materialization_storage"
+	defer func() { helperCheck(&resultErr, check) }()
 	parent, index, err := m.findData(query.Reg.Request)
 	if err != nil {
 		return api.LaunchDataResult{}, err
@@ -493,9 +495,11 @@ func (m *leaseManager) measureData(ctx context.Context, query dataMeasure) (api.
 	if err := m.checkData(ctx, parent, job); err != nil {
 		return api.LaunchDataResult{}, err
 	}
+	check = "materialization_owner"
 	if !sameDataReg(job.Reg, query.Reg) || job.Gate == nil || job.Gate.Record == nil {
 		return api.LaunchDataResult{}, failure(api.CodeForbidden, "data measurement lacks its committed worker")
 	}
+	check = "materialization_process"
 	observation, err := m.observeData(ctx, query.Reg)
 	if err != nil {
 		return api.LaunchDataResult{}, err
@@ -503,6 +507,7 @@ func (m *leaseManager) measureData(ctx context.Context, query dataMeasure) (api.
 	if err := dataTerminal(observation, dataHandle(job)); err != nil {
 		return api.LaunchDataResult{}, err
 	}
+	check = "materialization_result"
 	result, err := m.readQuiescentData(ctx, parent, job, query, observation)
 	if err != nil {
 		return api.LaunchDataResult{}, err

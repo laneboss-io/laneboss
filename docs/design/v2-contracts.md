@@ -314,6 +314,7 @@ with the error envelope above. Stub implementations return not_implemented.
 | `lane.review` | `ReviewRequest` → `ReviewReceipt` | M | reviewer | lb-v2-lifecycle |
 | `lane.clean` | `CleanRequest` → `Operation` | M | parent | lb-v2-lifecycle |
 | `lane.archive` | `ArchiveRequest` → `ArchiveReceipt` | M | parent | lb-v2-lifecycle |
+| `lane.restore` | `RestoreRequest` → `RestoreReceipt` | M | parent | lb-v2-lifecycle |
 | `lane.status` | `LifeRef` → `Lane` | R | tree | lb-v2-lifecycle |
 | `lane.list` | `ListRequest` → `LanePage` | R | tree | lb-v2-lifecycle |
 | `lane.check` | `LifeRef` → `ProcessObservation` | M | control | lb-v2-lifecycle |
@@ -1220,6 +1221,8 @@ Source: [api/lifecycle.go](../../internal/v2/api/lifecycle.go).
 | --- | --- |
 | `AdoptRequest` | `{profile_grant_id: ID, model: string, effort: string, task: BlobRef, root_ticket_id?: ID, lane: string, level: integer, role: string, import_manifest: BlobRef, grants: GrantRequest, driver: Driver, budget: Budget, expected_policy_generation: integer}` |
 | `ArchiveReceipt` | `{id: ID, life_id: ID, manifest: BlobRef, archive_sha256: Digest, read_back_sha256: Digest, verified_at: Timestamp, store_id: ID}` |
+| `RestoreRequest` | `{target: LifeRef, expected_generation: integer, path: string, archive_receipt_id?: ID, allow_nested_git?: boolean}` |
+| `RestoreReceipt` | `{target: LifeRef, path: string, head: string, archive_receipt_id: ID, manifest: BlobRef, cleared_modes?: []string, skipped_paths?: []string}` |
 | `ArchiveRequest` | `{target: LifeRef, expected_generation: integer}` |
 | `AttachInputRequest` | `{target: LifeRef, channel_id: ID, input: bytes, columns: integer, rows: integer}` |
 | `AttachRequest` | `{target: LifeRef, cursor: string, mode: string}` |
@@ -1263,7 +1266,8 @@ Source: [api/manifests.go](../../internal/v2/api/manifests.go).
 | `BoxSpec` | `{schema: string, region: string, image_id: string, machine_type: string, architecture: string, max_hourly_micros: integer, disk_bytes: integer}` |
 | `MigrationManifest` | `{schema: string, source_version: string, source_protocol: string, source_revision: string, inventory: ObjectManifest, quiescence: BlobRef, verification: BlobRef}` |
 | `ObjectEntry` | `{assembly?: ObjectAssembly, path: string, kind: string, mode: integer, content?: BlobRef, link_target?: string}` |
-| `ObjectManifest` | `{schema: string, entries: []ObjectEntry}` |
+| `ObjectManifest` | `{schema: string, entries: []ObjectEntry, git?: ArchiveGit}` |
+| `ArchiveGit` | `{head: string, branch: string}`; native archives retain its objects in the `git/pack` artifact entry. |
 | `RootGrantManifest` | `{resources: []ResourceGrant, schema: string, data: []DataGrant, secrets: []SecretGrant, profiles: []ProfileGrant, network: []NetworkGrant, channels: []ChannelGrant}` |
 | `WorkerPlan` | `{schema: string, kind: string, executable: Executable, argv: []string, input: BlobRef, grant_set_id: ID, budget: Budget}` |
 
@@ -1477,6 +1481,7 @@ to return typed errors. A successful help page is not feature acceptance.
 | `judge list` | `judge.list` | lb-v2-judge |
 | `lane adopt` | `lane.adopt` | lb-v2-lifecycle |
 | `lane archive` | `lane.archive` | lb-v2-lifecycle |
+| `lane restore` | `lane.restore` | lb-v2-lifecycle |
 | `lane attach` | `lane.attach` | lb-v2-lifecycle |
 | `lane check` | `lane.check` | lb-v2-lifecycle |
 | `lane clean` | `lane.clean` | lb-v2-lifecycle |
@@ -2635,6 +2640,15 @@ not additional RPC bodies. Internal handles never serialize into Scope.
 | `AbortReceipt` | `{id: ID, lease_id: ID, prepared_id: ID, agent_executed: boolean, quiescence: ProcessObservation, observed_at: Timestamp}` |
 | `HelperReconcileRequest` | `{lease_id: ID, launch_id: ID, prepared_id: ID, operation_id: ID}` |
 | `LaunchReconciliation` | `{prepared?: PreparedLaunch, process?: ProcessHandle, observation: ProcessObservation, gate_state: string, consumed_permit?: LaunchPermit}` |
+
+Helper request journals are diagnostic records. On a `uid_survivor` refusal
+with a measured match, `uid`, `pid`, `tid`, `start_time`, `life_id` and
+`lease_id` describe the observed process and its measured lease owner. Unknown
+owner IDs remain omitted. A differing, nonempty retained request target is
+preserved in `request_life_id` or `request_lease_id`; `run`, `launch_id`,
+`helper_nonce` and `caller_pid` still describe the request. Other journal
+records retain the validated request's `life_id` and `lease_id` and omit UID
+match facts. These fields grant no request authority.
 
 ## 15. Draft.3 → draft.4 correction ledger
 

@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
+	"syscall"
 
 	"laneboss.io/laneboss/internal/v2/api"
 	"laneboss.io/laneboss/internal/v2/client/wire"
@@ -88,6 +90,8 @@ func (s *Server) startLaneEndpoint(parent context.Context, binding api.Installed
 
 func (s *Server) serveLaneEndpoint(ctx context.Context, listener net.Listener, path string, inode os.FileInfo, entry *laneEndpoint) {
 	defer s.workers.Done()
+	var failure string
+	defer func() { s.journalLaneClose(entry.binding, "", failure) }()
 	defer entry.cancel()
 	stop := context.AfterFunc(ctx, func() { listener.Close() })
 	defer stop()
@@ -108,11 +112,17 @@ func (s *Server) serveLaneEndpoint(ctx context.Context, listener net.Listener, p
 		close(entry.done)
 		s.mu.Unlock()
 	}()
+	var refusals sync.WaitGroup
+	defer refusals.Wait()
 	slots := make(chan struct{}, 16)
 	for {
 		connection, err := listener.Accept()
 		if err != nil {
 			if ctx.Err() == nil {
+				failure = "accept_failure"
+				if errors.Is(err, syscall.EMFILE) || errors.Is(err, syscall.ENFILE) {
+					failure = "accept_fd_limit"
+				}
 				s.recordFault(err)
 			}
 			return
@@ -120,14 +130,21 @@ func (s *Server) serveLaneEndpoint(ctx context.Context, listener net.Listener, p
 		select {
 		case slots <- struct{}{}:
 		default:
-			connection.Close()
+			s.refuseOverload(ctx, connection, serviceError(api.CodeUnavailable, "lane connection admission limit reached"), &refusals)
 			continue
 		}
 		s.mu.Lock()
 		if s.closed || ctx.Err() != nil || s.revokedLaunches[entry.binding.LaunchID] {
+			reason := "late_accept"
+			if s.closed {
+				reason = "closed_entry"
+			} else if s.revokedLaunches[entry.binding.LaunchID] {
+				reason = "revoked_entry"
+			}
 			s.mu.Unlock()
 			<-slots
 			connection.Close()
+			s.journalLaneClose(entry.binding, "", reason)
 			continue
 		}
 		s.workers.Add(1)

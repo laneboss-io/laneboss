@@ -51,6 +51,7 @@ func (s *Service) Register(registry api.Registrar) error {
 		func() error { return bind(registry, "lane.review", s.LaneReview) },
 		func() error { return bind(registry, "lane.clean", s.LaneClean) },
 		func() error { return bind(registry, "lane.archive", s.LaneArchive) },
+		func() error { return bind(registry, "lane.restore", s.LaneRestore) },
 		func() error { return bind(registry, "lane.status", s.LaneStatus) },
 		func() error { return bind(registry, "lane.list", s.LaneList) },
 		func() error { return bind(registry, "lane.check", s.LaneCheck) },

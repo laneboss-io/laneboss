@@ -25,6 +25,16 @@ type relayAuth struct {
 	scope api.Scope
 }
 
+func TestRelayWaitKind(t *testing.T) {
+	probe := filepath.Join("..", "..", "..", "e2e", "v2", "cases", "grants", "relay_live_test.py")
+	command := exec.Command("python3", "-B", probe)
+	output, err := command.CombinedOutput()
+	t.Log(string(output))
+	if err != nil {
+		t.Fatalf("real relay reader lost its waiting kind: %v", err)
+	}
+}
+
 func (a relayAuth) Authorize(ctx context.Context, scope api.Scope, request api.Request) error {
 	if err := ctx.Err(); err != nil {
 		return err

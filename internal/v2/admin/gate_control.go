@@ -26,6 +26,11 @@ func (s *Service) ObserveGate(ctx context.Context, request api.HelperObserveRequ
 	if result.Handle != request.Handle || result.State != "running" && result.State != "exited" {
 		return api.ProcessObservation{}, failure(api.CodeIntegrity, "helper observation substituted its process")
 	}
+	if result.State == "exited" {
+		if err := s.revokeLanes(request.LeaseID); err != nil {
+			return api.ProcessObservation{}, err
+		}
+	}
 	return result, nil
 }
 
@@ -39,6 +44,9 @@ func (s *Service) StopGate(ctx context.Context, request api.HelperStopRequest) (
 	}
 	if claim.Effect.Stop == nil || !reflect.DeepEqual(*claim.Effect.Stop, request.Target.Handle) {
 		return api.ProcessObservation{}, failure(api.CodeForbidden, "stop differs from its retained effect")
+	}
+	if err := s.revokeLanes(request.Target.LeaseID); err != nil {
+		return api.ProcessObservation{}, err
 	}
 	var result api.ProcessObservation
 	if err := s.call(ctx, "stop_gate", request, &result); err != nil {
@@ -61,6 +69,11 @@ func (s *Service) ReconcileGate(ctx context.Context, request api.HelperReconcile
 	if result.Prepared == nil || result.Prepared.ID != request.PreparedID || result.Observation.Handle.ID != request.LaunchID ||
 		result.Process != nil && *result.Process != result.Observation.Handle || result.ConsumedPermit != nil && result.ConsumedPermit.LaunchID != request.LaunchID {
 		return api.LaunchReconciliation{}, failure(api.CodeIntegrity, "helper reconciliation substituted its retained launch")
+	}
+	if result.Observation.State == "exited" {
+		if err := s.revokeLanes(request.LeaseID); err != nil {
+			return api.LaunchReconciliation{}, err
+		}
 	}
 	return result, nil
 }

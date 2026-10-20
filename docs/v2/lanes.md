@@ -220,3 +220,94 @@ successful review. The [tutorial](tutorial.md#9-archive-then-clean) covers archi
 and clean. Both require real quiescence. Clean is complete only after the
 collector's committed result, not its initial pending Operation.
 <!-- source: internal/v2/lifecycle/review.go; internal/v2/api/review_validation.go; internal/v2/lifecycle/collect.go -->
+
+## Restore archived work
+
+Use `lane restore` after a verified archive to recover a dirty workspace into
+a fresh, independent Git worktree. Keep a RestoreRequest with `target` (life
+and run), the current `expected_generation`, and an absolute `path` on the
+service host. Optionally supply `archive_receipt_id` to select an exact archive;
+otherwise the service selects that run's latest verified archive. As a human,
+confirm the exact `lane.restore` request using the usual operation proof:
+
+```sh
+laneboss lane restore --config NAME --request RESTORE_REQUEST \
+  --proof RESTORE_PROOF --idempotency-key RESTORE_KEY
+```
+
+The flag form uses `--life`, `--run`, `--generation`, `--target` and optional
+`--archive-receipt`. The same authenticated parent rule as archive applies;
+the executor and siblings cannot acquire restore authority by knowing an ID.
+Frozen content retains its existing object ACLs. The destination must be inside
+an existing workspace root authorized for the caller. The native helper derives
+these roots from current lane allocations: a lane gets only its current launch's
+workspace, and the configuration's authenticated human owner may use its active
+lane workspaces. Retained archive storage never becomes a writable root. No
+request field can choose or enroll another root. Outside targets and symlinked
+parents refuse with `restore_target_scope`. Noncanonical request paths, including
+`..` traversal, refuse at input validation with `restore_target_invalid`.
+Parent components are opened through held directory handles and their inode
+identities are checked. The privileged helper builds the new worktree in a
+helper-private staging directory, assigns every inode to the destination lane's
+uid/gid and publishes it with a confined directory rename. The service gains no
+lane filesystem access. The destination must be absent or an empty directory;
+files, links and nonempty directories refuse with `restore_target_exists`.
+A Git administrative basename, including portable `.git` spellings, refuses
+with `restore_target_git`.
+
+The service repeats the complete canonical archive read-back through a pinned
+read snapshot outside its mutation lock. Native staging also happens outside
+that lock. The final commit rechecks the live caller, policy, generation and
+cancellation epoch, consumes the exact human proof where required, and only
+then publishes the staged worktree. The frozen manifest supplies names, bytes, links and permission modes,
+including `0600`. A retained Git pack supplies the recorded commit and original
+branch. Git initializes only the new repository and index; workspace content
+comes from the dirty inventory, including deletions and untracked files. The
+archive and original workspace stay unchanged. Successful replies contain the
+actual destination, recorded head, selected archive ID and manifest pin.
+
+Exact modes mean the rwx bits. Restore always clears setuid, setgid and sticky
+bits, preserving the remaining permissions. The receipt's `cleared_modes` array
+lists each affected workspace-relative path (`.` names the workspace root).
+
+Git administration names at any depth, including case-folded HFS/NTFS spellings
+such as `.GIT`, `.git.`, `git~1` and names with ignored Unicode characters, refuse
+with `restore_git_unsafe`, whose message lists every affected path. The same
+refusal covers symlinked `.gitmodules` and links that resolve outside the new
+worktree, including chains of links. These link refusals cannot be overridden.
+
+An authenticated human owner can explicitly set `allow_nested_git: true` in the
+RestoreRequest or supply `--allow-nested-git` in the flag form. It is off by
+default; a lane cannot use it. This permits nested Git directories as retained
+data, while top-level Git administration still refuses. Inside each allowed
+nested `.git`, restore copies `HEAD`, `packed-refs` and regular object leaves:
+`objects/pack/pack-*.{pack,idx,rev}` or loose objects with a two-character
+lowercase hexadecimal directory and a 38-character lowercase hexadecimal name.
+Only their required container directories are retained. Under `refs/` and
+`logs/`, components named like config, config.worktree, hooks, commondir, gitdir,
+HEAD, objects or refs are excluded, including portable and short-name aliases.
+The normal reflogs `logs/HEAD` and `logs/refs/**` are retained, with the same
+control-name checks applied below their structural prefix. A bare-layout
+directory containing HEAD plus objects and refs directories is omitted together
+with all its children, even without a `.git` name and with the owner flag off.
+All other Git
+metadata, including hooks, configuration and repository redirects, is omitted. The receipt's
+`skipped_paths` array lists every omitted file and directory. The archive's own
+bytes and manifest remain unchanged, including the skipped data.
+Empty adjustment arrays are omitted, so older completed restore receipts remain
+replayable without adding fields to their original reply.
+
+New native archives retain Git metadata and a bounded `git/pack` artifact in
+their immutable manifest. Older archives without that data refuse with
+`restore_git_missing`; restore cannot infer a historical head from a live tree.
+Malformed manifests, changed content or damaged canonical archive parts refuse
+with integrity errors. An interrupted copy can leave a partial destination;
+preserve it and use a fresh destination with a fresh confirmed request. Replaying
+a completed request returns its retained receipt without copying again.
+
+The installed dirty-case acceptance step is: capture the full pre-stop tree and
+head, stop and archive the lane, restore to a new private service-writable path,
+and independently compare every name, byte, link, mode and Git head. Compare
+the frozen manifest and all archive parts before and after, then repeat with
+an existing destination and tampered archive to require refusals. Component
+package tests do not replace this fresh installed-service check.

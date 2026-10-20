@@ -112,7 +112,7 @@ func newFreshArch(t *testing.T) *archFixture {
 	return buildArch(t, s, deps, true)
 }
 
-func buildArch(t *testing.T, s *Service, deps Dependencies, fresh bool) *archFixture {
+func buildArch(t *testing.T, s *Service, deps Dependencies, fresh bool, owners ...api.Scope) *archFixture {
 	t.Helper()
 	ctx := context.Background()
 	executor := api.Scope{Config: deps.Config, Actor: api.Actor{Kind: "service", ID: testID(t)}, PolicyGeneration: 1}
@@ -127,6 +127,11 @@ func buildArch(t *testing.T, s *Service, deps Dependencies, fresh bool) *archFix
 	fixtureProjection(t, s, "grants", grant, 1, grants)
 	request := testRequest(t, "lane.archive", api.ArchiveRequest{Target: target, ExpectedGeneration: lane.Generation})
 	human := api.Scope{Config: deps.Config, Actor: api.Actor{Kind: "human", ID: testID(t)}, Request: request, EndpointGeneration: 1, PolicyGeneration: 1, Connection: &scopeConnection{id: testID(t), binding: api.InstalledBinding{Config: deps.Config, Class: api.EndpointHuman, EndpointGeneration: 1}, peer: &scopePeer{}}, Frame: &archFrame{raw: archJSON(t, request)}}
+	if len(owners) == 1 {
+		human = owners[0]
+		human.Request = request
+		human.Frame = &archFrame{raw: archJSON(t, request)}
+	}
 	owner, retire := s.TrackMutation(ctx)
 	t.Cleanup(retire)
 	receipt, won, err := s.ReserveMutation(owner, api.RequestReservation{Scope: human, RawRequest: archJSON(t, request), Deadline: api.Timestamp(time.Now().Add(time.Minute).UTC().Format(timeFormat))})
@@ -168,6 +173,19 @@ func buildArch(t *testing.T, s *Service, deps Dependencies, fresh bool) *archFix
 		t.Fatal(err)
 	}
 	tree := api.ObjectManifest{Schema: "laneboss.objects.v2", Entries: []api.ObjectEntry{{Path: "current.txt", Kind: "file", Mode: 0600, Content: &ref}}}
+	bodies := map[api.ID][]byte{ref.ID: content}
+	if len(owners) == 1 {
+		head, pack := restoreGitSource(t, content)
+		packRef, err := s.archiveBytes(ctx, tx, r, "artifact", pack)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bodies[packRef.ID] = pack
+		tree = api.ObjectManifest{Schema: "laneboss.objects.v2", Git: &api.ArchiveGit{Head: head, Branch: "lane/restore"}, Entries: []api.ObjectEntry{
+			{Path: "workspace", Kind: "directory", Mode: 0700}, {Path: "workspace/current.txt", Kind: "file", Mode: 0600, Content: &ref},
+			{Path: "git", Kind: "directory", Mode: 0700}, {Path: "git/pack", Kind: "file", Mode: 0400, Content: &packRef},
+		}}
+	}
 	snapshot, err := s.archiveBytes(ctx, tx, r, "manifest", archJSON(t, tree))
 	if err != nil {
 		tx.Rollback()
@@ -282,8 +300,9 @@ func buildArch(t *testing.T, s *Service, deps Dependencies, fresh bool) *archFix
 	deps.ArchiveNative = native
 	var tar bytes.Buffer
 	if err := archivejob.Write(ctx, &tar, tree, func(_ context.Context, q api.BlobReadRequest) (api.BlobChunk, error) {
-		data := content[q.Offset:min(int64(len(content)), q.Offset+int64(q.Limit))]
-		return api.BlobChunk{ObjectID: ref.ID, Offset: q.Offset, Data: data, SHA256: testDigest(data)}, nil
+		body := bodies[q.ObjectID]
+		data := body[q.Offset:min(int64(len(body)), q.Offset+int64(q.Limit))]
+		return api.BlobChunk{ObjectID: q.ObjectID, Offset: q.Offset, Data: data, SHA256: testDigest(data)}, nil
 	}, budget.DiskBytes); err != nil {
 		t.Fatal(err)
 	}

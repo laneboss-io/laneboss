@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"laneboss.io/laneboss/internal/v2/api"
+	"laneboss.io/laneboss/internal/v2/grants/manifest"
 )
 
 type launchAllocation struct {
@@ -291,7 +292,7 @@ func validateLaunchJournal(record leaseRecord) error {
 				owned = owned || mode.RootID == item.ID
 			}
 			key := string(mode.RootID) + "/" + mode.Name
-			if !owned || !dataRelative(mode.Name) && mode.Name != ".git" || modeNames[key] || mode.Inode == 0 || mode.Mode&^uint32(0777) != 0 || mode.Kind != "directory" && mode.Kind != "file" && mode.Kind != "symlink" {
+			if !owned || manifest.ArchivePath(mode.Name) != nil || strings.Count(mode.Name, "/") > 64 || modeNames[key] || mode.Inode == 0 || mode.Mode&^uint32(0777) != 0 || mode.Kind != "directory" && mode.Kind != "file" && mode.Kind != "symlink" {
 				return failure(api.CodeIntegrity, "retained original mode identity is foreign or malformed")
 			}
 			modeNames[key] = true

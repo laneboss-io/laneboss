@@ -188,5 +188,15 @@ func privateStorageDirectories(record leaseRecord) ([]storageIdentity, error) {
 			}
 		}
 	}
+	if record.Archive != nil && record.Archive.GitRoot != nil {
+		item := *record.Archive.GitRoot
+		identity := item.Device + ":" + item.Inode
+		_, deviceErr := strconv.ParseUint(item.Device, 10, 64)
+		inode, inodeErr := strconv.ParseUint(item.Inode, 10, 64)
+		if record.Archive.Tree.Git == nil || item.ID != "archive-git" || deviceErr != nil || inodeErr != nil || inode == 0 || names[item.ID] || identities[identity] || len(result) >= 4096 {
+			return nil, failure(api.CodeIntegrity, "private Git capture lost its distinct native directory")
+		}
+		result = append(result, item)
+	}
 	return result, nil
 }

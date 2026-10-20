@@ -13,6 +13,14 @@ type RootGrantManifest struct {
 type ObjectManifest struct {
 	Schema  string        `json:"schema"`
 	Entries []ObjectEntry `json:"entries"`
+	Git     *ArchiveGit   `json:"git,omitempty"`
+}
+
+// ArchiveGit pins the commit whose objects are retained as git/pack.
+// Workspace files remain the independent, possibly dirty workspace inventory.
+type ArchiveGit struct {
+	Head   string `json:"head"`
+	Branch string `json:"branch"`
 }
 
 type ObjectEntry struct {

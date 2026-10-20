@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"sync/atomic"
 	"time"
 
 	"laneboss.io/laneboss/internal/v2/api"
+	"laneboss.io/laneboss/internal/v2/client/wire"
 )
 
 type connectionEntryFailure struct {
@@ -17,23 +19,39 @@ type connectionEntryFailure struct {
 	cause error
 }
 
-// Correlate native authentication latency without logging peer facts or input.
+// Correlate lane and native worker IDs with authentication latency.
 func (s *Server) journalAuthenticationStart(ctx context.Context, connection api.ConnectionContext, request api.ID) {
 	var connectionID api.ID
+	var binding api.InstalledBinding
+	var pid int
 	if connection != nil {
 		connectionID = connection.ID()
+		binding = connection.Binding()
+		if socket, ok := connection.Conn().(*net.UnixConn); ok {
+			if peer, err := wire.PeerCredentials(socket); err == nil {
+				pid = peer.PID
+			}
+		}
+	}
+	var target api.LifeRef
+	if binding.Target != nil {
+		target = *binding.Target
 	}
 	var budget int64
 	if deadline, ok := ctx.Deadline(); ok {
 		budget = time.Until(deadline).Milliseconds()
 	}
 	data, err := json.Marshal(struct {
-		Event         string `json:"event"`
-		RequestID     api.ID `json:"request_id"`
-		ConnectionID  api.ID `json:"connection_id"`
-		StartedUnixMS int64  `json:"started_unix_ms"`
-		BudgetMS      int64  `json:"budget_ms"`
-	}{"authentication_start", request, connectionID, time.Now().UnixMilli(), budget})
+		Event         string        `json:"event"`
+		RequestID     api.ID        `json:"request_id"`
+		ConnectionID  api.ID        `json:"connection_id"`
+		StartedUnixMS int64         `json:"started_unix_ms"`
+		BudgetMS      int64         `json:"budget_ms"`
+		LifeID        api.ID        `json:"life_id,omitempty"`
+		Run           api.RunNumber `json:"run,omitempty"`
+		LaunchID      api.ID        `json:"launch_id,omitempty"`
+		PeerPID       int           `json:"peer_pid,omitempty"`
+	}{"authentication_start", request, connectionID, time.Now().UnixMilli(), budget, target.LifeID, target.Run, binding.LaunchID, pid})
 	if err == nil {
 		_, _ = os.Stderr.Write(append(data, '\n'))
 	}
@@ -138,5 +156,54 @@ func (s *Server) journalConnection(stage string, refusal *api.Error) {
 	}
 	if err != nil {
 		s.recordFault(serviceError(api.CodeIntegrity, "service connection journal failed"))
+	}
+}
+
+// Lifecycle closes may happen before a request can be decoded. Keep their
+// exact endpoint/connection correlation in the private service journal.
+func (s *Server) journalLaneClose(binding api.InstalledBinding, connection api.ID, reason string) {
+	if binding.Class != api.EndpointLane {
+		return
+	}
+	var message string
+	switch reason {
+	case "host":
+		message = "service host closed a lane connection"
+	case "revocation":
+		message = "launch revocation closed a lane connection"
+	case "closed_entry":
+		message = "closed host refused lane entry"
+	case "revoked_entry":
+		message = "revoked launch refused lane entry"
+	case "late_accept":
+		message = "stopped endpoint closed an accepted lane connection"
+	case "cancelled_idle":
+		message = "cancelled lane stopped before its next request read"
+	case "accept_failure":
+		message = "lane listener failed before request entry"
+	case "accept_fd_limit":
+		message = "lane listener reached its descriptor limit"
+	default:
+		return
+	}
+	data, err := json.Marshal(struct {
+		Event        string `json:"event"`
+		Stage        string `json:"stage"`
+		Message      string `json:"message"`
+		Reason       string `json:"reason"`
+		LaunchID     api.ID `json:"launch_id"`
+		ConnectionID api.ID `json:"connection_id,omitempty"`
+		ClosedUnixMS int64  `json:"closed_unix_ms"`
+	}{"lane_connection_close", "connection", message, reason, binding.LaunchID, connection, time.Now().UnixMilli()})
+	if err == nil {
+		data = append(data, '\n')
+		var count int
+		count, err = os.Stderr.Write(data)
+		if err == nil && count != len(data) {
+			err = io.ErrShortWrite
+		}
+	}
+	if err != nil {
+		s.recordFault(serviceError(api.CodeIntegrity, "lane close journal failed"))
 	}
 }

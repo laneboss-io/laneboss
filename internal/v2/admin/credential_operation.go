@@ -2,17 +2,40 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"io"
 	"sync"
 	"time"
 
 	"laneboss.io/laneboss/internal/v2/api"
+	"laneboss.io/laneboss/internal/v2/pollgate"
 )
 
 type credentialOperationKey struct{}
 
-func (m *leaseManager) beginHelperTurn(ctx context.Context, metadata bool, method string, journal io.Writer) (context.Context, func()) {
+func (m *leaseManager) beginHelperTurn(ctx context.Context, metadata bool, method string, params json.RawMessage, journal io.Writer) (context.Context, func(), error) {
 	start := time.Now()
+	retire := func() {}
+	if method == "containment_live" {
+		var query containmentQuery
+		if err := decodeStrict(params, &query); err != nil {
+			return ctx, nil, err
+		}
+		if !validID(query.LeaseID) || !query.Opened {
+			return ctx, nil, failure(api.CodeForbidden, "live containment metadata requires an opened lease")
+		}
+		var err error
+		retire, err = m.polls.Enter(ctx, string(query.LeaseID))
+		if err != nil {
+			if errors.Is(err, pollgate.ErrBusy) {
+				err = failure(api.CodeUnavailable, "containment read admission is full")
+			} else {
+				err = contextError(ctx)
+			}
+			return ctx, nil, err
+		}
+	}
 	ctx, unlock := m.lockHelperOperation(ctx, metadata)
 	acquired := time.Now()
 	wait := acquired.Sub(start)
@@ -21,16 +44,18 @@ func (m *leaseManager) beginHelperTurn(ctx context.Context, metadata bool, metho
 		// A slow journal sink must not retain either helper lock after the
 		// operation has replied, especially while an opened lane authenticates.
 		unlock()
+		retire()
 		if method == "containment_live" || wait >= helperSlowTurn || hold >= helperSlowTurn {
 			journalHelperTurn(journal, method, "turn", wait, hold)
 		}
-	}
+	}, nil
 }
 
 func (m *leaseManager) lockHelperOperation(ctx context.Context, metadata bool) (context.Context, func()) {
 	// The main listener owns the canonical gate for its complete operation.
 	// A credential callback borrows only operationMu, while the pending main
-	// request keeps helperMu. Worker handoffs never lend either lock.
+	// request keeps helperMu. Worker handoffs also retain helperMu and the
+	// allocation flock while lending operationMu between authenticated calls.
 	helperWait := time.Now()
 	if !metadata {
 		m.helperMu.Lock()

@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -30,6 +31,14 @@ func TestContainmentLiveConcurrentIdentity(t *testing.T) {
 			postExecAuthentication(t, "after-opened-concurrent-"+terminal, false)
 		})
 	}
+}
+
+func TestContainmentStartRead(t *testing.T) {
+	postExecAuthentication(t, "after-opened-concurrent-start", false)
+}
+
+func TestContainmentFirstRequest(t *testing.T) {
+	postExecAuthentication(t, "after-opened-concurrent-first", false)
 }
 
 func init() {
@@ -51,10 +60,12 @@ func init() {
 
 type concurrentIdentityInput struct {
 	Binding api.InstalledBinding
+	Peer    api.PeerFacts
 	Ticket  containmentTicket
 	Launch  api.LaunchRecord
 	Grants  api.GrantSet
 	Policy  api.EffectivePolicy
+	Recheck bool
 }
 
 // Immutable authority is fixture data; native peer verification, frame writer
@@ -114,11 +125,12 @@ func (concurrentIdentityClock) Now() time.Time { return time.Now() }
 
 type concurrentIdentityConnection struct {
 	api.ConnectionContext
-	id      api.ID
-	conn    *net.UnixConn
-	binding api.InstalledBinding
-	peer    api.VerifiedPeer
-	closed  bool
+	id         api.ID
+	conn       *net.UnixConn
+	binding    api.InstalledBinding
+	peer       api.VerifiedPeer
+	closed     bool
+	beforeBind func()
 }
 
 func (c *concurrentIdentityConnection) ID() api.ID                    { return c.id }
@@ -128,6 +140,9 @@ func (c *concurrentIdentityConnection) Peer() api.VerifiedPeer        { return c
 func (c *concurrentIdentityConnection) BindPeer(peer api.VerifiedPeer) error {
 	if c.closed || c.peer != nil || peer == nil {
 		return errors.New("peer already bound or closed")
+	}
+	if c.beforeBind != nil {
+		c.beforeBind()
 	}
 	// Match the production transport's live BindPeer checks, including the
 	// nested containment calls; do not shorten the storm for this canary.
@@ -158,13 +173,25 @@ type concurrentIdentityResult struct {
 	Error     string
 }
 
+type terminalIdentityResult struct {
+	ElapsedUS int64
+	Code      api.ErrorCode
+	Error     string
+}
+
+type cacheIdentityResult struct {
+	State  string
+	Checks int
+}
+
 func concurrentIdentityService(config string) error {
 	b, err := loadInstallation(config)
 	if err != nil {
 		return err
 	}
 	var input concurrentIdentityInput
-	if err := json.NewDecoder(os.Stdin).Decode(&input); err != nil {
+	decoder := json.NewDecoder(os.Stdin)
+	if err := decoder.Decode(&input); err != nil {
 		return err
 	}
 	registry, err := New(Dependencies{Config: b.Config, ServiceUID: b.Service.UID, ArtifactSHA256: b.Artifact.SHA256,
@@ -202,6 +229,9 @@ func concurrentIdentityService(config string) error {
 	}
 	ready.Close()
 	results := make(chan concurrentIdentityResult, 20)
+	var initial sync.WaitGroup
+	initial.Add(20)
+	recheck := make(chan struct{})
 	var requests sync.WaitGroup
 	for range 20 {
 		conn, err := listener.(*net.UnixListener).AcceptUnix()
@@ -211,6 +241,9 @@ func concurrentIdentityService(config string) error {
 		requests.Add(1)
 		go func() {
 			defer requests.Done()
+			var initialOnce sync.Once
+			arrived := func() { initialOnce.Do(initial.Done) }
+			defer arrived()
 			start := time.Now()
 			result := concurrentIdentityResult{Stage: "authenticate"}
 			defer func() { result.ElapsedMS = time.Since(start).Milliseconds(); results <- result }()
@@ -224,6 +257,15 @@ func concurrentIdentityService(config string) error {
 				return
 			}
 			connection := &concurrentIdentityConnection{id: api.ID(id), conn: conn, binding: input.Binding}
+			if input.Recheck {
+				connection.beforeBind = func() {
+					arrived()
+					select {
+					case <-recheck:
+					case <-ctx.Done():
+					}
+				}
+			}
 			defer connection.Close()
 			scope, err := identities.Authenticate(ctx, connection)
 			if err != nil {
@@ -265,13 +307,85 @@ func concurrentIdentityService(config string) error {
 			result.Stage = "complete"
 		}()
 	}
+	if input.Recheck {
+		initial.Wait()
+		if err := json.NewEncoder(os.Stdout).Encode("initial"); err != nil {
+			return err
+		}
+		var command string
+		if err := decoder.Decode(&command); err != nil {
+			return err
+		}
+		if command != "recheck" {
+			return errors.New("missing first-request recheck command")
+		}
+		close(recheck)
+	}
 	requests.Wait()
 	close(results)
 	var report []concurrentIdentityResult
 	for result := range results {
 		report = append(report, result)
 	}
-	return json.NewEncoder(os.Stdout).Encode(report)
+	encoder := json.NewEncoder(os.Stdout)
+	if err := encoder.Encode(report); err != nil {
+		return err
+	}
+	var command string
+	if err := decoder.Decode(&command); err != nil || command != "warm" {
+		return errors.New("missing retained-cache warm command")
+	}
+	// Cross several expiry boundaries under continuous real native checks.
+	// This catches a cache hit aging out during kernel verification, without
+	// substituting timer-only fixture calls for the production resolver.
+	churnEnd := time.Now().Add(250 * time.Millisecond)
+	checks := 0
+	for time.Now().Before(churnEnd) {
+		binding, err := registry.ResolveContainment(context.Background(), input.Peer, input.Binding)
+		if err != nil {
+			return fmt.Errorf("native cache churn: %w", err)
+		}
+		if err := binding.Directory.Close(); err != nil {
+			return err
+		}
+		checks++
+	}
+	if err := encoder.Encode(cacheIdentityResult{State: "churn", Checks: checks}); err != nil {
+		return err
+	}
+	// Populate the same production cache immediately before the external
+	// terminal transition. The resident service receives no invalidation.
+	time.Sleep(120 * time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	query := containmentQuery{LeaseID: ticket.Lease.ID, Opened: true}
+	if _, err := registry.liveContainment(ctx, ticket.Lease.ContainmentID, query); err != nil {
+		return err
+	}
+	if err := encoder.Encode(cacheIdentityResult{State: "warm", Checks: checks}); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&command); err != nil || command != "terminal" {
+		return errors.New("missing external terminal transition")
+	}
+	start := time.Now()
+	tick := time.NewTicker(5 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		_, err := registry.liveContainment(ctx, ticket.Lease.ContainmentID, query)
+		if err != nil {
+			var refusal *api.Error
+			if !errors.As(err, &refusal) {
+				return err
+			}
+			return encoder.Encode(terminalIdentityResult{ElapsedUS: time.Since(start).Microseconds(), Code: refusal.Code, Error: refusal.Message})
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tick.C:
+		}
+	}
 }
 
 func concurrentIdentityClient(socket string) error {
@@ -330,6 +444,11 @@ func concurrentIdentityAuthentication(t *testing.T, manager *leaseManager, regis
 		Socket: listener.Addr().String(), ArtifactSHA256: b.Artifact.SHA256, ServiceVersion: b.Release.Version,
 		Backend: "linux-bwrap-landlock", LaunchID: r.ID, Target: &r.Target}
 	fixture := concurrentIdentityInput{Binding: binding, Ticket: ticket, Launch: r, Grants: record.Spec.Handoff.Spec.Grants, Policy: registration.Policy}
+	fixture.Recheck = strings.HasSuffix(phase, "-first")
+	gate.mu.Lock()
+	fixture.Peer = api.PeerFacts{HostPID: gate.innerPID, HostUID: ticket.Lease.UID, HostGID: ticket.Lease.GID,
+		ProcessGeneration: gate.innerGeneration, ContainmentID: ticket.Lease.ContainmentID}
+	gate.mu.Unlock()
 	encoded, err := json.Marshal(fixture)
 	if err != nil {
 		t.Fatal(err)
@@ -355,12 +474,23 @@ func concurrentIdentityAuthentication(t *testing.T, manager *leaseManager, regis
 	service := exec.CommandContext(ctx, b.binaryPath(), "admin-concurrent-identity-service", b.Config)
 	service.Env = []string{}
 	service.ExtraFiles = []*os.File{listenFile, readyWrite, directory}
-	service.Stdin = bytes.NewReader(encoded)
+	serviceInput, err := service.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer serviceInput.Close()
+	serviceOutput, err := service.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	service.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: b.Service.UID, Gid: b.Service.GID, Groups: []uint32{}},
 		UseCgroupFD: true, CgroupFD: int(endpoint.group.Fd())}
-	var output, diagnostic bytes.Buffer
-	service.Stdout, service.Stderr = &output, &diagnostic
+	var diagnostic bytes.Buffer
+	service.Stderr = &diagnostic
 	if err := service.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := serviceInput.Write(append(encoded, '\n')); err != nil {
 		t.Fatal(err)
 	}
 	waited := false
@@ -379,22 +509,57 @@ func concurrentIdentityAuthentication(t *testing.T, manager *leaseManager, regis
 	if _, err := io.ReadFull(readyRead, ready[:]); err != nil || ready[0] != 'r' {
 		t.Fatal("resident identity service did not become ready", err)
 	}
+	turnsBefore := containmentTurns(endpoint.journal.snapshot())
+	if strings.HasSuffix(phase, "-start") {
+		// Start has released the real native process. Its first identity read
+		// races the helper's final serialized publication, as on the fresh box.
+		// Hold that actual lock for 100 ms; the existing 5 s request budget
+		// must survive this ordering without a retry or a cached pre-start read.
+		_, release := manager.lockHelperOperation(ctx, false)
+		go func() {
+			timer := time.NewTimer(100 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+			}
+			release()
+		}()
+	}
 	start := time.Now()
 	if n, err := input.Write([]byte{'a'}); err != nil || n != 1 {
 		t.Fatal(err)
 	}
-	err = service.Wait()
-	waited = true
-	if err != nil {
-		t.Fatal("resident identity service failed", err, diagnostic.String())
+	decoder := json.NewDecoder(serviceOutput)
+	if fixture.Recheck {
+		var state string
+		if err := decoder.Decode(&state); err != nil || state != "initial" {
+			t.Fatal("first request did not obtain its initial native observation", err)
+		}
+		// The first request has already observed its real released process.
+		// Cross cache expiry before its nested native recheck, then serialize
+		// publication on the real helper lock for longer than ReadWait.
+		time.Sleep(120 * time.Millisecond)
+		_, release := manager.lockHelperOperation(ctx, false)
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			release()
+		}()
+		if err := json.NewEncoder(serviceInput).Encode("recheck"); err != nil {
+			t.Fatal(err)
+		}
 	}
 	var results []concurrentIdentityResult
-	if err := json.Unmarshal(output.Bytes(), &results); err != nil || len(results) != 20 {
+	if err := decoder.Decode(&results); err != nil || len(results) != 20 {
 		t.Fatal("missing concurrent identity results", err)
 	}
+	elapsed := time.Since(start)
+	turns := containmentTurns(endpoint.journal.snapshot()) - turnsBefore
 	passed, failed := 0, 0
+	latencies := make([]int64, 0, len(results))
 	var maximum int64
 	for _, result := range results {
+		latencies = append(latencies, result.ElapsedMS)
 		if result.ElapsedMS > maximum {
 			maximum = result.ElapsedMS
 		}
@@ -406,6 +571,12 @@ func concurrentIdentityAuthentication(t *testing.T, manager *leaseManager, regis
 		}
 	}
 	t.Logf("parallel identity.self passed=%d failed=%d max_ms=%d total_ms=%d deadline_ms=5000", passed, failed, maximum, time.Since(start).Milliseconds())
+	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+	t.Logf("gate_enabled=true native_identity count=%d helper_calls=%d helper_rate=%.2f p50_ms=%d p99_ms=%d elapsed_ms=%d",
+		len(results), turns, float64(turns)/elapsed.Seconds(), latencies[len(latencies)/2], latencies[len(latencies)*99/100], elapsed.Milliseconds())
+	if turns > 20 {
+		t.Error("production containment source repeated helper reads inside concurrent identity requests", turns)
+	}
 	if failed != 0 {
 		t.Fatal("concurrent in-lane identity calls missed the unchanged authentication/request deadline")
 	}
@@ -416,11 +587,33 @@ func concurrentIdentityAuthentication(t *testing.T, manager *leaseManager, regis
 	if _, err := io.ReadFull(reader, actual); err != nil || string(actual) != gate.token {
 		t.Fatal("runner did not observe all real CLI children succeeding", err)
 	}
-	// Warm the exact same read before a terminal journal transition. No service
-	// registry invalidation is supplied: the helper must refuse its old ticket.
-	if _, err := endpoint.query(record.Lease.ID); err != nil {
+	encoder := json.NewEncoder(serviceInput)
+	// A real journal generation change or helper restart needs a cold full
+	// decode. Keep that cost in the source/expiry exercise, not just warm hits.
+	manager.operationMu.Lock()
+	manager.containmentSnapshot = nil
+	manager.operationMu.Unlock()
+	cacheStart := time.Now()
+	cacheTurns := containmentTurns(endpoint.journal.snapshot())
+	if err := encoder.Encode("warm"); err != nil {
 		t.Fatal(err)
 	}
+	readCache := func(state string) cacheIdentityResult {
+		t.Helper()
+		var result cacheIdentityResult
+		if err := decoder.Decode(&result); err != nil || result.State != state || result.Checks < 2 {
+			closeErr := serviceInput.Close()
+			waitErr := service.Wait()
+			waited = true
+			t.Fatal("resident production cache stage failed", state, errors.Join(err, closeErr, waitErr), diagnostic.String())
+		}
+		return result
+	}
+	churn := readCache("churn")
+	cacheCalls := containmentTurns(endpoint.journal.snapshot()) - cacheTurns
+	t.Logf("native cache churn checks=%d helper_calls=%d helper_rate=%.2f gate_enabled=true", churn.Checks,
+		cacheCalls, float64(cacheCalls)/time.Since(cacheStart).Seconds())
+	readCache("warm")
 	wantCode := api.CodeContainmentUnknown
 	if strings.HasSuffix(phase, "-revoked") {
 		_, unlock := manager.lockHelperOperation(context.Background(), false)
@@ -451,15 +644,34 @@ func concurrentIdentityAuthentication(t *testing.T, manager *leaseManager, regis
 		}
 	}
 	start = time.Now()
-	_, err = endpoint.query(record.Lease.ID)
-	if err == nil || !strings.Contains(err.Error(), string(wantCode)+":") {
-		t.Fatal("terminal journal transition retained its authenticated containment", err)
+	if err := encoder.Encode("terminal"); err != nil {
+		t.Fatal(err)
 	}
-	if wantCode == api.CodeUnauthenticated && !strings.Contains(err.Error(), "peer containment has no consumed open gate") {
-		t.Fatal("ended containment did not refuse on its actual gate state", err)
+	var terminal terminalIdentityResult
+	if err := decoder.Decode(&terminal); err != nil || terminal.Code != wantCode {
+		t.Fatal("terminal journal transition retained its cached containment", err, terminal)
 	}
-	if time.Since(start) >= time.Second {
-		t.Fatal("terminal containment refusal waited instead of invalidating immediately")
+	if wantCode == api.CodeUnauthenticated && !strings.Contains(terminal.Error, "peer containment has no consumed open gate") {
+		t.Fatal("ended containment did not refuse on its actual gate state", terminal)
 	}
-	t.Logf("terminal=%s retained binding refused immediately elapsed_ms=%d", phase, time.Since(start).Milliseconds())
+	if time.Since(start) > 188*time.Millisecond {
+		t.Fatal("terminal cached containment was not refused within 188 ms", terminal)
+	}
+	t.Logf("terminal=%s retained_cache_refusal_us=%d round_trip_us=%d bound_ms=188", phase, terminal.ElapsedUS, time.Since(start).Microseconds())
+	err = service.Wait()
+	waited = true
+	if err != nil {
+		t.Fatal("resident identity service failed", err, diagnostic.String())
+	}
+}
+
+func containmentTurns(journal string) int {
+	turns := 0
+	for _, line := range strings.Split(journal, "\n") {
+		var entry struct{ Operation, Stage string }
+		if json.Unmarshal([]byte(line), &entry) == nil && entry.Operation == "containment_live" && entry.Stage == "turn" {
+			turns++
+		}
+	}
+	return turns
 }

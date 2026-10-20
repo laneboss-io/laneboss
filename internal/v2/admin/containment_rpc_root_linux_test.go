@@ -226,6 +226,9 @@ func nativeContainmentEndpoint(t *testing.T, manager *leaseManager, compact bool
 		command.Stdout, command.Stderr = &output, &diagnostic
 		start := time.Now()
 		err := command.Run()
+		if _, err := journal.Write(diagnostic.Bytes()); err != nil {
+			t.Fatal("cannot retain service-side helper call correlation", err)
+		}
 		if compact {
 			// Concurrent calls cannot be matched to a shared completion queue.
 			// The process result carries this call's actual authenticated reply;

@@ -53,12 +53,14 @@ func (actorAuth) Authorize(ctx context.Context, scope api.Scope, request api.Req
 func TestActorCLI(t *testing.T) {
 	for _, fault := range []bool{false, true} {
 		t.Run(strconv.FormatBool(fault), func(t *testing.T) {
-			actorCLI(t, fault)
+			actorCLI(t, fault, false)
 		})
 	}
 }
 
-func actorCLI(t *testing.T, fault bool) {
+func TestActorPollCadence(t *testing.T) { actorCLI(t, false, true) }
+
+func actorCLI(t *testing.T, fault, delayed bool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -101,6 +103,8 @@ func actorCLI(t *testing.T, fault bool) {
 	}
 	done := make(chan error, 1)
 	var methods []api.Method
+	var polls []time.Time
+	var refusedID api.ID
 	go func() {
 		for {
 			connection, err := listener.AcceptUnix()
@@ -136,6 +140,7 @@ func actorCLI(t *testing.T, fault bool) {
 				err = api.DecodeObject(request.Params, &input)
 				if err == nil {
 					if fault {
+						refusedID = request.RequestID
 						input.Class = "manifest" // A lane cannot publish a trusted class.
 					}
 					value, err = core.BlobBegin(ctx, f.Human, input)
@@ -159,9 +164,14 @@ func actorCLI(t *testing.T, fault bool) {
 					value, err = core.BlobRead(ctx, f.Human, input)
 				}
 			case "mail.list":
-				value = api.MailPage{Messages: []api.Mail{{ID: fx.ID(t), Sender: api.Actor{Kind: "human", ID: fx.ID(t)},
-					RecipientLifeID: target.LifeID, Content: exitRef, Artifacts: []api.BlobRef{},
-					Generation: 1, QueuedSeq: 1, Source: "cli", Status: "queued"}}}
+				polls = append(polls, time.Now())
+				if delayed && len(polls) == 1 {
+					value = api.MailPage{Messages: []api.Mail{}}
+				} else {
+					value = api.MailPage{Messages: []api.Mail{{ID: fx.ID(t), Sender: api.Actor{Kind: "human", ID: fx.ID(t)},
+						RecipientLifeID: target.LifeID, Content: exitRef, Artifacts: []api.BlobRef{},
+						Generation: 1, QueuedSeq: 1, Source: "cli", Status: "queued"}}}
+				}
 			default:
 				err = errors.New("actor called an unexpected public method")
 			}
@@ -257,6 +267,28 @@ func actorCLI(t *testing.T, fault bool) {
 			!bytesContains(output, "upload class requires its trusted emitter") || bytesContains(output, "grants.ready") {
 			t.Fatalf("report refusal lost its command or native error: %v\n%s", runErr, output)
 		}
+		matched := 0
+		for _, line := range bytes.Split(output, []byte("\n")) {
+			var trace struct {
+				Event     string `json:"event"`
+				Command   string `json:"command"`
+				RequestID api.ID `json:"request_id"`
+				Started   int64  `json:"started_unix_ms"`
+				Ended     int64  `json:"ended_unix_ms"`
+				Exit      int    `json:"exit_code"`
+			}
+			if json.Unmarshal(line, &trace) != nil || trace.Event != "actor_cli_refused" {
+				continue
+			}
+			if trace.Command != "blob begin" || trace.RequestID != refusedID || refusedID == "" ||
+				trace.Started <= 0 || trace.Ended < trace.Started || trace.Exit != 2 {
+				t.Fatal("actor refusal correlation differs from the actual request")
+			}
+			matched++
+		}
+		if matched != 1 {
+			t.Fatal("actor refusal lost its request correlation", matched)
+		}
 	} else if runErr != nil {
 		t.Fatalf("installed actor/CLI startup failed: %v; methods=%v\n%s", runErr, methods, output)
 	}
@@ -298,6 +330,16 @@ func actorCLI(t *testing.T, fault bool) {
 	}
 	if fault && count != 0 || !fault && (count != 2 || !bytesContains(output, "grants.ready") || !bytesContains(output, "grants.exiting")) {
 		t.Fatal("actor reports do not match real blob commits", count, string(output))
+	}
+	if delayed {
+		if len(polls) != 2 {
+			t.Fatal("delayed mailbox did not consume exactly two actual polls", len(polls))
+		}
+		elapsed := polls[1].Sub(polls[0])
+		t.Logf("actual actor mailbox poll interval_ms=%d", elapsed.Milliseconds())
+		if elapsed < 800*time.Millisecond || elapsed > 2*time.Second {
+			t.Fatal("actor mailbox cadence is outside its one-second bound", elapsed)
+		}
 	}
 	t.Logf("actual actor reports committed and read back: %d", count)
 }

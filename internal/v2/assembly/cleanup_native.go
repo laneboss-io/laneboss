@@ -20,6 +20,8 @@ type helperCleanupNative struct {
 }
 
 var _ store.CleanupNative = (*helperCleanupNative)(nil)
+var _ store.RestoreRootSource = (*helperCleanupNative)(nil)
+var _ store.RestoreWriter = (*helperCleanupNative)(nil)
 var _ archivejob.Native = (*helperCleanupNative)(nil)
 
 func (p *helperCleanupNative) bind(helper *admin.Service) error {
@@ -101,4 +103,34 @@ func (p *helperCleanupNative) CheckArchiveFreeze(ctx context.Context, intent arc
 		return err
 	}
 	return helper.CheckArchiveFreeze(ctx, intent, frozen)
+}
+
+func (p *helperCleanupNative) RestoreRoots(ctx context.Context, scope api.Scope) ([]string, error) {
+	helper, err := p.client()
+	if err != nil {
+		return nil, err
+	}
+	return helper.RestoreRoots(ctx, scope)
+}
+
+func (p *helperCleanupNative) StageRestore(ctx context.Context, scope api.Scope, request api.RestoreRequest, tree api.ObjectManifest, read archivejob.ReadObject, ceiling uint64) (api.ID, api.RestoreReceipt, error) {
+	helper, err := p.client()
+	if err != nil {
+		return "", api.RestoreReceipt{}, err
+	}
+	return helper.StageRestore(ctx, scope, request, tree, read, ceiling)
+}
+func (p *helperCleanupNative) PublishRestore(ctx context.Context, scope api.Scope, id api.ID) error {
+	helper, err := p.client()
+	if err != nil {
+		return err
+	}
+	return helper.PublishRestore(ctx, scope, id)
+}
+func (p *helperCleanupNative) AbortRestore(ctx context.Context, scope api.Scope, id api.ID) error {
+	helper, err := p.client()
+	if err != nil {
+		return err
+	}
+	return helper.AbortRestore(ctx, scope, id)
 }

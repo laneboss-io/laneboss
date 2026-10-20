@@ -757,7 +757,7 @@ func workerCanaryServe(t *testing.T, ctx context.Context, m *leaseManager, store
 		t.Fatal(err)
 	}
 	defer serviceGroup.Close()
-	modes := []string{"current", "enclosed", "metadata-worker", "metadata-attempt", "foreign", "stale", "foreign-prepared", "closed", "closed-state", "input", "endpoint", "lock"}
+	modes := []string{"current", "enclosed", "metadata-live", "metadata-worker", "metadata-attempt", "foreign", "stale", "foreign-prepared", "closed", "closed-state", "input", "endpoint", "lock"}
 	var open *dataReg
 	if len(dataOpen) == 1 {
 		open = &dataOpen[0]
@@ -813,6 +813,9 @@ func workerCanaryServe(t *testing.T, ctx context.Context, m *leaseManager, store
 			if err != nil || !bytes.Contains(output, []byte("--- PASS: "+name+" ")) {
 				t.Fatalf("real unprivileged handoff client failed: %v\n%s", err, output)
 			}
+			if mode == "metadata-live" {
+				t.Log(string(output))
+			}
 		})
 	}
 }
@@ -849,6 +852,40 @@ func workerCanaryClient(t *testing.T) {
 		return
 	}
 	id := store.Binding.Prepared.ID
+	if seeded.Mode == "metadata-live" {
+		query := containmentQuery{LeaseID: store.Binding.Record.UIDLeaseID, Opened: true}
+		var ticket containmentTicket
+		controlErr := s.call(ctx, "containment_live", query, &ticket)
+		var control *api.Error
+		if !errors.As(controlErr, &control) || control.Code != api.CodeContainmentUnknown || control.Message != "worker containment has no current parent allocation" {
+			t.Fatal("native metadata control did not measure the fixture's uncommitted parent", controlErr)
+		}
+		var elapsed time.Duration
+		err := s.WithWorkerLaunch(ctx, store.Binding.Prepared, func(held context.Context) error {
+			// A different lane's store fence may need this read while the
+			// enclosed service handoff reloads its own committed principal.
+			// This worker fixture has no committed parent. Its exact control
+			// refusal must survive the handoff without waiting for it to close.
+			readCtx, cancel := context.WithTimeout(ctx, 188*time.Millisecond)
+			defer cancel()
+			start := time.Now()
+			err := s.call(readCtx, "containment_live", query, &ticket)
+			elapsed = time.Since(start)
+			var refused *api.Error
+			if !errors.As(err, &refused) || refused.Code != control.Code || refused.Message != control.Message || refused.Owner != control.Owner {
+				return errors.Join(failure(api.CodeIntegrity, "live metadata waited on the enclosing worker handoff instead of returning its exact control refusal"), err)
+			}
+			if elapsed > 188*time.Millisecond {
+				return failure(api.CodeIntegrity, "live metadata exceeded its existing refusal bound")
+			}
+			return s.workerSession(held).check(held)
+		})
+		if err != nil {
+			t.Fatal("native worker handoff blocked live containment metadata", err)
+		}
+		t.Logf("native held worker metadata refusal_us=%d bound_ms=188; original guard rechecked", elapsed.Microseconds())
+		return
+	}
 	if seeded.Mode == "metadata-worker" || seeded.Mode == "metadata-attempt" {
 		workerCanaryMetadata(t, ctx, s, id, seeded.Mode)
 		return

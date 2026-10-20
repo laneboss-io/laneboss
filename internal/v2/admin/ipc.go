@@ -91,15 +91,29 @@ func helperWriteFailure(response helperResponse, err error) error {
 	if refusal == nil && !errors.As(err, &refusal) {
 		refusal = failure(api.CodeUnavailable, "helper reply transport failed")
 	}
-	if diagnosticErr := json.NewEncoder(os.Stderr).Encode(helperReplyDiagnostic(refusal, err)); diagnosticErr != nil {
+	facts := helperReplyDiagnostic(refusal, err)
+	if api.ValidHelperReason(response.Reason) {
+		facts.RefusalReason = response.Reason
+	}
+	if diagnosticErr := json.NewEncoder(os.Stderr).Encode(facts); diagnosticErr != nil {
 		return failure(api.CodeUnavailable, "cannot retain helper reply diagnostic")
 	}
 	return err
 }
 
+type helperReplyFacts struct {
+	Stage         string            `json:"stage"`
+	Code          api.ErrorCode     `json:"code"`
+	Owner         string            `json:"owner"`
+	Frame         api.JSONFrameKind `json:"frame,omitempty"`
+	Reason        string            `json:"reason,omitempty"`
+	RefusalReason string            `json:"refusal_reason,omitempty"`
+}
+
 // These fields describe the refusal that could not be delivered. No message,
 // nonce, configuration, native error or caller-controlled owner is logged.
-func helperReplyDiagnostic(refusal *api.Error, transport ...error) any {
+// The original allowlisted guard stays separate from the transport failure.
+func helperReplyDiagnostic(refusal *api.Error, transport ...error) helperReplyFacts {
 	code := refusal.Code
 	switch code {
 	case api.CodeNotImplemented, api.CodeInvalid, api.CodeUnauthenticated, api.CodeForbidden,
@@ -122,13 +136,7 @@ func helperReplyDiagnostic(refusal *api.Error, transport ...error) any {
 			frame, reason = actualFrame, actualReason
 		}
 	}
-	return struct {
-		Stage  string            `json:"stage"`
-		Code   api.ErrorCode     `json:"code"`
-		Owner  string            `json:"owner"`
-		Frame  api.JSONFrameKind `json:"frame,omitempty"`
-		Reason string            `json:"reason,omitempty"`
-	}{"response_write", code, refusalOwner, frame, reason}
+	return helperReplyFacts{Stage: "response_write", Code: code, Owner: refusalOwner, Frame: frame, Reason: reason}
 }
 
 // A forwarding hop reserves time for its caller to finish and reply, even

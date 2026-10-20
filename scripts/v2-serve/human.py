@@ -15,6 +15,7 @@ class HumanRoot:
         self.require = require
         self.blocked = blocked
         self.proof_index = 0
+        self.grant_index = 0
 
     def check(self, name, suffix=None):
         parts = ["human"]
@@ -153,13 +154,17 @@ class HumanRoot:
         return ref
 
     def ticket(self, launch, root_input):
+        self.grant_index += 1
+        grant_round = self.grant_index
         self.session()
         self.case.current = self.check("grants")
         if root_input is None:
             raise self.blocked("lb-v2-admin/grants: real committed root grant manifest input absent")
         raw = self.case.root_grant_input(root_input)
         suffix = "." + self.case.human_prefix if self.case.human_prefix else ""
-        self.case.keep("root-grants" + suffix + ".input.json", raw)
+        # An item can launch multiple lanes under the same reporting prefix.
+        # Keep each round's exact input, even when its source bytes repeat.
+        self.case.keep("root-grants" + suffix + ".%02d.input.json" % grant_round, raw)
         request = self.case.decode_document(raw)
         proof = self.proof("grants", "grants.root", request, self.case.config, 0)
         self.case.current = self.check("grants")
@@ -167,7 +172,7 @@ class HumanRoot:
         self.require(grants.get("id") and type(grants.get("generation")) is int and grants["generation"] > 0 and
                      not grants.get("parent_life_id") and not grants.get("revoked"), "CLI did not issue current root grants")
         self.case.passed(grants)
-        self.case.bind_root_launch(launch, grants)
+        self.case.bind_root_launch(launch, grants, evidence_round=grant_round)
         expiry = datetime.fromisoformat(grants["expires_at"].replace("Z", "+00:00"))
         expiry = min(expiry, datetime.now(timezone.utc) + timedelta(seconds=90))
         request = {"level": launch["level"], "role": launch["role"], "grant_set_id": grants["id"],

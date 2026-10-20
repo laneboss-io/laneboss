@@ -733,7 +733,7 @@ class Case:
                 observed["refusal"] = refusal
         return observed
 
-    def bind_root_launch(self, launch, grants):
+    def bind_root_launch(self, launch, grants, *, evidence_round=None):
         """Bind proposal selectors only to IDs returned by real grants.root."""
         if not self.generated_launches:
             return
@@ -820,7 +820,8 @@ class Case:
                 selected.append({"parent_grant_id": member["id"],
                                  **{key: member[key] for key in fields}})
             launch["grants"][family] = selected
-        self.keep_json("launch-" + self.human_prefix + "-" + launch["driver"] + ".input", launch)
+        suffix = ".%02d" % evidence_round if evidence_round is not None else ""
+        self.keep_json("launch-" + self.human_prefix + "-" + launch["driver"] + suffix + ".input", launch)
 
     def validate_initial_launch(self, request):
         require(self.initial is not None and self.initial_receipt is not None and

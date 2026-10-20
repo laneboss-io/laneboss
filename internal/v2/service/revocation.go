@@ -39,6 +39,7 @@ func (s *Server) InvalidateLaunch(ctx context.Context, decision api.LaunchRevoca
 		if err := connection.Close(); err != nil {
 			return receipt, err
 		}
+		s.journalLaneClose(connection.Binding(), connection.ID(), "revocation")
 		if connection.finished == nil {
 			return receipt, serviceError(api.CodeUnavailable, "revoked connection has no delivery completion observation")
 		}

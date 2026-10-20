@@ -300,7 +300,8 @@ func uidQuiescent(ctx context.Context, uid uint32) (resultErr error) {
 		if err := contextError(ctx); err != nil {
 			return err
 		}
-		if _, err := strconv.Atoi(entry.Name()); err != nil {
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil {
 			continue
 		}
 		threads, err := os.ReadDir(filepath.Join("/proc", entry.Name(), "task"))
@@ -334,6 +335,8 @@ func uidQuiescent(ctx context.Context, uid uint32) (resultErr error) {
 						return api.WithHelperReason(failure(api.CodeContainmentUnknown, "a process UID observation is invalid"), "uid_shape")
 					}
 					if uint32(value) == uid {
+						tid, _ := strconv.Atoi(thread.Name())
+						journalUIDMatch(ctx, uid, pid, tid, line)
 						return api.WithHelperReason(failure(api.CodeContainmentUnknown, "lane UID still owns a live process; retain its lease"), "uid_survivor")
 					}
 				}
@@ -346,8 +349,41 @@ func uidQuiescent(ctx context.Context, uid uint32) (resultErr error) {
 	return nil
 }
 
+type uidOwnerKey struct{}
+
+type uidOwner struct {
+	life, lease api.ID
+}
+
+func journalUIDMatch(ctx context.Context, uid uint32, pid, tid int, uidLine string) {
+	trace, _ := ctx.Value(helperTimingKey{}).(*helperRequestTrace)
+	if trace == nil {
+		return
+	}
+	owner, _ := ctx.Value(uidOwnerKey{}).(uidOwner)
+	match := &uidMatch{UID: uid, PID: pid, TID: tid, LifeID: owner.life, LeaseID: owner.lease}
+	// Diagnostic uncertainty never relaxes the original survivor refusal.
+	// Bracket a fresh thread UID read with the process start ticks so a reused
+	// PID cannot attach a different lifetime to the UID observation.
+	before, err := processGeneration(pid, "")
+	if err == nil {
+		data, readErr := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "task", strconv.Itoa(tid), "status"))
+		after, statErr := processGeneration(pid, "")
+		if readErr == nil && statErr == nil && before == after {
+			for _, line := range strings.Split(string(data), "\n") {
+				if line == uidLine {
+					match.Start = strings.TrimPrefix(before, ":")
+					break
+				}
+			}
+		}
+	}
+	trace.match = match
+}
+
 func (r *linuxResources) Quiescent(ctx context.Context, record leaseRecord) (resultErr error) {
 	defer helperCheck(&resultErr, "cgroup_population")
+	ctx = context.WithValue(ctx, uidOwnerKey{}, uidOwner{record.Request.LifeID, record.Lease.ID})
 	root, err := r.open(record)
 	if err != nil {
 		// Absence is meaningful only after a durable releasing/released record.

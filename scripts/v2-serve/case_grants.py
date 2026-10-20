@@ -441,13 +441,21 @@ class Relay:
     def wait(self, kind, nonce=None):
         deadline = time.monotonic() + 120
         while True:
-            matches = [row for row in self.values_now() if row.get("type") == kind and
+            values = self.values_now()
+            # A poll overwrites the case's last command. Retain the actual
+            # expected report kind separately so a deadline names its phase.
+            self.case.rows[self.case.current]["observed"]["relay_wait"] = {
+                "kind": kind, "nonce_required": nonce is not None,
+                "seen_kinds": sorted({row["type"] for row in values}),
+                "target": self.record["target"],
+            }
+            matches = [row for row in values if row.get("type") == kind and
                        (nonce is None or row.get("nonce") == nonce)]
             if matches:
                 self.require(len(matches) == 1 and matches[0].get("target") == self.record["target"],
                              "relay reply is duplicated or belongs to another run")
                 return matches[0]
-            self.require(time.monotonic() < deadline, "relay committed report deadline")
+            self.require(time.monotonic() < deadline, "relay committed report deadline: " + kind)
             time.sleep(0.25)
 
     def request(self, command, request, *, denied=False, request_id=None, key=None):

@@ -55,8 +55,11 @@ func workspaceProducerFixture(t *testing.T) (*leaseManager, leaseRecord, int, da
 	job := p.DataJobs[index]
 	pins := m.dataPins[projection.OpenToken]
 	t.Cleanup(func() {
-		if err := pins.close(); err != nil {
-			t.Error(err)
+		// Native collection already closes and removes its owned token.
+		if m.dataPins[projection.OpenToken] == pins {
+			if err := pins.close(); err != nil {
+				t.Error(err)
+			}
 		}
 	})
 	manifest, err := dataManifest(pins.manifest, reg.Plan.Budget.DiskBytes)

@@ -3,6 +3,7 @@
 package admin
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ type fileLeaseStore struct {
 	root    *os.Root
 	owner   uint32 // Runtime construction fixes this to root; tests use their own identity.
 	pending uint64
+	shapes  map[string][32]byte
 }
 
 var pendingName = regexp.MustCompile(`^pending-[a-f0-9]{32}$`)
@@ -47,6 +49,7 @@ func (s *fileLeaseStore) Inventory() ([]leaseRecord, []error, error) {
 		return nil, nil, failure(api.CodeIntegrity, "cannot enumerate helper lease records")
 	}
 	result := []leaseRecord{}
+	validated := make(map[string][32]byte, len(entries))
 	var issues []error
 	s.pending = 0
 	for _, entry := range entries {
@@ -121,7 +124,16 @@ func (s *fileLeaseStore) Inventory() ([]leaseRecord, []error, error) {
 			continue
 		}
 		var record leaseRecord
-		if err := decodeStrict(data, &record); err != nil {
+		digest := sha256.Sum256(data)
+		decode := decodeStrict
+		if prior, ok := s.shapes[entry.Name()]; ok && prior == digest {
+			// Only the strict byte/shape check is reusable. Read and protect
+			// every file as before, and decode a fresh object so no mutable
+			// pointer aliases another read. Changed bytes take the full strict
+			// path; manager validation and native observations always run.
+			decode = json.Unmarshal
+		}
+		if err := decode(data, &record); err != nil {
 			issues = append(issues, failure(api.CodeIntegrity, fmt.Sprintf("retained malformed helper record %s", entry.Name())))
 			continue
 		}
@@ -129,8 +141,10 @@ func (s *fileLeaseStore) Inventory() ([]leaseRecord, []error, error) {
 			issues = append(issues, failure(api.CodeIntegrity, fmt.Sprintf("retained mismatched helper record %s", entry.Name())))
 			continue
 		}
+		validated[entry.Name()] = digest
 		result = append(result, record)
 	}
+	s.shapes = validated
 	return result, issues, nil
 }
 

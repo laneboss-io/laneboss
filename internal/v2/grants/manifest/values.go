@@ -79,13 +79,23 @@ func Expiry(value api.Timestamp, now time.Time) (time.Time, error) {
 
 // Relative accepts a single unambiguous spelling; it never repairs traversal.
 func Relative(value string) error {
+	return relativeName(value, false)
+}
+
+// ArchivePath preserves Git administration names as inert retained data.
+// Consumers must apply their own Git materialization policy before writing.
+func ArchivePath(value string) error {
+	return relativeName(value, true)
+}
+
+func relativeName(value string, archived bool) error {
 	if value == "" || len(value) > 4096 || !utf8.ValidString(value) ||
 		strings.HasPrefix(value, "/") || path.Clean(value) != value ||
 		strings.ContainsAny(value, "\\\x00\r\n") {
 		return Invalid("path must be an unambiguous beneath-root relative path")
 	}
 	for _, component := range strings.Split(value, "/") {
-		if component == ".." || component == "" || strings.EqualFold(component, ".git") {
+		if component == ".." || component == "" || !archived && strings.EqualFold(component, ".git") {
 			return Invalid("path contains traversal or Git administration")
 		}
 		for _, c := range component {

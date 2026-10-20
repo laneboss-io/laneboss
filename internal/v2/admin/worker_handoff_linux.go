@@ -374,7 +374,15 @@ func (m *leaseManager) serveWorkerLaunch(ctx context.Context, connection *net.Un
 	}
 	opened := false
 	for {
+		// Keep the canonical helper gate, allocation guard and flock, but
+		// lend the state lock while the service reloads committed authority.
+		// A lane can hold the store lock while resolving live metadata; if
+		// this wait retains operationMu, that lane and the handoff deadlock.
+		// Metadata cannot mutate gates. Reacquire before verifying the caller
+		// and checking the exact retained guard for the next operation.
+		resume := lendHelperOperation(ctx)
 		data, err := readUnixFrame(connection, peer)
+		resume()
 		if err != nil {
 			return err
 		}

@@ -115,7 +115,9 @@ func internal(ctx context.Context, opt options, command string, request any, out
 	if err != nil {
 		return err
 	}
+	started := time.Now()
 	result, err := invoke(ctx, opt, envelope{Command: command, Request: raw, RequestID: id, Key: id})
+	ended := time.Now()
 	if err != nil {
 		return fmt.Errorf("installed CLI %s: %w", command, err)
 	}
@@ -126,6 +128,16 @@ func internal(ctx context.Context, opt options, command string, request any, out
 			return err
 		}
 		if _, err := os.Stderr.Write(result.Stderr); err != nil {
+			return err
+		}
+		if err := json.NewEncoder(os.Stderr).Encode(struct {
+			Event     string `json:"event"`
+			Command   string `json:"command"`
+			RequestID string `json:"request_id"`
+			Started   int64  `json:"started_unix_ms"`
+			Ended     int64  `json:"ended_unix_ms"`
+			Exit      int    `json:"exit_code"`
+		}{"actor_cli_refused", command, id, started.UnixMilli(), ended.UnixMilli(), result.Exit}); err != nil {
 			return err
 		}
 		return fmt.Errorf("installed CLI %s exited %d", command, result.Exit)
@@ -206,7 +218,9 @@ func run(ctx context.Context, opt options) error {
 		return err
 	}
 	seen := map[api.ID]bool{}
-	ticker := time.NewTicker(250 * time.Millisecond)
+	// Mail arrival has a one-second fixture latency. Each read still invokes
+	// the installed CLI and all of its current authorization checks.
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		var page api.MailPage

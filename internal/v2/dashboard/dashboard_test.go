@@ -854,6 +854,10 @@ func (m *memHarness) LaneClean(ctx context.Context, scope api.Scope, req api.Cle
 func (m *memHarness) LaneArchive(ctx context.Context, scope api.Scope, req api.ArchiveRequest) (api.ArchiveReceipt, error) {
 	return api.ArchiveReceipt{}, api.NotImplemented("lb-v2-lifecycle", "LaneArchive")
 }
+
+func (m *memHarness) LaneRestore(ctx context.Context, scope api.Scope, req api.RestoreRequest) (api.RestoreReceipt, error) {
+	return api.RestoreReceipt{}, api.NotImplemented("lb-v2-lifecycle", "fixture LaneRestore")
+}
 func (m *memHarness) LaneStatus(ctx context.Context, scope api.Scope, req api.LifeRef) (api.Lane, error) {
 	return m.Lane(ctx, scope, req)
 }

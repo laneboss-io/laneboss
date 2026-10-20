@@ -35,7 +35,7 @@ func TestEndRemovalNative(t *testing.T) {
 }
 
 func TestEndRemovalControl(t *testing.T) {
-	runEndControl(t, "gate.go", "if committedExit(record) {", "if false && committedExit(record) {",
+	runEndControl(t, "gate.go", "if committedExit(*record) {", "if false && committedExit(*record) {",
 		"TestEndRemovalNative", "restart lost its durable native exit before removal",
 		"laneboss_root_canary,laneboss_gate_integration")
 }

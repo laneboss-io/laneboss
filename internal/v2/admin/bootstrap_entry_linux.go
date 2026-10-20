@@ -15,6 +15,9 @@ import (
 // RunBootstrapEntry is called before signal setup and general CLI parsing.
 // Recognition reads only argv; the first setup pins the inherited reason route.
 func RunBootstrapEntry(ctx context.Context, args []string) (bool, int) {
+	if len(args) == 3 && args[0] == restoreChildEntry {
+		return true, runRestoreChild(ctx, args[1:])
+	}
 	if len(args) == 0 || args[0] != FixedBootstrapEntry {
 		return false, 0
 	}

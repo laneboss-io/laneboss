@@ -243,6 +243,9 @@ func (f *fixture) run(ctx context.Context) (resultErr error) {
 	if f.Mode == "state" {
 		return f.state(ctx)
 	}
+	if err := f.dirtyTask(ctx, prompt); err != nil {
+		return err
+	}
 	// Keep evidence in the private home on success, stop, or a failed call.
 	if err := json.NewEncoder(os.Stdout).Encode(map[string]any{"type": "serve.session", "vendor_stood_in": true,
 		"driver": f.Driver, "session_id": f.Session, "home_id": f.Home, "history_id": f.History,
@@ -295,7 +298,7 @@ func main() {
 	f := fixture{options: input, log: transcript{Schema: "laneboss.serve-observed.v1", Program: program, Version: version,
 		VendorStoodIn: true, Config: input.Config, Challenge: input.Challenge, Life: input.Life, Run: input.Run, UID: os.Geteuid(), Calls: []callRecord{}}}
 	if err := f.run(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, "fixture stopped; inspect retained installed CLI evidence")
+		fmt.Fprintf(os.Stderr, "fixture stopped: %v; inspect retained installed CLI evidence\n", err)
 		os.Exit(1)
 	}
 }

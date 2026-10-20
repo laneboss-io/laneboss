@@ -40,7 +40,7 @@ func archiveObjectID(operation api.ID, name string) api.ID {
 }
 
 func archFile(root *os.File, name string, directory bool) (*os.File, error) {
-	if err := manifest.Relative(name); err != nil && name != ".git" {
+	if err := manifest.ArchivePath(name); err != nil {
 		return nil, err
 	}
 	flags := uint64(unix.O_RDONLY | unix.O_CLOEXEC | unix.O_NOFOLLOW | unix.O_NONBLOCK)
@@ -61,6 +61,9 @@ func (m *leaseManager) archiveRoots(record leaseRecord) (map[string]string, erro
 	roots := map[string]string{}
 	for i, name := range []string{"workspace", "home", "history"} {
 		roots[name] = filepath.Join(storageBase(m.binding, record), string(record.Storage.Directories[i].ID))
+	}
+	if record.Archive != nil && record.Archive.GitRoot != nil {
+		roots["git"] = filepath.Join(storageBase(m.binding, record), string(record.Archive.GitRoot.ID))
 	}
 	for _, capture := range record.Captures {
 		if capture.Native == nil {
@@ -222,6 +225,10 @@ func walkArchive(ctx context.Context, root *os.File, prefix string, operation ap
 }
 
 func (m *leaseManager) archiveTree(ctx context.Context, record leaseRecord, freeze, frozen bool) (api.ObjectManifest, []archiveSource, []storageInode, error) {
+	record, err := m.stageArchiveGit(ctx, record)
+	if err != nil {
+		return api.ObjectManifest{}, nil, nil, err
+	}
 	roots, err := m.archiveRoots(record)
 	if err != nil {
 		return api.ObjectManifest{}, nil, nil, err
@@ -236,9 +243,12 @@ func (m *leaseManager) measureArchiveRoots(ctx context.Context, record leaseReco
 	tree := api.ObjectManifest{Schema: "laneboss.objects.v2", Entries: []api.ObjectEntry{}}
 	var prior map[string]api.ObjectEntry
 	if record.Archive != nil {
-		prior = map[string]api.ObjectEntry{}
-		for _, e := range record.Archive.Tree.Entries {
-			prior[e.Path] = e
+		tree.Git = record.Archive.Tree.Git
+		if record.Archive.Phase != "inventory" {
+			prior = map[string]api.ObjectEntry{}
+			for _, e := range record.Archive.Tree.Entries {
+				prior[e.Path] = e
+			}
 		}
 	}
 	names := make([]string, 0, len(roots))
@@ -257,6 +267,12 @@ func (m *leaseManager) measureArchiveRoots(ctx context.Context, record leaseReco
 		// Match the physical root to the allocation's protected inode journal.
 		identity, _, err := dataIdentity(root)
 		if err == nil {
+			if name == "git" && record.Archive != nil && record.Archive.GitRoot != nil {
+				item := record.Archive.GitRoot
+				if identity != item.Device+":"+item.Inode {
+					err = failure(api.CodeIntegrity, "archive Git root differs from its protected capture")
+				}
+			}
 			for i, key := range []string{"workspace", "home", "history"} {
 				if key == name {
 					item := record.Storage.Directories[i]
@@ -316,7 +332,7 @@ func (m *leaseManager) measureArchiveRoots(ctx context.Context, record leaseReco
 	if len(tree.Entries) > 4096 || len(objects) >= 4096 {
 		return tree, nil, nil, failure(api.CodeBudget, "archive inventory requires reconciliation")
 	}
-	if err := manifest.Object(tree); err != nil {
+	if err := manifest.Archived(tree); err != nil {
 		return tree, nil, nil, err
 	}
 	if prior != nil && !reflect.DeepEqual(tree, record.Archive.Tree) {
@@ -494,6 +510,10 @@ func (m *leaseManager) freezeArchive(ctx context.Context, q archiveQuery) (archi
 		// The first inventory is current, after native write access withdrawal.
 		current := r
 		current.Archive = nil
+		current, err = m.stageArchiveGit(ctx, current)
+		if err != nil {
+			return archiveHeader{}, err
+		}
 		tree, objects, inventory, err := m.archiveTree(ctx, current, false, false)
 		if err != nil {
 			return archiveHeader{}, err
@@ -509,6 +529,9 @@ func (m *leaseManager) freezeArchive(ctx context.Context, q archiveQuery) (archi
 			}
 		}
 		r.Archive.Tree, r.Archive.Objects, r.Archive.Inventory = tree, objects, inventory
+		if current.Archive != nil {
+			r.Archive.GitRoot = current.Archive.GitRoot
+		}
 		if err := m.archiveReferenceFence(ctx, r, inventory); err != nil {
 			return archiveHeader{}, err
 		}

@@ -24,7 +24,7 @@ var lbV2LifecycleValidators = lbV2LifecycleRegisterValidators()
 
 func lbV2LifecycleRegisterValidators() []api.Method {
 	methods := []api.Method{"lane.start", "lane.adopt", "lane.resume", "lane.turn",
-		"lane.stop", "lane.mark", "lane.review", "lane.clean", "lane.archive", "lane.status",
+		"lane.stop", "lane.mark", "lane.review", "lane.clean", "lane.archive", "lane.restore", "lane.status",
 		"lane.list", "lane.check", "lane.loop", "lane.attach", "lane.input", "event.tail"}
 	for _, method := range methods {
 		if err := RegisterInputValidator(method, "lb-v2-lifecycle", func(raw json.RawMessage) error {
@@ -67,6 +67,8 @@ func lbV2LifecycleNames(method api.Method) string {
 		return cas + "archive-receipt"
 	case "lane.archive":
 		return cas
+	case "lane.restore":
+		return cas + "target archive-receipt allow-nested-git"
 	case "lane.status", "lane.check":
 		return target
 	case "lane.list":
@@ -85,9 +87,14 @@ func lbV2LifecycleParse(call Invocation) (*lbV2LifecycleFlags, error) {
 	set.SetOutput(io.Discard)
 	options := &lbV2LifecycleFlags{values: map[string]*string{}}
 	var follow bool
+	var nested bool
 	for _, name := range strings.Fields("request proof request-id idempotency-key format " + lbV2LifecycleNames(call.Method)) {
 		if name == "follow" {
 			set.BoolVar(&follow, name, false, "")
+			continue
+		}
+		if name == "allow-nested-git" {
+			set.BoolVar(&nested, name, false, "")
 			continue
 		}
 		initial := ""
@@ -118,13 +125,15 @@ func lbV2LifecycleParse(call Invocation) (*lbV2LifecycleFlags, error) {
 				return nil, lbV2LifecycleInvalid("duplicate lifecycle flag")
 			}
 			seen[name] = true
-			if !strings.Contains(arg, "=") && name != "follow" {
+			if !strings.Contains(arg, "=") && name != "follow" && name != "allow-nested-git" {
 				i++
 			}
 		}
 	}
 	value := strconv.FormatBool(follow)
 	options.values["follow"] = &value
+	nestedValue := strconv.FormatBool(nested)
+	options.values["allow-nested-git"] = &nestedValue
 	if options.lbV2LifecycleGet("format") != "json" && options.lbV2LifecycleGet("format") != "jsonl" {
 		return nil, lbV2LifecycleInvalid("lifecycle output format must be json or jsonl")
 	}
@@ -479,6 +488,9 @@ func lbV2LifecycleBuild(ctx context.Context, call Invocation, options *lbV2Lifec
 		return lbV2LifecycleReadJSON(options.lbV2LifecycleGet("review"), &request.Review)
 	case *api.ArchiveRequest:
 		*request = api.ArchiveRequest{Target: target, ExpectedGeneration: api.Generation(generation)}
+	case *api.RestoreRequest:
+		*request = api.RestoreRequest{Target: target, ExpectedGeneration: api.Generation(generation),
+			Path: options.lbV2LifecycleGet("target"), ArchiveReceiptID: api.ID(options.lbV2LifecycleGet("archive-receipt")), AllowNestedGit: options.lbV2LifecycleGet("allow-nested-git") == "true"}
 	case *api.CleanRequest:
 		*request = api.CleanRequest{Target: target, ExpectedGeneration: api.Generation(generation),
 			ArchiveReceiptID: api.ID(options.lbV2LifecycleGet("archive-receipt"))}
@@ -712,6 +724,10 @@ func runLaneClean(ctx context.Context, call Invocation) error {
 
 func runLaneArchive(ctx context.Context, call Invocation) error {
 	return lbV2LifecycleRun[api.ArchiveRequest, api.ArchiveReceipt](ctx, call)
+}
+
+func runLaneRestore(ctx context.Context, call Invocation) error {
+	return lbV2LifecycleRun[api.RestoreRequest, api.RestoreReceipt](ctx, call)
 }
 
 func runLaneStatus(ctx context.Context, call Invocation) error {

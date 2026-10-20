@@ -11,7 +11,7 @@ import sys
 import observer
 
 
-ASSERTIONS = ("DIRTY-RETAIN", "DIRTY-NATIVE-JOURNAL", "DIRTY-WORKTREE-BYTES", "CLEAN-CONTROL")
+ASSERTIONS = ("DIRTY-RETAIN", "DIRTY-NATIVE-JOURNAL", "DIRTY-WORKTREE-BYTES", "DIRTY-RESTORE", "CLEAN-CONTROL")
 
 
 def encoded(value):
@@ -30,6 +30,31 @@ def reference(path, evidence):
 def require(value, message):
     if not value:
         raise ValueError(message)
+
+
+def retained_bytes(dirty):
+    live, archived = dirty["live_before"], dirty["archived"]
+    before, after = dirty["before"], dirty["after"]
+    physical = [dict(row, mode=row["mode"] if row["kind"] == "symlink" else row["mode"] & 0o555)
+                for row in archived["entries"]]
+    return (live["tree_sha256"] == archived["tree_sha256"] and
+            live["entries"] == archived["entries"] and physical == before["entries"] and
+            live["branch_head"] == archived["branch_head"] == before["branch_head"] == after["branch_head"] and
+            before["tree_sha256"] == after["tree_sha256"] and before["entries"] == after["entries"] and
+            after["tracked_bytes"] == before["tracked_bytes"] and
+            after["untracked_bytes"] == before["untracked_bytes"] and
+            dirty["tracked_exists"] is True and dirty["untracked_exists"] is True)
+
+
+def restored_bytes(dirty):
+    live, proof = dirty["live_before"], dirty["restore"]
+    tree = proof["tree"]
+    return (tree["entries"] == live["entries"] and tree["tree_sha256"] == live["tree_sha256"] and
+            tree["directories"] == live["directories"] and
+            tree["tracked_bytes"] == live["tracked_bytes"] and tree["untracked_bytes"] == live["untracked_bytes"] and
+            tree["branch_head"] == proof["actual_head"] == live["branch_head"] and
+            proof["archive_before"] == proof["archive_after"] and
+            proof["frozen_before"] == proof["frozen_after"] == dirty["after"])
 
 
 def execute(context_path, result_path):
@@ -54,22 +79,15 @@ def execute(context_path, result_path):
     observation.write_bytes(encoded(facts))
     ref = reference(observation, evidence)
     checks = {
-        "DIRTY-RETAIN": facts["dirty"]["operation_error"]["code"] == "prerequisite" and
+        "DIRTY-RETAIN": facts["dirty"]["operation_error"]["code"] == "prerequisite_missing" and
         "retain_dirty" in facts["dirty"]["operation_error"]["message"] and
         "commit" in facts["dirty"]["operation_error"]["instead"].lower() and
         "merge" in facts["dirty"]["operation_error"]["instead"].lower() and
-        facts["dirty"]["status"]["cleaned"] is False and
-        facts["dirty"]["retry"]["native"]["action"] == "remove_clean" and
-        facts["dirty"]["retry"]["status"]["cleaned"] is True and
-        facts["dirty"]["retry"]["worktree_exists"] is False and
-        facts["dirty"]["retry"]["branch_exists"] is False,
+        facts["dirty"]["status"]["cleaned"] is False,
         "DIRTY-NATIVE-JOURNAL": facts["dirty"]["native"]["action"] == "retain_dirty" and
         facts["dirty"]["native"]["helper_journal_complete"] is True,
-        "DIRTY-WORKTREE-BYTES": facts["dirty"]["before"]["tree_sha256"] == facts["dirty"]["after"]["tree_sha256"] and
-        facts["dirty"]["before"]["branch_head"] == facts["dirty"]["after"]["branch_head"] and
-        facts["dirty"]["after"]["tracked_bytes"] == facts["dirty"]["before"]["tracked_bytes"] and
-        facts["dirty"]["after"]["untracked_bytes"] == facts["dirty"]["before"]["untracked_bytes"] and
-        facts["dirty"]["tracked_exists"] is True and facts["dirty"]["untracked_exists"] is True,
+        "DIRTY-WORKTREE-BYTES": retained_bytes(facts["dirty"]),
+        "DIRTY-RESTORE": restored_bytes(facts["dirty"]),
         "CLEAN-CONTROL": facts["control"]["native"]["action"] == "remove_clean" and
         facts["control"]["native"]["helper_journal_complete"] is True and
         facts["control"]["status"]["cleaned"] is True and

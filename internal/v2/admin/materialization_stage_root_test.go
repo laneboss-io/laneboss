@@ -44,6 +44,12 @@ type materializationCanaryFrame struct {
 type materializationCanaryReply struct{ Error *api.Error }
 
 func materializationStageCanary(t *testing.T, ctx context.Context, m *leaseManager, data dataReg, runtime api.BlobRef, executable api.Executable) {
+	materializationStageRun(t, ctx, m, data, runtime, executable, strings.HasPrefix(t.Name(), "TestMaterializationTaskPeaks"))
+}
+
+// onlyData leaves the measured workspace intact for a subsequent native
+// consumer, before the optional capture-corruption control damages its spool.
+func materializationStageRun(t *testing.T, ctx context.Context, m *leaseManager, data dataReg, runtime api.BlobRef, executable api.Executable, onlyData bool) {
 	t.Helper()
 	t.Cleanup(func() { archiveCanaryCollect(t, m) })
 	parent, err := m.find(data.Request.AgentLeaseID)
@@ -172,7 +178,7 @@ func materializationStageCanary(t *testing.T, ctx context.Context, m *leaseManag
 		Budget       api.Budget
 		TaskPeakOnly bool
 		WithCopies   bool
-	}{endpoint, parent.Lease, runtime, archiveCanaryRuntime(t, m), parent.Request.Budget, strings.HasPrefix(t.Name(), "TestMaterializationTaskPeaks"), t.Name() == "TestMaterializationNativeCopies"})
+	}{endpoint, parent.Lease, runtime, archiveCanaryRuntime(t, m), parent.Request.Budget, onlyData, t.Name() == "TestMaterializationNativeCopies"})
 	if err != nil {
 		t.Fatal(err)
 	}

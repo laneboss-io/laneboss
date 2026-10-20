@@ -39,6 +39,10 @@ func TestContainmentLivePostOpenJournal(t *testing.T) {
 	postExecAuthentication(t, "after-opened-journal", false)
 }
 
+func TestContainmentJournalIDs(t *testing.T) {
+	postExecAuthentication(t, "after-opened-journal-ids", false)
+}
+
 type containmentBlockedJournal struct {
 	writer  io.Writer
 	entered chan struct{}
@@ -188,7 +192,7 @@ func postExecAuthentication(t *testing.T, phase string, failProof bool) {
 	}
 	var endpoint containmentEndpoint
 	var metadata func(api.ID) (containmentTicket, error)
-	if concurrent {
+	if concurrent || phase == "after-opened-journal-ids" {
 		endpoint = nativeContainmentEndpoint(t, manager, true)
 		metadata = endpoint.query
 	} else {
@@ -211,7 +215,11 @@ func postExecAuthentication(t *testing.T, phase string, failProof bool) {
 	}
 	opened := make(chan completion, 1)
 	go func() {
-		openCtx, finishTurn := manager.beginHelperTurn(ctx, false, "open_gate", turnJournal)
+		openCtx, finishTurn, err := manager.beginHelperTurn(ctx, false, "open_gate", nil, turnJournal)
+		if err != nil {
+			opened <- completion{err: err}
+			return
+		}
 		defer finishTurn()
 		handle, err := manager.withCredentialGuard(openCtx, &credentialGuardFixture{}, func() (api.ProcessHandle, error) {
 			return manager.openGate(openCtx, registration)
@@ -311,6 +319,35 @@ func postExecAuthentication(t *testing.T, phase string, failProof bool) {
 	}
 	if ticket.Lease != record.Lease || ticket.Target != record.SpecReceipt.Target {
 		t.Fatal("post-exec RPC returned another registered containment")
+	}
+	if phase == "after-opened-journal-ids" {
+		found := false
+		var helperNonce, callNonce api.ID
+		for _, line := range strings.Split(endpoint.journal.snapshot(), "\n") {
+			var row struct {
+				Event  string        `json:"event"`
+				Method string        `json:"method"`
+				Life   api.ID        `json:"life_id"`
+				Run    api.RunNumber `json:"run"`
+				Launch api.ID        `json:"launch_id"`
+				Lease  api.ID        `json:"lease_id"`
+				Nonce  api.ID        `json:"helper_nonce"`
+			}
+			if json.Unmarshal([]byte(line), &row) == nil && row.Event == "helper_request" && row.Method == "containment_live" &&
+				row.Life == ticket.Target.LifeID && row.Run == ticket.Target.Run && row.Launch == ticket.LaunchID && row.Lease == ticket.Lease.ID && row.Nonce != "" {
+				found = true
+				helperNonce = row.Nonce
+			}
+			if row.Event == "helper_call_end" && row.Method == "containment_live" {
+				callNonce = row.Nonce
+			}
+		}
+		if !found {
+			t.Fatal("real helper observation has no lane/lease/request correlation")
+		}
+		if callNonce == "" || callNonce != helperNonce {
+			t.Fatal("service call cannot join the real helper nonce")
+		}
 	}
 	var registry *Service
 	if failProof {
@@ -421,6 +458,10 @@ func privateContainmentMounts(t *testing.T) {
 		if err := os.Mkdir(target, 0755); err != nil && !errors.Is(err, os.ErrExist) {
 			t.Fatal(err)
 		}
+		original, err := os.Stat(target)
+		if err != nil {
+			t.Fatal(err)
+		}
 		view := t.TempDir()
 		if err := os.Chmod(view, 0755); err != nil {
 			t.Fatal(err)
@@ -429,8 +470,16 @@ func privateContainmentMounts(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() {
-			if err := unix.Unmount(target, 0); err != nil {
+			// The isolated child owns this bind. Native descriptors may pin
+			// its old view until process exit; detach it from this namespace
+			// and verify that the original host directory is visible again.
+			if err := unix.Unmount(target, unix.MNT_DETACH); err != nil {
 				t.Error(err)
+				return
+			}
+			current, err := os.Stat(target)
+			if err != nil || !os.SameFile(original, current) {
+				t.Error("private containment view did not restore its original directory", err)
 			}
 		})
 	}

@@ -308,6 +308,12 @@ func (s *Server) Close() error {
 		}
 	}
 	for _, connection := range connections {
+		if connection.Binding().Class == api.EndpointLane && connection.cancel != nil {
+			// Revoke work immediately, then let the lane dispatcher write its
+			// bounded cancellation refusal before its deferred physical close.
+			connection.cancel()
+			continue
+		}
 		retain("connection", connection.Binding().Class, connection.Close())
 	}
 	done := make(chan struct{})
@@ -318,6 +324,14 @@ func (s *Server) Close() error {
 		drained = true
 	case <-time.After(5 * time.Second):
 		retain("worker_drain", "", serviceError(api.CodeIntegrity, "host workers did not drain"))
+	}
+	// The same five-second host budget remains the hard stop. A worker that
+	// ignored cancellation cannot retain its socket or authorize more work.
+	for _, connection := range connections {
+		if connection.Binding().Class == api.EndpointLane {
+			retain("connection", connection.Binding().Class, connection.Close())
+			s.journalLaneClose(connection.Binding(), connection.ID(), "host")
+		}
 	}
 	if drained {
 		if closer, ok := s.deps.Store.(io.Closer); ok {

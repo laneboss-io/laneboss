@@ -31,6 +31,7 @@ type helperResponse struct {
 	Result   json.RawMessage `json:"result,omitempty"`
 	Error    *api.Error      `json:"error,omitempty"`
 	Reason   string          `json:"reason,omitempty"`
+	Observed int64           `json:"observed,omitempty"`
 }
 
 // The credential protocol retains its original closed envelope. Decoding it

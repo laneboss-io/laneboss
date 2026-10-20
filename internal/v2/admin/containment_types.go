@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"laneboss.io/laneboss/internal/v2/api"
+	"laneboss.io/laneboss/internal/v2/pollgate"
 )
 
 type containmentQuery struct {
@@ -39,17 +40,46 @@ func (t containmentTicket) endpointMatches(endpoint api.InstalledBinding) bool {
 type containmentEntry struct {
 	Binding api.ContainmentBinding
 	Ticket  containmentTicket
+	memo    pollgate.Memo[containmentTicket]
+}
+
+func (s *Service) beginContainment(id api.ID) func() {
+	s.registryMu.Lock()
+	var finishes []func()
+	for key, entry := range s.containments {
+		if key == id || entry.Ticket.matches(id) {
+			finishes = append(finishes, entry.memo.Begin())
+		}
+	}
+	s.registryMu.Unlock()
+	return func() {
+		for _, finish := range finishes {
+			finish()
+		}
+	}
 }
 
 func (s *Service) revokeEntries(id api.ID) error {
+	return s.revokeKinds(id, false)
+}
+
+func (s *Service) revokeLanes(id api.ID) error {
+	return s.revokeKinds(id, true)
+}
+
+func (s *Service) revokeKinds(id api.ID, lanesOnly bool) error {
 	s.registryMu.Lock()
 	defer s.registryMu.Unlock()
 	var failures []error
 	for key, entry := range s.containments {
+		if lanesOnly && entry.Ticket.Kind != api.EndpointLane {
+			continue
+		}
 		if key != id && !entry.Ticket.matches(id) || entry.Binding.Revoked {
 			continue
 		}
 		entry.Binding.Revoked = true
+		entry.memo.Invalidate()
 		if entry.Binding.Directory != nil {
 			if err := entry.Binding.Directory.Close(); err != nil {
 				failures = append(failures, failure(api.CodeIntegrity, "cannot close revoked containment identity"))

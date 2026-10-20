@@ -20,7 +20,7 @@ const (
 // Each attempt has a fresh claimant and a context bounded by the same durable
 // lease. A pending port cannot keep the serial reconciler past claim expiry.
 func (s *Server) reconcileEffect(ctx context.Context, effect api.Effect, retries effectRetries) (result attemptResult) {
-	attempt := effectAttempt{server: s, kind: effectKind(effect), outcome: "fault", reason: "claim_unknown"}
+	attempt := effectAttempt{server: s, effect: effect, kind: effectKind(effect), outcome: "fault", reason: "claim_unknown"}
 	if err := attempt.write("started", "claim"); err != nil {
 		s.recordFault(err)
 		return attemptStop

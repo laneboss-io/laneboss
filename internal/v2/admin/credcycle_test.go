@@ -22,9 +22,9 @@ import (
 // claims no successful installed containment or credential authentication.
 func TestStopContainmentCycle(t *testing.T) {
 	helper := newStallHelper(t)
-	methods := serviceCalls(t, "ResolveContainment")
-	// Worker-specific routes return first; the last Service.call is the
-	// ordinary lane fallthrough. Use its real method literal and routing.
+	methods := serviceCalls(t, "liveProof")
+	// The ordinary lane cache refresh owns the real metadata method literal.
+	// Worker-specific routes retain their separate held conversation.
 	method := methods[len(methods)-1]
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	var store sync.RWMutex

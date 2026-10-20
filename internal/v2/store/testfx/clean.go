@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
@@ -26,6 +27,76 @@ type cleanNative struct {
 	removal   api.WorkspaceRemoval
 	removed   bool
 	dirty     bool
+	Roots     []string
+	Requester api.Actor
+	Stages    map[api.ID]string
+	Targets   map[api.ID]string
+}
+
+func (n *cleanNative) RestoreRoots(ctx context.Context, scope api.Scope) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if scope.Actor != n.Requester {
+		return nil, errors.New("restore roots belong to another caller")
+	}
+	return append([]string{}, n.Roots...), nil
+}
+
+func (n *cleanNative) StageRestore(ctx context.Context, scope api.Scope, q api.RestoreRequest, tree api.ObjectManifest, read archivejob.ReadObject, ceiling uint64) (api.ID, api.RestoreReceipt, error) {
+	var report api.RestoreReceipt
+	roots, err := n.RestoreRoots(ctx, scope)
+	if err != nil {
+		return "", report, err
+	}
+	parent, err := archivejob.RestoreDestination(q.Path, roots)
+	if err != nil {
+		return "", report, err
+	}
+	_, err = archivejob.EmptyRestoreTarget(parent, filepath.Base(q.Path))
+	parent.Close()
+	if err != nil {
+		return "", report, err
+	}
+	stage, err := os.MkdirTemp(filepath.Dir(q.Path), "restore-")
+	if err != nil {
+		return "", report, err
+	}
+	report.Head, err = archivejob.Restore(ctx, filepath.Join(stage, "result"), tree, read, ceiling, archivejob.RestoreOptions{Roots: []string{stage}, AllowNestedGit: q.AllowNestedGit, Report: &report})
+	if err != nil {
+		return "", report, errors.Join(err, os.RemoveAll(stage))
+	}
+	id := api.ID(filepath.Base(stage))
+	if n.Stages == nil {
+		n.Stages = map[api.ID]string{}
+		n.Targets = map[api.ID]string{}
+	}
+	n.Stages[id], n.Targets[id] = stage, q.Path
+	return id, report, nil
+}
+func (n *cleanNative) PublishRestore(ctx context.Context, scope api.Scope, id api.ID) error {
+	if _, err := n.RestoreRoots(ctx, scope); err != nil {
+		return err
+	}
+	stage, ok := n.Stages[id]
+	if !ok {
+		return errors.New("unknown restore stage")
+	}
+	if err := os.Rename(filepath.Join(stage, "result"), n.Targets[id]); err != nil {
+		return err
+	}
+	delete(n.Stages, id)
+	delete(n.Targets, id)
+	return os.RemoveAll(stage)
+}
+func (n *cleanNative) AbortRestore(ctx context.Context, scope api.Scope, id api.ID) error {
+	stage, ok := n.Stages[id]
+	if !ok {
+		return nil
+	}
+	delete(n.Stages, id)
+	delete(n.Targets, id)
+	return os.RemoveAll(stage)
 }
 
 func cleanStamp() api.Timestamp {
@@ -176,6 +247,8 @@ type CleanupRun struct {
 
 func (r *CleanupRun) SetDirty(dirty bool) { r.native.dirty = dirty }
 
+func (r *CleanupRun) SetRestoreRoot(root string) { r.native.Roots = []string{root} }
+
 func (f *Fixture) PrepareCleanup(t testing.TB, produce func(context.Context, api.Scope, api.WorkerPrincipal) (api.WorkerResultReceipt, error), stopped func(), dirty bool) *CleanupRun {
 	t.Helper()
 	f.Opened(t)
@@ -184,7 +257,7 @@ func (f *Fixture) PrepareCleanup(t testing.TB, produce func(context.Context, api
 	} else {
 		stopped()
 	}
-	return f.prepareCleanupEnded(t, produce, dirty, false)
+	return f.prepareCleanupEnded(t, produce, dirty, false, nil)
 }
 
 // CleanupReleased continues an already ended, decided and released life. Its
@@ -196,11 +269,24 @@ func (f *Fixture) CleanupReleased(t testing.TB, produce func(context.Context, ap
 		t.Fatal("released cleanup requires its real terminal decision", err)
 	}
 	f.Lane = lane
-	scene := f.prepareCleanupEnded(t, produce, false, true, extra...)
+	scene := f.prepareCleanupEnded(t, produce, false, true, nil, extra...)
 	return func() api.CleanupReceipt { return scene.Collect(t) }
 }
 
-func (f *Fixture) prepareCleanupEnded(t testing.TB, produce func(context.Context, api.Scope, api.WorkerPrincipal) (api.WorkerResultReceipt, error), dirty, released bool, extra ...api.ObjectWrite) *CleanupRun {
+// ArchiveEnded uses measured filesystem input for archive/restore components.
+// The caller must first end/stop the actual life. Native process and withdrawal
+// observations remain explicit fixtures; the store and archive worker are real.
+func (f *Fixture) ArchiveEnded(t testing.TB, produce func(context.Context, api.Scope, api.WorkerPrincipal) (api.WorkerResultReceipt, error), snapshot archivejob.Snapshot) *CleanupRun {
+	t.Helper()
+	var err error
+	f.Lane, err = f.State.Lane(context.Background(), f.Execution, f.Reservation.Target)
+	if err != nil || f.Lane.State != "verifying" {
+		t.Fatal("archive fixture requires its committed ended life", err)
+	}
+	return f.prepareCleanupEnded(t, produce, true, false, &snapshot)
+}
+
+func (f *Fixture) prepareCleanupEnded(t testing.TB, produce func(context.Context, api.Scope, api.WorkerPrincipal) (api.WorkerResultReceipt, error), dirty, released bool, measured *archivejob.Snapshot, extra ...api.ObjectWrite) *CleanupRun {
 	t.Helper()
 	ctx := context.Background()
 	target := f.Reservation.Target
@@ -217,6 +303,12 @@ func (f *Fixture) prepareCleanupEnded(t testing.TB, produce func(context.Context
 	manifest := api.BlobRef{ID: ID(t), Class: "manifest", SHA256: Digest(tree), Bytes: int64(len(tree))}
 	acl := api.ObjectACL{Config: f.Deps.Config, Owner: f.Execution.Actor, LifeID: target.LifeID, Audience: "owner", Generation: 1}
 	native := &cleanNative{dirty: dirty, snapshot: archivejob.Snapshot{Freeze: archivejob.Freeze{Target: target, LaunchID: f.Lane.LaunchID, CancellationEpoch: f.Lane.CancellationEpoch, Snapshot: manifest, Writers: &zero, WritableExports: &zero, ObservedAt: cleanStamp()}, Objects: []api.ObjectWrite{{ObjectKey: content.ID, Class: content.Class, Bytes: data, SHA256: content.SHA256, Origin: "service", ACL: acl}, {ObjectKey: manifest.ID, Class: manifest.Class, Bytes: tree, SHA256: manifest.SHA256, Origin: "service", ACL: acl}}}}
+	native.Requester = f.Human.Actor
+	if measured != nil {
+		freeze := native.snapshot.Freeze
+		freeze.Snapshot = measured.Freeze.Snapshot
+		native.snapshot = archivejob.Snapshot{Freeze: freeze, Objects: measured.Objects}
+	}
 	for _, object := range extra {
 		object.ACL, object.Origin = acl, "service"
 		native.snapshot.Objects = append(native.snapshot.Objects, object)

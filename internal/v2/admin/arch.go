@@ -18,7 +18,8 @@ type archiveJournal struct {
 	LaunchID          api.ID
 	Phase             string
 	Tree              api.ObjectManifest
-	Objects           []archiveSource `json:",omitempty"`
+	GitRoot           *storageIdentity `json:",omitempty"`
+	Objects           []archiveSource  `json:",omitempty"`
 	Inventory         []storageInode
 	Freeze            archivejob.Freeze         `json:",omitempty,omitzero"`
 	Worker            *archiveWorker            `json:",omitempty"`

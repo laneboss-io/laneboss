@@ -160,6 +160,7 @@ func (m *leaseManager) openGate(ctx context.Context, registration gateOpenRegist
 		return api.ProcessHandle{}, failure(api.CodeIntegrity, "open does not identify the actual retained prepared gate")
 	}
 	if record.Spec.Plan != nil {
+		helperLaneIDs(ctx, record)
 		if err := api.ValidateLaunchBindingPlan(registration.Binding, *record.Spec.Plan); err != nil {
 			return api.ProcessHandle{}, err
 		}
@@ -270,31 +271,38 @@ func (m *leaseManager) observeGate(ctx context.Context, request api.HelperObserv
 	if err != nil {
 		return api.ProcessObservation{}, err
 	}
-	if record.Gate == nil || record.Spec == nil || request.Handle != gateHandle(record) || record.BootID != m.bootID {
+	return m.observeOwnGate(ctx, &record, request.Handle)
+}
+
+// The caller has resolved this top-level lease under the helper operation
+// lock. Reconciliation can use that same validated record through its native
+// observation and terminal save instead of decoding the journal four times.
+func (m *leaseManager) observeOwnGate(ctx context.Context, record *leaseRecord, handle api.ProcessHandle) (api.ProcessObservation, error) {
+	if record.Gate == nil || record.Spec == nil || handle != gateHandle(*record) || record.BootID != m.bootID {
 		return api.ProcessObservation{}, failure(api.CodeContainmentUnknown, "process observation has no exact retained gate binding")
 	}
 	live := m.gates[record.Lease.ID]
 	if live == nil {
 		// A protected terminal record outlives its original wait owner and
-		// cgroup. Recheck native quiescence; never synthesize an end from
+		// cgroup. Recheck native ownership; never synthesize an end from
 		// containment absence or apply this exception to an uncommitted wait.
-		if committedExit(record) {
-			if err := m.resources.Quiescent(ctx, record); err != nil {
+		if committedExit(*record) {
+			if err := m.terminalGateQuiet(ctx, *record); err != nil {
 				return api.ProcessObservation{}, err
 			}
 			return *record.Gate.Observation, nil
 		}
 		return api.ProcessObservation{}, failure(api.CodeContainmentUnknown, "gate wait status or lifetime was lost during helper restart")
 	}
-	observation, err := live.Observe(ctx, request.Handle)
+	observation, err := live.Observe(ctx, handle)
 	if err != nil {
 		return api.ProcessObservation{}, err
 	}
-	if err := m.measureRunningSurvivors(ctx, record, &observation); err != nil {
+	if err := m.measureRunningSurvivors(ctx, *record, &observation); err != nil {
 		return api.ProcessObservation{}, err
 	}
 	if observation.State == "exited" {
-		if err := m.resources.Quiescent(ctx, record); err != nil {
+		if err := m.terminalGateQuiet(ctx, *record); err != nil {
 			return api.ProcessObservation{}, err
 		}
 		zero := uint64(0)
@@ -303,11 +311,26 @@ func (m *leaseManager) observeGate(ctx context.Context, request api.HelperObserv
 		if record.Gate.State == "opened" {
 			record.Gate.State = "ended"
 		}
-		if err := m.save(record); err != nil {
+		if err := m.save(*record); err != nil {
 			return api.ProcessObservation{}, err
 		}
 	}
 	return observation, nil
+}
+
+func (m *leaseManager) terminalGateQuiet(ctx context.Context, record leaseRecord) error {
+	if err := contextError(ctx); err != nil {
+		return err
+	}
+	// The validated native journal proves release, worker collection and
+	// actual workspace removal, all measured while this lease owned its UID.
+	// A recovery inventory read before collection can outlive that transfer;
+	// the next UID generation must not be measured against this retired life.
+	// Retained or interrupted cleanup still requires the full native scan.
+	if record.Phase == "released" && cleanupReleasesUIDs(record) {
+		return nil
+	}
+	return m.resources.Quiescent(ctx, record)
 }
 
 func (m *leaseManager) measureRunningSurvivors(ctx context.Context, record leaseRecord, observation *api.ProcessObservation) error {
@@ -340,11 +363,7 @@ func (m *leaseManager) reconcileGate(ctx context.Context, request api.HelperReco
 		request.PreparedID != record.Gate.Prepared.ID || request.OperationID != record.Spec.Handoff.OperationID {
 		return api.LaunchReconciliation{}, failure(api.CodeContainmentUnknown, "reconciliation lost its retained spec or prepared binding")
 	}
-	observation, err := m.observeGate(ctx, api.HelperObserveRequest{LeaseID: request.LeaseID, Handle: gateHandle(record)})
-	if err != nil {
-		return api.LaunchReconciliation{}, err
-	}
-	record, err = m.find(request.LeaseID)
+	observation, err := m.observeOwnGate(ctx, &record, gateHandle(record))
 	if err != nil {
 		return api.LaunchReconciliation{}, err
 	}

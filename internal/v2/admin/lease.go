@@ -12,6 +12,7 @@ import (
 	"laneboss.io/laneboss/internal/v2/api"
 	archivejob "laneboss.io/laneboss/internal/v2/archive"
 	"laneboss.io/laneboss/internal/v2/orgrender"
+	"laneboss.io/laneboss/internal/v2/pollgate"
 )
 
 type leaseRecord struct {
@@ -64,12 +65,14 @@ type leaseResources interface {
 }
 
 type leaseManager struct {
+	restores                map[api.ID]*nativeRestore
 	judgeRelays             map[api.ID]*judgeRelay
 	reviewView              bool
 	helperMu                sync.Mutex
 	storeLock               *os.File
 	workerLaunch            interface{ check(context.Context) error }
 	operationMu             sync.Mutex
+	polls                   pollgate.Gate
 	openWaitMu              sync.Mutex
 	openWait                map[api.ID]*gateOpenTransition
 	credentials             *credentialRuntime
@@ -664,6 +667,10 @@ func (m *leaseManager) dispatch(ctx context.Context, method string, params json.
 		return m.dispatchCaptureDrain(ctx, method, params)
 	case "archive_freeze", "archive_check", "archive_bytes":
 		return m.dispatchArchiveStorage(ctx, method, params)
+	case "restore_roots":
+		return m.restoreRoots(ctx, params)
+	case "restore_begin", "restore_chunk", "restore_stage", "restore_publish", "restore_abort":
+		return m.dispatchRestore(ctx, method, params)
 	case "judge_lease", "judge_register", "judge_prepare", "judge_open", "judge_observe", "judge_collect":
 		return m.dispatchJudge(ctx, method, params)
 	case "review_freeze", "review_check", "review_bytes", "review_lease", "review_register", "review_prepare", "review_open", "review_observe", "review_reconcile", "review_retire":

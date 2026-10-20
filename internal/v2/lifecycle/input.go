@@ -2,7 +2,9 @@ package lifecycle
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"laneboss.io/laneboss/internal/v2/api"
@@ -100,6 +102,13 @@ func validateInput(method api.Method, value any) error {
 		}
 	case api.ArchiveRequest:
 		target, generation, needsGeneration = request.Target, request.ExpectedGeneration, true
+	case api.RestoreRequest:
+		target, generation, needsGeneration = request.Target, request.ExpectedGeneration, true
+		if !filepath.IsAbs(request.Path) || filepath.Clean(request.Path) != request.Path ||
+			request.Path == string(filepath.Separator) || len(request.Path) > 4096 || strings.ContainsAny(request.Path, "\x00\r\n") ||
+			request.ArchiveReceiptID != "" && !validID(request.ArchiveReceiptID) {
+			return invalid("restore_target_invalid")
+		}
 	case api.LifeRef:
 		target = request
 	case api.ListRequest:

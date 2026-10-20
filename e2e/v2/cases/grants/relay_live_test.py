@@ -13,6 +13,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 import uuid
 
 
@@ -24,6 +25,24 @@ GRANTS = PREP.GRANTS
 
 
 class LiveRelay(unittest.TestCase):
+    def test_wait_kind(self):
+        case, record, target, pages, objects, publish = self.fixture()
+        publish({"type": "grants.ready", "target": target})
+        relay = GRANTS.Relay(case, record, GRANTS.io.require, ValueError)
+        relay.wait("grants.ready")
+        trace = case.rows[case.current]["observed"]["relay_wait"]
+        self.assertEqual(trace["kind"], "grants.ready")
+        self.assertFalse(trace["nonce_required"])
+        ticks = iter((0, 121))
+        with mock.patch.object(GRANTS, "time", SimpleNamespace(monotonic=lambda: next(ticks), sleep=lambda _: None)):
+            with self.assertRaisesRegex(ValueError, "relay committed report deadline.*grants.reply"):
+                relay.wait("grants.reply", uuid.uuid4().hex)
+        trace = case.rows[case.current]["observed"]["relay_wait"]
+        self.assertEqual(trace["kind"], "grants.reply")
+        self.assertTrue(trace["nonce_required"])
+        self.assertEqual(trace["seen_kinds"], ["grants.ready"])
+        self.assertEqual(len(pages), 1, "waiting manufactured a committed reply")
+
     def fixture(self):
         area = tempfile.TemporaryDirectory(prefix="relay-live-")
         self.addCleanup(area.cleanup)

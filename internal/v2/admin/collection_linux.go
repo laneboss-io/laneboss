@@ -87,9 +87,10 @@ func inventoryStorage(ctx context.Context, root *os.Root, record leaseRecord) ([
 		if record.Storage.Withdrawn {
 			uid, gid = 0, 0
 		}
-		// Only the primary archive roots are frozen to 0500. Independent copy
-		// roots retain their withdrawn 0700 mode until private collection.
-		if record.Archive != nil && record.Archive.Phase == "frozen" && index < len(record.Storage.Directories) {
+		// Primary roots and the physical Git capture are frozen to 0500.
+		// Independent copies keep their withdrawn 0700 collection mode.
+		if record.Archive != nil && record.Archive.Phase == "frozen" &&
+			(index < len(record.Storage.Directories) || record.Archive.GitRoot != nil && item.ID == record.Archive.GitRoot.ID) {
 			mode = 0500
 		}
 		if !ok {

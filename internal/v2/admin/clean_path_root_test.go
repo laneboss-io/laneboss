@@ -95,8 +95,8 @@ func TestCleanupNative(t *testing.T) {
 			used = map[uint32]bool{}
 			reserveArchiveUIDs([]leaseRecord{p}, used)
 			_, groupErr = os.Stat(group)
-			if !p.Archive.Worker.Collected || p.Archive.Worker.Collecting || used[p.Lease.UID] || used[p.Archive.Worker.Lease.UID] || !errors.Is(groupErr, os.ErrNotExist) {
-				t.Fatal("acceptance: retained cleanup kept a native UID or cgroup")
+			if !p.Archive.Worker.Collected || p.Archive.Worker.Collecting || !used[p.Lease.UID] || used[p.Archive.Worker.Lease.UID] || !errors.Is(groupErr, os.ErrNotExist) {
+				t.Fatal("acceptance: retention must keep its lane UID and collect its worker")
 			}
 			// A terminal label alone cannot release either reservation when
 			// the durable worker-collection fact is missing.
@@ -121,10 +121,10 @@ func TestCleanupNative(t *testing.T) {
 				t.Fatal("native cleanup journal could not be independently reopened")
 			}
 			original := encodeLaunchFixture(t, journal[0].Cleanup)
-			// A released UID can now belong to another process. Retained replay
-			// reads namespaces and the original journal without reclaiming it.
+			// Only the collected worker UID can belong to another process.
+			// Retained replay still checks the original lane's reserved UID.
 			reuse := cleanupCgroup(t, m.binding, api.ID(string(e.LeaseID)+"-reuse"))
-			_, _, _ = cleanupHolder(t, reuse, p.Lease, p.BootID)
+			_, _, _ = cleanupHolder(t, reuse, p.Archive.Worker.Lease, p.BootID)
 			q.Job.Claim.ClaimID = "retained-reader"
 			q.Job.Claim.Record.ClaimID = q.Job.Claim.ClaimID
 			q.Job.Claim.Record.Generation++

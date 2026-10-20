@@ -5,6 +5,7 @@ package admin
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"golang.org/x/sys/unix"
 	"laneboss.io/laneboss/internal/v2/api"
+	"laneboss.io/laneboss/internal/v2/pollgate"
 )
 
 func (m *leaseManager) containment(ctx context.Context, request containmentQuery) (containmentTicket, error) {
@@ -27,6 +29,7 @@ func (m *leaseManager) containment(ctx context.Context, request containmentQuery
 	if err != nil {
 		return containmentTicket{}, err
 	}
+	helperLaneIDs(ctx, record)
 	if request.Opened && record.Gate != nil && record.Gate.State == "opening" && !m.releasedForAuthentication(ctx, record) {
 		// An attempt without a successful native release must finish before it
 		// can authenticate. A released peer instead uses the live cgroup below:
@@ -216,7 +219,22 @@ func (s *Service) RegisterContainment(ctx context.Context, binding api.Containme
 	return nil
 }
 
+var errLiveRetry = errors.New("helper observation expired or changed during native verification")
+
 func (s *Service) ResolveContainment(ctx context.Context, facts api.PeerFacts, endpoint api.InstalledBinding) (api.ContainmentBinding, error) {
+	// Repeat every check with a fresh observation if its age or lifecycle era
+	// changed during verification. Begin and completion may each fence a start;
+	// neither a helper refusal nor a revoked registry is eligible for retry.
+	for range 3 {
+		binding, err := s.resolveContainment(ctx, facts, endpoint)
+		if err != errLiveRetry {
+			return binding, err
+		}
+	}
+	return api.ContainmentBinding{}, failure(api.CodeUnavailable, "containment helper observation did not stabilize during native verification")
+}
+
+func (s *Service) resolveContainment(ctx context.Context, facts api.PeerFacts, endpoint api.InstalledBinding) (api.ContainmentBinding, error) {
 	if err := contextError(ctx); err != nil {
 		return api.ContainmentBinding{}, err
 	}
@@ -242,13 +260,17 @@ func (s *Service) ResolveContainment(ctx context.Context, facts api.PeerFacts, e
 	// Ordinary lane rechecks can hold a store RLock
 	// while stop_gate waits on the broker's store read; they use the metadata
 	// reader under the lent operation lock instead of the occupied listener.
+	ctx = s.containmentCallContext(ctx, id, facts.HostPID)
+	live := endpoint.Class == api.EndpointLane && s.workerSession(ctx) == nil
+	var checkProof func() error
 	binding, ticket, err := s.refreshContainment(id, func(query containmentQuery) (containmentTicket, error) {
 		var current containmentTicket
-		if endpoint.Class != api.EndpointLane || s.workerSession(ctx) != nil {
+		if !live {
 			err := s.call(ctx, "containment", query, &current)
 			return current, err
 		}
-		err := s.call(ctx, "containment_live", query, &current)
+		current, check, err := s.liveProof(ctx, id, query)
+		checkProof = check
 		return current, err
 	})
 	if err != nil {
@@ -292,6 +314,13 @@ func (s *Service) ResolveContainment(ctx context.Context, facts api.PeerFacts, e
 	if !currentEntry {
 		return api.ContainmentBinding{}, failure(api.CodeUnauthenticated, "containment was revoked during native peer verification")
 	}
+	if checkProof != nil {
+		if err := checkProof(); errors.Is(err, pollgate.ErrExpired) || errors.Is(err, pollgate.ErrChanged) {
+			return api.ContainmentBinding{}, errLiveRetry
+		} else if err != nil {
+			return api.ContainmentBinding{}, failure(api.CodeUnauthenticated, "containment changed during native verification")
+		}
+	}
 	retained = true
 	return binding, nil
 }
@@ -331,6 +360,9 @@ func (s *Service) RevokeContainment(ctx context.Context, id api.ID) error {
 	}
 	if !validID(id) {
 		return failure(api.CodeInvalid, "invalid containment revocation")
+	}
+	if err := s.revokeLanes(id); err != nil {
+		return err
 	}
 	var matched bool
 	err := s.call(ctx, "containment_revoke", struct {
