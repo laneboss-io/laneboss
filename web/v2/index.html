@@ -30,6 +30,7 @@
       <a href="#plugins-panel" data-i18n="Plugins">Plugins</a>
       <a href="#resources-panel" data-i18n="Scripts &amp; Tools">Scripts &amp; Tools</a>
       <a href="#approvals-panel" data-i18n="D6 Approvals">D6 Approvals</a>
+      <a href="#humans-panel">Human enrollment</a>
       <a href="#controls-panel" data-i18n="Human Controls">Human Controls</a>
     </nav>
   </div>
@@ -103,6 +104,18 @@
     <div class="panel-head"><h2 id="controls-heading" data-i18n="Human Controls">Human Controls</h2></div>
     <div class="body">
       <p class="muted">Stop, resume, mark merged/abandoned, and send mail require a fresh operation-bound WebAuthn proof over POST /api/v2/rpc.</p>
+    </div>
+  </section>
+
+  <section class="panel full" id="humans-panel" aria-labelledby="humans-heading">
+    <div class="panel-head"><h2 id="humans-heading">D6 human enrollment</h2></div>
+    <div class="body">
+      <p>Create a single-use invitation for another human. Invitations expire after 15 minutes. Review the new key's fingerprint with that person before approving.</p>
+      <button id="human-invite" type="button">Invite human</button>
+      <button id="human-refresh" type="button">Refresh registrations</button>
+      <p id="human-token" role="status"></p>
+      <p id="humans-error" class="error" role="status"></p>
+      <div class="scroll" id="humans-content"></div>
     </div>
   </section>
 </div>

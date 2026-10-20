@@ -9,6 +9,7 @@
   const pendingEvents = [];
   let bootstrapToken = '';
   let browserNonce = '';
+  let humanConfig = '';
 
   function nonceText(bytes) {
     let text = '';
@@ -423,6 +424,79 @@
     );
   }
 
+  async function humanRPC(method, params, proof) {
+    if (!humanConfig) throw new Error('Load the current registrations before continuing.');
+    const request = {protocol: 'laneboss.rpc.v2', schema: 2, config: humanConfig,
+      request_id: requestID('req-'), idempotency_key: requestID('idem-'), method, params};
+    if (proof) request.proof = proof;
+    request.request_sha256 = await digestRequest(humanConfig, method, params);
+    const response = await fetch('/api/v2/rpc', {method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify(request)});
+    const value = await response.json();
+    if (!response.ok || value.error) throw new Error(value.error && value.error.message || 'Human enrollment request refused.');
+    return value.result;
+  }
+
+  function deviceBytes(value) {
+    return Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
+  }
+
+  function deviceBase64(value) {
+    let text = '';
+    for (const byte of new Uint8Array(value)) text += String.fromCharCode(byte);
+    return btoa(text);
+  }
+
+  async function humanAction(params) {
+    const target = params.invite_id || params.principal_id || humanConfig;
+    const digest = await digestRequest(humanConfig, 'human.enroll', params);
+    const challenge = await humanRPC('human.challenge', {method: 'human.enroll', target_id: target,
+      request_sha256: digest, base_generation: params.expected_generation || 0});
+    if (challenge.origin !== window.location.origin || !navigator.credentials) throw new Error('Use your security key on the enrolled HTTPS origin.');
+    const credential = await navigator.credentials.get({publicKey: {challenge: deviceBytes(challenge.challenge),
+      rpId: challenge.rp_id, userVerification: 'required', timeout: 120000}});
+    if (!credential || credential.type !== 'public-key' || !credential.response) throw new Error('Security-key confirmation did not complete.');
+    const hash = await crypto.subtle.digest('SHA-256', credential.rawId);
+    const keyID = 'credential-' + Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const proof = await humanRPC('human.confirm', {challenge_id: challenge.id, credential_id: keyID,
+      client_data_json: deviceBase64(credential.response.clientDataJSON),
+      authenticator_data: deviceBase64(credential.response.authenticatorData), signature: deviceBase64(credential.response.signature)});
+    return humanRPC('human.enroll', params, proof);
+  }
+
+  async function refreshHumans() {
+    const view = await apiGet('/api/v2/humans', 'humans');
+    renderHumans(view);
+  }
+
+  function renderHumans(view) {
+    humanConfig = view.config;
+    const rows = (view.registrations || []).map(function (item) {
+      const actions = el('div');
+      const choices = item.state === 'pending' ? ['approve', 'reject'] : item.state === 'active' ? ['revoke'] : [];
+      choices.forEach(function (action) {
+        const button = el('button', action.charAt(0).toUpperCase() + action.slice(1));
+        button.type = 'button';
+        button.addEventListener('click', async function () {
+          button.disabled = true;
+          try {
+            const text = action === 'approve' ? 'Approve this exact key fingerprint?\n' + item.fingerprint : action + ' this human registration?';
+            if (!window.confirm(text)) return;
+            const params = action === 'revoke' ? {action, principal_id: item.principal_id, expected_generation: item.enrollment_generation}
+              : {action, invite_id: item.id, fingerprint: item.fingerprint, expected_generation: item.generation};
+            await humanAction(params);
+            await refreshHumans();
+            byId('humans-error').textContent = '';
+          } catch (error) { byId('humans-error').textContent = error.message; }
+          finally { button.disabled = false; }
+        });
+        actions.appendChild(button);
+      });
+      return [item.principal_id, item.fingerprint, item.state, item.can_approve ? 'May approve' : 'Human', actions];
+    });
+    renderTable('humans-content', ['Principal', 'Key fingerprint (SHA-256)', 'State', 'Rights', 'Action'], rows, 'No later human registrations.');
+  }
+
   async function refreshAll() {
     const specs = [
       ['tree', '/api/v2/tree', renderTree],
@@ -432,7 +506,8 @@
       ['refusals', '/api/v2/refusals', renderRefusals],
       ['plugins', '/api/v2/plugins', renderPlugins],
       ['resources', '/api/v2/resources', renderResources],
-      ['approvals', '/api/v2/approvals', renderApprovals]
+      ['approvals', '/api/v2/approvals', renderApprovals],
+      ['humans', '/api/v2/humans', renderHumans]
     ];
     await Promise.all(specs.map(async function (item) {
       const name = item[0], url = item[1], fn = item[2];
@@ -569,6 +644,21 @@
   }
 
   function setupControls() {
+    const invite = byId('human-invite');
+    if (invite) invite.addEventListener('click', async function () {
+      invite.disabled = true;
+      try {
+        const result = await humanAction({action: 'invite', role: 'human'});
+        byId('human-token').textContent = 'Share this invitation privately; it expires at ' + result.expires_at + ': ' + result.token;
+        byId('humans-error').textContent = '';
+      } catch (error) { byId('humans-error').textContent = error.message; }
+      finally { invite.disabled = false; }
+    });
+    const refresh = byId('human-refresh');
+    if (refresh) refresh.addEventListener('click', async function () {
+      try { await refreshHumans(); byId('humans-error').textContent = ''; }
+      catch (error) { byId('humans-error').textContent = error.message; }
+    });
     const themeSel = byId('theme-choice');
     if (themeSel) {
       themeSel.addEventListener('change', function () {

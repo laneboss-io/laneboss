@@ -315,6 +315,9 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/api/v2/events" {
 		method = "event.tail"
 	}
+	if r.URL.Path == "/api/v2/humans" {
+		method = "human.pending"
+	}
 	if !strings.HasPrefix(r.URL.Path, "/api/v2/") || method != "event.tail" && !isAllowedDashboardRead(method) {
 		writeErrorResponse(w, "", &api.Error{Code: api.CodeNotFound, Message: "dashboard route not found", Owner: ownerName})
 		return
@@ -335,7 +338,15 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, "", err)
 		return
 	}
-	readReq, raw, err := newReadRequest(sess.Config, method, query)
+	var params any = query
+	if method == "human.pending" {
+		if r.URL.RawQuery != "" {
+			writeErrorResponse(w, "", invalidErr("human registrations accept no query", "Use the exact registrations route."))
+			return
+		}
+		params = api.Empty{}
+	}
+	readReq, raw, err := newReadRequest(sess.Config, method, params)
 	if err != nil {
 		writeErrorResponse(w, "", err)
 		return
@@ -827,7 +838,7 @@ func (s *Service) handleHTTPRPC(w http.ResponseWriter, r *http.Request) {
 
 func isAllowedDashboardMutation(m api.Method) bool {
 	switch m {
-	case "grants.root", "ticket.issue", "lane.start", "lane.input", "lane.stop", "lane.resume", "lane.mark", "lane.review", "mail.send", "org.change.approve":
+	case "grants.root", "ticket.issue", "lane.start", "lane.input", "lane.stop", "lane.resume", "lane.mark", "lane.review", "mail.send", "org.change.approve", "human.enroll":
 		return true
 	default:
 		return false

@@ -126,6 +126,43 @@ func TestDashboardEntryOpen(t *testing.T) {
 	}
 }
 
+func TestDashboardStagingFences(t *testing.T) {
+	server, conn, actor := dashboardTransportFixture(t)
+	ctx := context.Background()
+	request := DashboardEntryRequest{Protocol: DashboardEntryProtocol, Action: "open"}
+	frame := entryFrame(t, conn, request)
+	if _, err := server.dashboardEntryCall(ctx, conn, frame, request); err != nil {
+		t.Fatal("native open control failed", err)
+	}
+	bound, err := conn.HumanStaging(ctx)
+	if err != nil || bound.PrincipalID != actor.ID || bound.CredentialID != "" || string(bound.Frame.Bytes()) != string(frame.Bytes()) {
+		t.Fatal("native open did not retain its authenticated principal and exact frame", err)
+	}
+	if _, err := conn.ReadAuthority(ctx); err == nil {
+		t.Fatal("native staging granted read authority")
+	}
+	server.deps.Authenticator.(*authFixture).scope.Actor.ID = fixtureID(t)
+	request.Action = "ping"
+	if _, err := server.dashboardEntryCall(ctx, conn, entryFrame(t, conn, request), request); err == nil {
+		t.Fatal("cached native principal changed after opening")
+	}
+	bound, err = conn.HumanStaging(ctx)
+	if err != nil || bound.PrincipalID != actor.ID {
+		t.Fatal("refused native entry replaced its authenticated principal", err)
+	}
+}
+
+func TestDashboardRefusedStaging(t *testing.T) {
+	server, conn, _ := dashboardTransportFixture(t)
+	request := DashboardEntryRequest{Protocol: DashboardEntryProtocol, Action: "open", RedeemID: fixtureID(t)}
+	if _, err := server.dashboardEntryCall(context.Background(), conn, entryFrame(t, conn, request), request); err == nil {
+		t.Fatal("native open accepted a supplied redemption")
+	}
+	if _, err := conn.HumanStaging(context.Background()); err == nil {
+		t.Fatal("refused native open installed a staging principal")
+	}
+}
+
 type entryClosingAuth struct{ *authFixture }
 
 func (a *entryClosingAuth) Authenticate(ctx context.Context, conn api.ConnectionContext) (api.Scope, error) {

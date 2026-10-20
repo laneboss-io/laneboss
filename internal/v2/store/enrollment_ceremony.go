@@ -119,12 +119,23 @@ func (s *Service) RecordEnrollmentValidation(ctx context.Context, scope api.Scop
 	if err := checkEnrollmentFrame(scope.Frame.Bytes(), *s.deps.Enrollment, request); err != nil {
 		return err
 	}
+	var link inviteChallenge
+	if err := storedProjection(ctx, s.db, "invite_challenge", request.ChallengeID, &link); !absent(err) {
+		if err != nil {
+			return err
+		}
+		return fault(api.CodeForbidden, "invited registration requires the separate pending ceremony")
+	}
 	return s.retainEnrollmentValidation(ctx, request, install)
 }
 
 // Schema/parameter binding is separate from native authority. The caller above
 // must verify the real administrator connection before retaining any result.
 func checkEnrollmentFrame(raw []byte, endpoint api.AdminEnrollmentEndpoint, request api.EnrollmentValidationRequest) error {
+	return checkEnrollMethod(raw, endpoint, request, "enroll_complete")
+}
+
+func checkEnrollMethod(raw []byte, endpoint api.AdminEnrollmentEndpoint, request api.EnrollmentValidationRequest, method string) error {
 	var frame api.AdminEnrollmentFrame
 	if err := wire.DecodeAdminEnrollmentFrame(raw, &frame); err != nil {
 		return err
@@ -136,7 +147,7 @@ func checkEnrollmentFrame(raw []byte, endpoint api.AdminEnrollmentEndpoint, requ
 	if err != nil {
 		return err
 	}
-	if frame.Method != "enroll_complete" || !wire.SameJSON(exact, frame.Params) {
+	if frame.Method != method || !wire.SameJSON(exact, frame.Params) {
 		return fault(api.CodeForbidden, "identity validation differs from the native administrator frame")
 	}
 	return nil
@@ -237,9 +248,21 @@ func (s *Service) ReplayEnrollment(ctx context.Context, scope api.Scope, request
 // The public store port above first verifies its native administrator peer.
 // This private continuation binds that exact frame before reading any receipt.
 func (s *Service) replayEnrollment(ctx context.Context, raw []byte, request api.EnrollmentValidationRequest) (api.EnrollmentReceipt, error) {
+	return s.replayEnrollMethod(ctx, raw, request, "enroll_complete")
+}
+
+func (s *Service) replayEnrollMethod(ctx context.Context, raw []byte, request api.EnrollmentValidationRequest, method string) (api.EnrollmentReceipt, error) {
 	var result api.EnrollmentReceipt
-	if err := checkEnrollmentFrame(raw, *s.deps.Enrollment, request); err != nil {
+	if err := checkEnrollMethod(raw, *s.deps.Enrollment, request, method); err != nil {
 		return result, err
+	}
+	var link inviteChallenge
+	linked := storedProjection(ctx, s.db, "invite_challenge", request.ChallengeID, &link)
+	if linked != nil && !absent(linked) {
+		return result, linked
+	}
+	if method == "invite_complete" && linked != nil || method == "enroll_complete" && linked == nil {
+		return result, fault(api.CodeForbidden, "enrollment replay belongs to the other ceremony path")
 	}
 	if err := storedProjection(ctx, s.db, "enrollment_receipt", request.Ceremony.CeremonyID, &result); err != nil {
 		return result, err

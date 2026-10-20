@@ -281,7 +281,7 @@ func validateEnrollmentHumanBinding(endpoint api.AdminEnrollmentEndpoint, human 
 	return nil
 }
 
-type enrollmentOptions struct{ installation, begin, complete, publish, spend string }
+type enrollmentOptions struct{ installation, begin, complete, publish, spend, invite, redeem string }
 
 func parseEnrollmentOptions(args []string) (enrollmentOptions, error) {
 	var options enrollmentOptions
@@ -298,6 +298,10 @@ func parseEnrollmentOptions(args []string) (enrollmentOptions, error) {
 			options.begin = args[index+1]
 		case "--enroll-complete":
 			options.complete = args[index+1]
+		case "--invite-begin":
+			options.invite = args[index+1]
+		case "--invite-complete":
+			options.redeem = args[index+1]
 		case "--publish-initial":
 			options.publish = args[index+1]
 		case "--spend-reconcile":
@@ -307,7 +311,7 @@ func parseEnrollmentOptions(args []string) (enrollmentOptions, error) {
 		}
 	}
 	modes := 0
-	for _, path := range []string{options.begin, options.complete, options.publish, options.spend} {
+	for _, path := range []string{options.begin, options.complete, options.publish, options.spend, options.invite, options.redeem} {
 		if path != "" {
 			modes++
 		}

@@ -40,6 +40,9 @@ func validateIntent(request api.HumanChallengeRequest) error {
 		request.BaseGeneration > 1<<53-1 {
 		return refusal(api.CodeInvalid, "invalid operation-bound challenge intent")
 	}
+	if request.CredentialID != "" && !validID(request.CredentialID) {
+		return refusal(api.CodeInvalid, "invalid human staging credential selector")
+	}
 	return nil
 }
 

@@ -323,6 +323,8 @@ func isAllowedDashboardRead(method api.Method) bool {
 		"dashboard.plugins", "dashboard.resources", "dashboard.lifecycle", "dashboard.approvals",
 		"lane.status", "lane.list", "mail.list", "org.change.get", "operation.get", "store.verify":
 		return true
+	case "human.pending":
+		return true
 	}
 	return false
 }

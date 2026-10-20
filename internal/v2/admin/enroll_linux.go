@@ -285,7 +285,7 @@ func (s *Service) serveEnrollmentConnection(parent context.Context, connection *
 func validateEnrollmentEnvelope(request helperRequest, endpoint api.AdminEnrollmentEndpoint) error {
 	if request.Protocol != enrollmentProtocol || request.Revision != api.ContractRevision || request.Config != endpoint.Config ||
 		request.Generation != endpoint.InstallationGeneration || request.ArtifactSHA256 != endpoint.Helper.SHA256 ||
-		!validID(request.Nonce) || len(request.Nonce) < 32 || (request.Method != "enroll_begin" && request.Method != "enroll_complete" && request.Method != "initial_publish" && request.Method != "spend_reconcile") {
+		!validID(request.Nonce) || len(request.Nonce) < 32 || (request.Method != "enroll_begin" && request.Method != "enroll_complete" && request.Method != "initial_publish" && request.Method != "spend_reconcile" && request.Method != "invite_begin" && request.Method != "invite_complete") {
 		return failure(api.CodeForbidden, "administrator enrollment frame differs from its fixed installed entry")
 	}
 	return nil
@@ -416,17 +416,32 @@ func runEnrollment(parent context.Context, config string, options enrollmentOpti
 	if options.spend != "" {
 		method, path = "spend_reconcile", options.spend
 	}
+	if options.invite != "" {
+		method, path = "invite_begin", options.invite
+	}
+	if options.redeem != "" {
+		method, path = "invite_complete", options.redeem
+	}
 	input, err := readProtected(path, api.MaxFrameBytes/2)
 	if err != nil {
 		return nil, err
 	}
 	var ceremony api.EnrollmentCeremonyRequest
 	var initial initialBundle
-	if method == "enroll_begin" {
+	if method == "invite_begin" {
+		var request api.InvitedEnrollmentRequest
+		if err := decodeStrict(input, &request); err != nil {
+			return nil, err
+		}
+		if request.Token == "" {
+			return nil, failure(api.CodeInvalid, "invited enrollment requires its one-use token")
+		}
+		ceremony = request.Ceremony
+	} else if method == "enroll_begin" {
 		if err := decodeStrict(input, &ceremony); err != nil {
 			return nil, err
 		}
-	} else if method == "enroll_complete" {
+	} else if method == "enroll_complete" || method == "invite_complete" {
 		var request api.EnrollmentValidationRequest
 		if err := decodeStrict(input, &request); err != nil {
 			return nil, err
@@ -455,7 +470,7 @@ func runEnrollment(parent context.Context, config string, options enrollmentOpti
 			return nil, failure(api.CodeIntegrity, "cannot encode operator tool reading")
 		}
 	}
-	if method == "enroll_begin" || method == "enroll_complete" {
+	if method == "enroll_begin" || method == "enroll_complete" || method == "invite_begin" || method == "invite_complete" {
 		if err := validateInitialCeremony(ceremony, config); err != nil {
 			return nil, err
 		}
@@ -518,7 +533,7 @@ func runEnrollment(parent context.Context, config string, options enrollmentOpti
 		}
 		return receipt, nil
 	}
-	if method == "enroll_begin" {
+	if method == "enroll_begin" || method == "invite_begin" {
 		var challenge api.EnrollmentChallenge
 		if err := decodeStrict(result, &challenge); err != nil {
 			return nil, err

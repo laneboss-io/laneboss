@@ -58,6 +58,7 @@ type options struct {
 	Mode, Private, Config, Origin, RPID  string
 	Operation, Challenge, Method, Target string
 	Generation                           uint64
+	Invited                              bool
 }
 
 var identifier = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
@@ -80,8 +81,12 @@ func parse(args []string) (options, error) {
 	set.StringVar(&result.Method, "method", "", "exact operation method")
 	set.StringVar(&result.Target, "target", "", "actual operation target")
 	set.Uint64Var(&result.Generation, "generation", 0, "actual base generation")
+	set.BoolVar(&result.Invited, "invited", false, "create a distinct invited test credential")
 	if set.Parse(args[1:]) != nil || set.NArg() != 0 || !configuration.MatchString(result.Config) {
 		return result, errors.New("invalid authenticator arguments")
+	}
+	if result.Invited && result.Mode != "create" {
+		return result, errors.New("invited applies only to device creation")
 	}
 	switch result.Mode {
 	case "create":
@@ -199,6 +204,9 @@ func create(root *os.Root, input options) (descriptor, error) {
 		Presence: "simulated", AAGUID: api.SoftwareAuthenticatorAAGUID, Attestation: api.SoftwareAuthenticatorAttestationMarker,
 		PrincipalID: principal, CredentialID: api.SoftwareAuthenticatorCredentialID, RawCredentialID: raw, Algorithm: "ES256",
 		PublicKeyDER: public, Origin: input.Origin, RPID: input.RPID}
+	if input.Invited {
+		publicData.CredentialID = api.InvitedCredentialID(raw)
+	}
 	data, err := json.Marshal(publicData)
 	if err != nil {
 		return descriptor{}, err
@@ -252,7 +260,7 @@ func sign(root *os.Root, input options, intent api.HumanChallengeRequest, raw []
 	var public descriptor
 	if api.DecodeObject(metadata, &public) != nil || public.Config != input.Config || public.Program != program ||
 		!public.HardwareStoodIn || public.Enrolled || public.Origin != challenge.Origin || public.RPID != challenge.RPID ||
-		public.Presence != "simulated" || public.CredentialID != api.SoftwareAuthenticatorCredentialID || public.AAGUID != api.SoftwareAuthenticatorAAGUID ||
+		public.Presence != "simulated" || (public.CredentialID != api.SoftwareAuthenticatorCredentialID && public.CredentialID != api.InvitedCredentialID(public.RawCredentialID)) || public.AAGUID != api.SoftwareAuthenticatorAAGUID ||
 		public.Attestation != api.SoftwareAuthenticatorAttestationMarker || !bytes.HasPrefix(public.RawCredentialID, []byte(api.SoftwareAuthenticatorRawPrefix)) ||
 		originPolicy(public.Origin, public.RPID) != nil {
 		return result, errors.New("challenge relying party differs from private credential")

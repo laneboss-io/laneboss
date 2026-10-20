@@ -58,7 +58,7 @@ CHECKS = flow.STATE_CHECKS
 
 
 def presence(check):
-    dependent = check.startswith(("authenticator.", "human.", "state.", "lane.")) or check in ("unready.owner", "direct-open", "admin.publication")
+    dependent = check.startswith(("authenticator.", "human.", "state.", "lane.", "capture.other.")) or check in ("unready.owner", "direct-open", "admin.publication")
     return "simulated" if dependent else "not_applicable"
 
 
@@ -472,7 +472,7 @@ class Case:
         self.last = None
         self.rows[self.current]["observed"] = {"executed": False, "rpc_executed": False,
             "phase": "protected helper input", "owner_request": ["lb-v2-serve"]}
-        require(mode in ("enroll-begin", "enroll-complete", "spend-reconcile"),
+        require(mode in ("enroll-begin", "enroll-complete", "invite-begin", "invite-complete", "spend-reconcile"),
                 "unknown administrator input mode")
         name = "%s-%03d.input.json" % (mode, self.index + 1)
         retained = self.keep_json(name, request)
@@ -528,6 +528,50 @@ class Case:
         self.passed({"hardware_stood_in": True, "gesture": public["gesture"], "private_directory_retained": True,
                      "credential_id": public["credential_id"], "enrollment_claimed": False})
         self.rows["human.enrollment"]["observed"] = {"executed": False, "reason": "awaiting actual administrator commit receipt"}
+
+    def prepare_other_human(self):
+        saved = self.current, self.human_prefix
+        self.current, self.human_prefix = "capture.other.enroll", "itemdashboard"
+        endpoint = self.installed["admin_enrollment"]
+        private = provision.authenticator_private()
+        public = json.loads(self.command("auth-create-other", [str(self.authenticator), "create", "--invited",
+            "--private", str(private), "--config", self.config, "--origin", endpoint["origin"], "--rp-id", endpoint["rp_id"]], clean=True))
+        require(public.get("principal_id") != self.human.public["principal_id"] and
+                public.get("credential_id") != self.human.public["credential_id"] and
+                public.get("public_key_der") != self.human.public["public_key_der"] and
+                public.get("presence") == "simulated", "second human does not own a distinct declared test key")
+        self.other_human = human.HumanRoot(self, private, public, require, Blocked)
+        self.other_human.enroll(self.human)
+        self.current, self.human_prefix = saved
+
+    def verify_other_capture(self, record):
+        saved = self.current, self.human_prefix
+        self.current, self.human_prefix = "capture.other.read", "itemdashboard"
+        retained = flow.events(self, record, require)
+        captures = [event["payload"]["data"] for event in retained
+                    if event.get("kind") == "capture.appended" and event.get("origin") == "service" and
+                    event.get("config") == self.config and event.get("life_id") == record["target"]["life_id"] and
+                    event.get("run") == record["target"]["run"] and event.get("payload", {}).get("primary") is True]
+        require(captures, "isolation check has no actual capture to read")
+        ref = captures[0]
+        request = {"object_id": ref["id"], "offset": 0, "limit": min(ref["bytes"], 4096)}
+        owner = self.human.read("capture-owner-control", ["blob", "read"], request)
+        data = base64.b64decode(owner["data"], validate=True)
+        require(data and len(data) == request["limit"] and hashlib.sha256(data).hexdigest() == owner["sha256"],
+                "capture owner control did not read the actual bytes")
+        self.human_prefix = "other"
+        identity = self.other_human.read("capture-other-identity", ["identity", "self"], {})
+        require(identity.get("actor", {}).get("id") == self.other_human.public["principal_id"],
+                "second human did not authenticate with its approved own key")
+        proof = self.other_human.proof("read", "human.session", {}, self.other_human.public["principal_id"], 0)
+        self.current = "capture.other.read"
+        self.cli("capture-other-read", ["blob", "read"], request, expected=2, proof=str(proof))
+        denied = self.decode_document((self.root / self.last["stderr"]).read_bytes())
+        require(denied.get("code") == "not_found" and not (self.root / self.last["stdout"]).read_bytes(),
+                "approved second human read the first human's capture or missed the actual visibility check")
+        self.passed({"reader": identity["actor"], "object_id": ref["id"], "owner_bytes_read": len(data),
+                     "denied_code": denied["code"], "denied_exit": self.last["exit_code"]})
+        self.current, self.human_prefix = saved
 
     def publication_call(self, name, output):
         data = self.command(name, ["bash", str(self.stage / "scripts/v2-admin/install.sh"),

@@ -24,6 +24,7 @@ var publicWriteCatalog = map[Method]publicWrites{
 	"human.challenge":    {fields: "Challenges", events: "human.challenge"},
 	"human.confirm":      {fields: "Challenges Counters Proofs Objects", events: "human.confirmed"},
 	"human.session":      {fields: "ReadSessions", events: "human.session"},
+	"human.enroll":       {fields: "HumanChanges", events: "human.enrollment"},
 	"ticket.issue":       {fields: "Tickets", events: "ticket.issued"},
 	"grants.root":        {fields: "Grants", events: "grants.issued"},
 	"grants.enroll":      {fields: "Objects", events: "blob.committed"},

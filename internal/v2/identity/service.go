@@ -75,6 +75,8 @@ func (s *Service) Register(registry api.Registrar) error {
 		{"human.challenge", handler(s.HumanChallenge)},
 		{"human.confirm", handler(s.HumanConfirm)},
 		{"human.session", handler(s.HumanSession)},
+		{"human.enroll", handler(s.HumanEnroll)},
+		{"human.pending", handler(s.HumanPending)},
 		{"ticket.issue", handler(s.TicketIssue)},
 	}
 	for _, method := range methods {

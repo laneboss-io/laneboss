@@ -22,12 +22,13 @@ import (
 const DashboardEntryProtocol = "laneboss.dashboard-entry.v1"
 
 type DashboardEntryRequest struct {
-	Protocol string       `json:"protocol"`
-	Action   string       `json:"action"`
-	RedeemID api.ID       `json:"redeem_id,omitempty"`
-	Nonce    []byte       `json:"nonce,omitempty"`
-	Session  *api.Request `json:"session,omitempty"`
-	Target   *api.LifeRef `json:"target,omitempty"`
+	Protocol     string       `json:"protocol"`
+	Action       string       `json:"action"`
+	RedeemID     api.ID       `json:"redeem_id,omitempty"`
+	Nonce        []byte       `json:"nonce,omitempty"`
+	Session      *api.Request `json:"session,omitempty"`
+	Target       *api.LifeRef `json:"target,omitempty"`
+	CredentialID api.ID       `json:"credential_id,omitempty"`
 }
 
 type DashboardEntryReply struct {
@@ -165,11 +166,25 @@ func (s *Server) dashboardEntryCall(ctx context.Context, connection *connectionC
 	if err := api.DecodeObject(frame.Bytes(), &retained); err != nil || !reflect.DeepEqual(retained, input) {
 		return nil, wire.Invalid("dashboard entry differs from its received frame")
 	}
+	connection.mu.Lock()
+	selected := connection.staging
+	principal := connection.stagingPrincipal
+	connection.mu.Unlock()
+	if input.CredentialID != "" {
+		if input.Action != "open" || principal != "" && selected != input.CredentialID || !wire.ValidID(string(input.CredentialID)) {
+			return nil, serviceError(api.CodeForbidden, "dashboard credential selection changed or is not an opening frame")
+		}
+		selected = input.CredentialID
+	}
+	if selected != "" {
+		ctx = api.WithHumanEntryCredential(ctx, frame, selected)
+	}
 	scope, err := s.authenticateConnection(ctx, connection)
 	if err != nil {
 		return nil, err
 	}
-	if scope.Actor.Kind != "human" || scope.Config != s.options.Config || scope.EndpointGeneration != connection.Binding().EndpointGeneration {
+	if scope.Actor.Kind != "human" || !wire.ValidID(string(scope.Actor.ID)) || scope.Config != s.options.Config || scope.EndpointGeneration != connection.Binding().EndpointGeneration ||
+		principal != "" && principal != scope.Actor.ID {
 		return nil, serviceError(api.CodeForbidden, "dashboard entry authenticated another endpoint")
 	}
 	if err := frame.Verify(ctx, connection); err != nil {
@@ -179,6 +194,14 @@ func (s *Server) dashboardEntryCall(ctx context.Context, connection *connectionC
 	case "open", "ping":
 		if input.Session != nil || input.RedeemID != "" || len(input.Nonce) != 0 || input.Target != nil {
 			return nil, wire.Invalid("dashboard open/ping accepts no authority labels")
+		}
+		if input.Action == "open" {
+			// Authentication already resolved the current active principal.
+			// Preserve that verified result, not a second inventory selection.
+			connection.mu.Lock()
+			connection.staging, connection.stagingPrincipal = selected, scope.Actor.ID
+			connection.stagingFrame = frame
+			connection.mu.Unlock()
 		}
 		return DashboardConnection{Config: scope.Config, ConnectionID: connection.ID(), Actor: scope.Actor}, nil
 	case "review-inputs":

@@ -23,6 +23,8 @@ var Methods = map[Method]MethodSpec{
 	"human.challenge":     {reflect.TypeFor[HumanChallengeRequest](), reflect.TypeFor[HumanChallenge](), true, "human-endpoint", "lb-v2-identity"},
 	"human.confirm":       {reflect.TypeFor[HumanConfirmRequest](), reflect.TypeFor[ProofRef](), true, "human-endpoint", "lb-v2-identity"},
 	"human.session":       {reflect.TypeFor[HumanSessionRequest](), reflect.TypeFor[HumanSession](), true, "human-proof", "lb-v2-identity"},
+	"human.enroll":        {reflect.TypeFor[HumanAccessRequest](), reflect.TypeFor[HumanAdmission](), true, "human-proof", "lb-v2-identity"},
+	"human.pending":       {reflect.TypeFor[Empty](), reflect.TypeFor[HumanPendingPage](), false, "human-read", "lb-v2-identity"},
 	"ticket.issue":        {reflect.TypeFor[TicketIssueRequest](), reflect.TypeFor[Ticket](), true, "human-proof", "lb-v2-identity"},
 	"grants.root":         {reflect.TypeFor[RootGrantRequest](), reflect.TypeFor[GrantSet](), true, "human-proof", "lb-v2-grants"},
 	"grants.enroll":       {reflect.TypeFor[CapabilityEnrollmentRequest](), reflect.TypeFor[BlobRef](), true, "human-proof", "lb-v2-grants"},

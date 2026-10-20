@@ -94,10 +94,14 @@ func TestDashboardEntryBootstrapStoreFrame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	credential := api.HumanCredential{ID: fixtureID(t), RawCredentialID: public, Algorithm: "Ed25519", PublicKeyDER: der, Generation: 1}
+	credential := api.HumanCredential{ID: fixtureID(t), RawCredentialID: public, Algorithm: "EdDSA", PublicKeyDER: der, Generation: 1}
 	enrollment := api.HumanEnrollment{Config: binding.Config, PrincipalID: actor.ID, Origin: "https://dashboard.invalid", RPID: "dashboard.invalid",
 		Generation: 1, Credentials: []api.HumanCredential{credential}}
 	grantsFlowProjection(t, directory, "enrollment", actor.ID, enrollment)
+	installed, err := state.HumanEnrollments(ctx, binding.Config)
+	if err != nil || len(installed) != 1 || installed[0].PrincipalID != actor.ID {
+		t.Fatal("declared prior enrollment is not valid for production startup", err)
+	}
 	identities, err := identity.New(identity.Dependencies{Peers: dashboardFramePeers{}, Registry: &grantsFlowPorts{},
 		Store: state, Sessions: state, Clock: fixtureClock{}})
 	if err != nil {

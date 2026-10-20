@@ -102,7 +102,7 @@ func (s *Service) verifyAttestation(challenge api.EnrollmentChallenge, credentia
 			if err := api.ValidateCredentialPresence(credential); err != nil {
 				return err
 			}
-			if !(credential.Algorithm == "ES256" && alg == -7 || credential.Algorithm == "RS256" && alg == -257 || credential.Algorithm == "Ed25519" && alg == -8) {
+			if !(credential.Algorithm == "ES256" && alg == -7 || credential.Algorithm == "RS256" && alg == -257 || credential.Algorithm == "EdDSA" && alg == -8) {
 				return registrationInvalid()
 			}
 			return verifyAttestationSignature(key, alg, signed, signature)

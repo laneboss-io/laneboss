@@ -169,6 +169,7 @@ type StateWrites struct {
 	Endpoints        []EndpointProjection
 	Decisions        []DecisionProjection
 	Enrollments      []EnrollmentInstall
+	HumanChanges     []HumanAdmission
 	IdentityBindings []LaunchBindingRequest
 	Challenges       []StoredChallenge
 	Proofs           []VerifiedHumanProof

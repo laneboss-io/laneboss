@@ -1,6 +1,9 @@
 package api
 
 type HumanChallengeRequest struct {
+	// CredentialID selects staging for one active credential. It grants no
+	// read authority and is not part of the eventual operation's proof target.
+	CredentialID   ID         `json:"credential_id,omitempty"`
 	Method         Method     `json:"method"`
 	TargetID       ID         `json:"target_id"`
 	RequestSHA256  Digest     `json:"request_sha256"`

@@ -90,6 +90,13 @@ func register(root *os.Root, config string, raw []byte, now time.Time) (api.Enro
 		public.Attestation != api.SoftwareAuthenticatorAttestationMarker || public.Enrolled || public.Presence != "simulated" {
 		return result, errors.New("registration challenge differs from private device")
 	}
+	wantID := api.SoftwareAuthenticatorCredentialID
+	if challenge.InviteID != "" {
+		wantID = api.InvitedCredentialID(public.RawCredentialID)
+	}
+	if public.CredentialID != wantID {
+		return result, errors.New("registration credential differs from invitation mode")
+	}
 	private, err := readPrivate(root, "key.der")
 	if err != nil {
 		return result, err

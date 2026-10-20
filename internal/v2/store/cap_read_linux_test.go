@@ -60,6 +60,33 @@ func capHuman(t *testing.T, f *fx.Fixture, actor api.Actor) api.Scope {
 
 type capIdentity struct{ api.Authenticator }
 
+func capInviteFixture(t *testing.T) *fx.Fixture {
+	t.Helper()
+	f := fx.Ready(t, true)
+	f.Opened(t)
+	return f
+}
+
+// Model the read-session DTO only; this helper never seeds the enrollment.
+// The invitation/approval product writes its active credential inventory.
+func capAdmissionReader(t *testing.T, f *fx.Fixture, enrollment api.HumanEnrollment) api.Scope {
+	t.Helper()
+	c := &capConnection{Connection: &fx.Connection{Identity: fx.ID(t), Endpoint: api.InstalledBinding{Config: f.Deps.Config, Class: api.EndpointHuman, EndpointGeneration: 1}, Verified: &fx.Peer{}}}
+	expires := api.Timestamp(time.Now().Add(time.Minute).UTC().Format(time.RFC3339Nano))
+	session := api.StoredReadSession{Session: api.HumanSession{ID: fx.ID(t), Config: f.Deps.Config, ExpiresAt: expires, IdleExpiresAt: expires},
+		PrincipalID: enrollment.PrincipalID, CredentialID: enrollment.Credentials[0].ID, ConnectionID: c.ID(), EndpointGeneration: 1, Generation: 1}
+	f.Replace(t, "read_session", session.Session.ID, 1, session)
+	c.authority = api.ReadAuthorityFromSession(session)
+	return api.Scope{Config: f.Deps.Config, Actor: api.Actor{Kind: "human", ID: enrollment.PrincipalID}, Connection: c, EndpointGeneration: 1}
+}
+
+func capAdminRequest(t *testing.T, scope api.Scope, request api.HumanAccessRequest) api.Scope {
+	t.Helper()
+	scope = capRequest(t, scope, "human.enroll", request)
+	scope.Frame = &fx.Frame{Raw: fx.JSON(t, scope.Request)}
+	return scope
+}
+
 func (capIdentity) Authorize(ctx context.Context, scope api.Scope, _ api.Request) error {
 	if scope.Connection == nil || scope.Connection.Peer() == nil {
 		return &api.Error{Code: api.CodeUnauthenticated, Message: "capture fixture requires its peer"}

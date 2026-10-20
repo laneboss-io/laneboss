@@ -557,7 +557,7 @@ func TestRegisterExactMethods(t *testing.T) {
 	if err := s.Register(r); err != nil {
 		t.Fatal(err)
 	}
-	if len(r.methods) != 5 {
+	if len(r.methods) != 7 {
 		t.Fatalf("registered %d methods", len(r.methods))
 	}
 	for method, handler := range r.methods {

@@ -146,6 +146,8 @@ var integrateCommands = map[string]integrateCommand{
 	"health":               {"health", runHealth},
 	"human challenge":      {"human.challenge", runHumanChallenge},
 	"human confirm":        {"human.confirm", runHumanConfirm},
+	"human enroll":         {"human.enroll", runHumanEnroll},
+	"human pending":        {"human.pending", runHumanPending},
 	"human session":        {"human.session", runHumanSession},
 	"identity self":        {"identity.self", runIdentitySelf},
 	"init":                 {"org.bootstrap", runOrgBootstrap},

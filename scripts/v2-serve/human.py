@@ -26,8 +26,10 @@ class HumanRoot:
             parts.append(suffix)
         return ".".join(parts)
 
-    def enroll(self):
+    def enroll(self, inviter=None):
         """The installed fixed helper is the only initial enrollment writer."""
+        if inviter is not None:
+            return self.enroll_invited(inviter)
         request = {"config": self.case.config, "ceremony_id": uuid.uuid4().hex,
                    "principal_id": self.public["principal_id"], "expected_generation": 0}
         self.case.current = "human.enroll.begin"
@@ -64,6 +66,49 @@ class HumanRoot:
         self.case.current = "human.enrollment"
         self.case.passed({"receipt": receipt, "writer": "installed admin_enroll"})
 
+    def enroll_invited(self, inviter):
+        parent = "capture.other.enroll"
+        self.case.current = parent
+        request = {"action": "invite", "role": "human"}
+        proof = inviter.proof("invite", "human.enroll", request, self.case.config, 0)
+        self.case.current = parent
+        invite = inviter.rpc("human-invite", ["human", "enroll"], request, proof)
+        self.require(invite.get("state") == "invited" and invite.get("token") and
+                     invite.get("role") == "human" and invite.get("inviter_id") == inviter.public["principal_id"],
+                     "installed human invitation lacks its exact role or inviter")
+        ceremony = {"config": self.case.config, "ceremony_id": uuid.uuid4().hex,
+                    "principal_id": self.public["principal_id"], "expected_generation": 0}
+        challenge = self.case.admin_call("invite-begin", {"token": invite["token"], "ceremony": ceremony})
+        self.require(challenge.get("InviteID") == invite["id"] and challenge.get("Ceremony") == ceremony,
+                     "invited challenge differs from the actual invitation")
+        challenge_file = self.case.root / self.case.last["stdout"]
+        registration = self.case.decode_document(self.case.command("auth-register-other", [str(self.case.authenticator), "register",
+            "--config", self.case.config, "--private", str(self.private), "--challenge", str(challenge_file)], clean=True))
+        self.require(registration.get("ceremony") == ceremony and registration.get("challenge_id") == challenge["ID"],
+                     "new human did not register its own key against the invited challenge")
+        completed = self.case.admin_call("invite-complete", registration)
+        self.require(completed.get("presence") == "simulated" and completed.get("human_approval") == "not_proven",
+                     "invited software device lost its explicit simulated-presence provenance")
+        receipt = completed.get("receipt", completed)
+        self.require(receipt.get("PrincipalID") == self.public["principal_id"] and receipt.get("CommittedSeq", 0) > 0,
+                     "pending registration has no exact retained ceremony receipt")
+        page = inviter.read("human-pending", ["human", "pending"], {})
+        fingerprint = hashlib.sha256(base64.b64decode(self.public["public_key_der"], validate=True)).hexdigest()
+        matches = [row for row in page.get("registrations", []) if row.get("id") == invite["id"]]
+        self.require(len(matches) == 1 and matches[0].get("state") == "pending" and
+                     matches[0].get("fingerprint") == fingerprint and matches[0].get("principal_id") == self.public["principal_id"],
+                     "D6 pending review lost the new human's actual public-key fingerprint")
+        pending = matches[0]
+        request = {"action": "approve", "invite_id": invite["id"], "fingerprint": fingerprint,
+                   "expected_generation": pending["generation"]}
+        proof = inviter.proof("approve", "human.enroll", request, invite["id"], pending["generation"])
+        self.case.current = parent
+        approved = inviter.rpc("human-approve", ["human", "enroll"], request, proof)
+        self.require(approved.get("state") == "active" and approved.get("fingerprint") == fingerprint and
+                     approved.get("principal_id") == self.public["principal_id"], "human approval did not activate the exact reviewed key")
+        self.case.passed({"principal_id": self.public["principal_id"], "fingerprint": fingerprint,
+                          "invite_id": invite["id"], "pending_receipt": receipt, "approval": approved})
+
     def rpc(self, label, words, request, proof=None):
         options = {"idempotency_key": "serve-human-" + uuid.uuid4().hex}
         if proof is not None:
@@ -82,6 +127,7 @@ class HumanRoot:
         arguments = ["--config", self.case.config, "--operation", str(operation_file),
                      "--method", method, "--target", target, "--generation", str(generation)]
         intent = json.loads(self.case.command("auth-intent", [str(self.case.authenticator), "intent", *arguments], clean=True))
+        intent["credential_id"] = self.public["credential_id"]
         self.case.current = self.check(name, "challenge")
         challenge = self.rpc("human-challenge", ["human", "challenge"], intent)
         self.require(all(challenge.get(field) == intent[field] for field in

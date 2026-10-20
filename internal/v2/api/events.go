@@ -180,6 +180,7 @@ var EventSchemas = map[EventKind]reflect.Type{
 	"human.challenge":     reflect.TypeFor[HumanChallenge](),
 	"human.confirmed":     reflect.TypeFor[ProofRef](),
 	"human.session":       reflect.TypeFor[HumanSession](),
+	"human.enrollment":    reflect.TypeFor[HumanAdmission](),
 	"ticket.issued":       reflect.TypeFor[Ticket](),
 	"ticket.redeemed":     reflect.TypeFor[Ticket](),
 	"lane.created":        reflect.TypeFor[LaunchEvent](),

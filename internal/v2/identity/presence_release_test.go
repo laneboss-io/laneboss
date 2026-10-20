@@ -31,6 +31,18 @@ func TestProdAttestation(t *testing.T) {
 	}
 }
 
+func TestProdInvitedAttestation(t *testing.T) {
+	s, store, _ := serviceFixture(t)
+	f := newRegistration(t, s.deps.Clock.Now(), "ES256", api.SoftwareAuthenticatorAAGUID, api.SoftwareAuthenticatorAttestationMarker)
+	f.challenge.InviteID = "retained-invite"
+	store.ceremony = &f.challenge
+	install, err := s.ValidateEnrollment(context.Background(), f.request)
+	fixtureCode(t, err, api.CodeForbidden)
+	if !reflect.DeepEqual(install, api.EnrollmentInstall{}) {
+		t.Fatal("invited test key entered a production build")
+	}
+}
+
 func TestCredentialConsumerFixture(t *testing.T) {
 	s, store, _ := serviceFixture(t)
 	scope := fixtureHumanScope(t, s, store)

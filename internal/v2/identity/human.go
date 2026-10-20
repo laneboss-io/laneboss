@@ -84,7 +84,7 @@ func credentialAlgorithm(credential api.HumanCredential) error {
 	case *rsa.PublicKey:
 		valid = credential.Algorithm == "RS256"
 	case ed25519.PublicKey:
-		valid = credential.Algorithm == "Ed25519" || credential.Algorithm == "EdDSA"
+		valid = credential.Algorithm == "EdDSA"
 	}
 	if !valid {
 		return refusal(api.CodeUnsupported, "enrolled algorithm differs from its supported key")

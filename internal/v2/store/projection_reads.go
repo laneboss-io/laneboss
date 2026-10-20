@@ -100,6 +100,21 @@ func (s *Service) authorizationTarget(ctx context.Context, db queryer, scope api
 	if request.Method == "human.session" {
 		id = scope.Actor.ID
 	}
+	if request.Method == "human.enroll" {
+		var action api.HumanAccessRequest
+		if err := wire.Decode(request.Params, &action); err != nil {
+			return target, err
+		}
+		if err := api.ValidateHumanAccess(action); err != nil {
+			return target, err
+		}
+		if action.Action == "approve" || action.Action == "reject" {
+			id, kind = action.InviteID, "human_admission"
+		}
+		if action.Action == "revoke" {
+			id, kind = action.PrincipalID, "enrollment"
+		}
+	}
 	if !wire.ValidID(string(id)) {
 		return target, wire.Invalid("human operation has no valid target")
 	}

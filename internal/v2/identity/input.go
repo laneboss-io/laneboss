@@ -11,9 +11,15 @@ import (
 // input only; enrollment, signatures, scope and atomic guards stay server-side.
 func ValidateInput(method api.Method, raw json.RawMessage) error {
 	switch method {
-	case "identity.self":
+	case "identity.self", "human.pending":
 		var request api.Empty
 		return strictObject(raw, &request)
+	case "human.enroll":
+		var request api.HumanAccessRequest
+		if err := strictObject(raw, &request); err != nil {
+			return err
+		}
+		return api.ValidateHumanAccess(request)
 	case "human.session":
 		var request api.HumanSessionRequest
 		return strictObject(raw, &request)

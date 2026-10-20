@@ -234,7 +234,7 @@ func TestEnrollmentConsumerFixture(t *testing.T) {
 			credential := install.Enrollment.Credentials[0]
 			evidence := launchJSON(t, f.request)
 			if install.CeremonyEvidence.SHA256 != digestBytes(evidence) || install.CeremonyEvidence.Bytes != int64(len(evidence)) || credential.RegistrationEvidence != install.CeremonyEvidence ||
-				credential.Counter != 10 || credential.Algorithm != "Ed25519" || credential.SimulatedPresence || install.Enrollment.Generation != f.request.Ceremony.ExpectedGeneration+1 || store.ceremony.Consumed {
+				credential.Counter != 10 || credential.Algorithm != "EdDSA" || credential.SimulatedPresence || install.Enrollment.Generation != f.request.Ceremony.ExpectedGeneration+1 || store.ceremony.Consumed {
 				t.Fatal("fixture check: registration lost verified facts or exact evidence")
 			}
 			if rule == "later" {
@@ -251,7 +251,11 @@ func TestEnrollmentAlgorithmsFixture(t *testing.T) {
 			f := newRegistration(t, s.deps.Clock.Now(), algorithm, "00000000-0000-0000-0000-000000000001", "")
 			store.ceremony = &f.challenge
 			install, err := s.ValidateEnrollment(context.Background(), f.request)
-			if err != nil || len(install.Enrollment.Credentials) != 1 || install.Enrollment.Credentials[0].Algorithm != algorithm {
+			want := algorithm
+			if algorithm == "Ed25519" {
+				want = "EdDSA"
+			}
+			if err != nil || len(install.Enrollment.Credentials) != 1 || install.Enrollment.Credentials[0].Algorithm != want {
 				t.Fatalf("fixture check: real registration key refused: %v", err)
 			}
 		})

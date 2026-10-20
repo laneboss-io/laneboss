@@ -31,6 +31,11 @@ def with_item(checks, case_id):
     stages = ("boot", "prepare", "reuse", "run", "collection") if case_id == "grants" else (
         "boot", "prepare", "run", "collection")
     rows = ["item." + case_id + "." + stage for stage in stages]
+    if case_id == "dashboard":
+        proof_rows += [human + operation + "." + stage for operation in ("invite", "approve")
+                       for stage in ("challenge", "confirm")]
+        proof_rows += ["human.other.read." + stage for stage in ("challenge", "confirm")]
+        rows += ["capture.other.enroll", "capture.other.read"]
     return tuple([name for name in checks if name != "cleanup"] + proof_rows + rows + ["cleanup"])
 
 

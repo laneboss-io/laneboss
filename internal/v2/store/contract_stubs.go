@@ -34,6 +34,9 @@ func (s *Service) Enrollment(arg0 context.Context, arg1 api.Scope) (api.HumanEnr
 		if err := arg1.Connection.Peer().Alive(arg0); err != nil {
 			return api.HumanEnrollment{}, err
 		}
+		if selected, ok, err := s.selectedHuman(arg0, arg1); err != nil || ok {
+			return selected, err
+		}
 		rows, err := s.db.QueryContext(arg0, "SELECT data FROM projections WHERE kind='enrollment' ORDER BY id LIMIT 2")
 		if err != nil {
 			return api.HumanEnrollment{}, err
@@ -57,9 +60,19 @@ func (s *Service) Enrollment(arg0 context.Context, arg1 api.Scope) (api.HumanEnr
 		if count != 1 {
 			return api.HumanEnrollment{}, fault(api.CodeUnauthenticated, "installed human principal is absent or ambiguous")
 		}
+		if err := validateEnrollment(result); err != nil {
+			return api.HumanEnrollment{}, err
+		}
 		return result, nil
 	}
-	return identityProjection[api.HumanEnrollment](arg0, s, arg1, "enrollment", arg1.Actor.ID)
+	result, err := identityProjection[api.HumanEnrollment](arg0, s, arg1, "enrollment", arg1.Actor.ID)
+	if err != nil {
+		return api.HumanEnrollment{}, err
+	}
+	if err := validateEnrollment(result); err != nil {
+		return api.HumanEnrollment{}, err
+	}
+	return result, nil
 }
 
 func (s *Service) Challenge(arg0 context.Context, arg1 api.Scope, arg2 api.ID) (api.StoredChallenge, error) {

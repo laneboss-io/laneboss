@@ -22,6 +22,9 @@ func decodeStored(data []byte, out any) error {
 	if err := decoder.Decode(out); err != nil {
 		return fault(api.CodeIntegrity, "invalid retained typed state")
 	}
+	if err := normalizeEnrollmentRead(out); err != nil {
+		return err
+	}
 	normalizeStoredReplyNull(reflect.ValueOf(out))
 	return nil
 }

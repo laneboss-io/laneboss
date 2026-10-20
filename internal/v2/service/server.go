@@ -490,6 +490,9 @@ func (s *Server) dispatchWithAdmission(ctx context.Context, connection api.Conne
 		(request.Proof != nil || stringsHumanMethod(request.Method)) {
 		return nil, scope, serviceError(api.CodeForbidden, "endpoint class cannot use human administration")
 	}
+	if class == api.EndpointHuman && frameFromContext(ctx) != nil {
+		ctx = api.WithHumanEntryFrame(ctx, frameFromContext(ctx))
+	}
 	entryCtx, entryCancel := context.WithTimeout(ctx, 5*time.Second)
 	s.journalAuthenticationStart(entryCtx, connection, request.RequestID)
 	scope, err := s.authenticateConnection(entryCtx, connection)

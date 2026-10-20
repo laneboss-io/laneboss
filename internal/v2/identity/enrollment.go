@@ -135,6 +135,9 @@ func (s *Service) verifyRegistration(challenge api.EnrollmentChallenge, request 
 		SimulatedPresence: aaguid == api.SoftwareAuthenticatorAAGUID && request.AttestationMarker == api.SoftwareAuthenticatorAttestationMarker,
 		Algorithm:         algorithm, PublicKeyDER: der, Counter: registrationCounter(auth), Generation: 1}
 	credential = normalizeRegistration(credential)
+	if challenge.InviteID != "" && credential.SimulatedPresence {
+		credential.ID = api.InvitedCredentialID(credential.RawCredentialID)
+	}
 	if err := api.ValidateCredentialPresence(credential); err != nil {
 		return empty, err
 	}
@@ -185,7 +188,7 @@ func registrationKey(raw []byte) (any, string, error) {
 		if !xOK || len(x) != ed25519.PublicKeySize || len(object) != 4 {
 			return nil, "", registrationInvalid()
 		}
-		return ed25519.PublicKey(append([]byte(nil), x...)), "Ed25519", nil
+		return ed25519.PublicKey(append([]byte(nil), x...)), "EdDSA", nil
 	case kind == 3 && algorithm == -257:
 		n, ok := object[int64(-1)].([]byte)
 		if !ok || !xOK || len(n) < 256 || len(n) > 1024 || len(x) == 0 || len(x) > 4 || len(object) != 4 {

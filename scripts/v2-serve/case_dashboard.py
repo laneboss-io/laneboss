@@ -120,6 +120,7 @@ class G0Dashboard:
         self.browser.bootstrap()
         self.data.bind(self.browser, self.consumer)
         self.data.prepare()
+        self.case.verify_other_capture(self.data.records["DASH-MERGED"])
         root = Path(context["test_root"]) / "dashboard"
         root.mkdir(mode=0o700)
         for name in ("requests", "responses"):
@@ -206,6 +207,7 @@ def prepare(case, require, fail, blocked):
     """G0 entry: refuse an absent native handoff before allocating targets."""
     case.human_prefix = "itemdashboard"
     case.current = "item.dashboard.prepare"
+    case.prepare_other_human()
     case_modules(case.stage)
     try:
         handoff = start_handoff(case, require)
@@ -278,6 +280,7 @@ class NativeSession:
         self.stderr = (self.directory / "stderr").open("xb")
         arguments = [str(case.binary), "dashboard", "open", "--config", case.config,
             "--binding", case.installed["binding_file"], "--mode", "session", "--directory", str(self.directory),
+            "--credential-id", case.human.public["credential_id"],
             "--ready", str(self.ready), "--wait", "30m"]
         case.keep_json("dash-native-" + label + ".argv.json", arguments)
         self.process = subprocess.Popen(arguments, stdin=subprocess.DEVNULL, stdout=self.stdout, stderr=self.stderr,

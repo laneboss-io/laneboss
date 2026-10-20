@@ -3715,6 +3715,53 @@ Enrollments, exact Objects and ceremony/operation receipt. A new principal ID
 does not reopen this baseline exception. Later validated registrations are
 proposals through the existing human/D6 approval path and its current guards.
 
+The later-human handoff is human.enroll (D6, a fresh operation-bound human
+proof) and human.pending (a current human read session). Action invite requires
+role human, mints a single-use 256-bit token with a fixed 15-minute lifetime,
+and journals human.enrollment without the token. The token appears only in the
+inviter's private exact reply; the protected invite record keeps its hash.
+Workers and lanes cannot call either operation or borrow a human proof.
+
+The installed helper's distinct --invite-begin and --invite-complete file forms
+carry InvitedEnrollmentRequest and EnrollmentValidationRequest over the same
+native administrator channel. They never reopen enroll_begin/enroll_complete.
+Identity verifies the new person's own WebAuthn create attestation, RP/origin,
+nonce, public key and UP/UV using the existing validator. Completion rechecks
+the unexpired unused invite, consumes it and the challenge, and atomically
+retains the exact private registration bytes and pending_human install plus
+the real ceremony receipt. Pending and rejected registrations are excluded
+from the active enrollment inventory; neither can establish a session or read
+captures, policy, pending registrations or other protected content.
+
+D6 displays the pending principal and SHA-256 fingerprint of its attested DER
+public key. Actions approve/reject bind the invite ID, that fingerprint and
+the exact pending generation into the human proof. Only the inviter or an
+active human holding the approve right may decide. Approval alone writes the
+new active enrollment, rights and human.enrollment journal event, together
+with the store's actual human.proof.used receipt. Rejection is terminal. The
+activation transaction rechecks the current build's credential-presence and
+fresh-key policy, including for pending records retained before a restart. The
+initial human holds the approve right; delegation of that right in an invite
+requires an existing holder. Any active human can invite a basic human and
+decide their own invitations, but cannot grant themselves the approve right.
+
+Action revoke uses the same D6 proof path, binds principal ID and current
+enrollment generation, and requires the inviter or an approve-right holder.
+It revokes every retained credential and the approve right atomically. Current
+session/proof/native-selection checks consult those credentials on every use,
+so an existing connection gains no exception. Capture visibility continues to
+derive from its original root ticket; enrollment approval grants no access to
+another human's captured bytes.
+
+For multiple active humans, human.challenge may carry credential_id solely
+to select an active credential for native staging. Confirmation still verifies
+its actual signature; no read session or operation proof is created by that
+selector. Native dashboard open --credential-id retains its verified opening
+frame for the same staging purpose. Ambiguous unselected connections still
+refuse. Pending/revoked credentials cannot be selected. Marked invited software
+devices receive IDs derived from their actual raw credential IDs; all existing
+E2E build, AAGUID, attestation and simulated-presence restrictions remain.
+
 EnrollmentReceipt retains actual config/principal/generation, ceremony/challenge,
 private evidence, operation, event and committed sequence, plus SimulatedPresence.
 The referenced event is the actual blob.committed/operation commit in that atomic

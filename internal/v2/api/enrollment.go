@@ -41,6 +41,7 @@ type EnrollmentCeremonyRequest struct {
 
 type EnrollmentChallenge struct {
 	ID                     ID
+	InviteID               ID `json:",omitempty"`
 	Ceremony               EnrollmentCeremonyRequest
 	Challenge              []byte
 	Origin                 string
@@ -93,6 +94,7 @@ func ValidateEnrollmentChallenge(challenge EnrollmentChallenge, request Enrollme
 	u, err := url.Parse(challenge.Origin)
 	expires, expiryErr := time.Parse(time.RFC3339Nano, string(challenge.ExpiresAt))
 	if !bindingConfigName.MatchString(request.Config) || !launchID(request.CeremonyID) || !launchID(request.PrincipalID) ||
+		challenge.InviteID != "" && !launchID(challenge.InviteID) ||
 		request.ExpectedGeneration > launchMaxInteger || challenge.Ceremony != request || !launchID(challenge.ID) ||
 		len(challenge.Challenge) < 32 || len(challenge.Challenge) > 64 || challenge.Consumed ||
 		!launchGeneration(challenge.EndpointGeneration) || !launchGeneration(challenge.InstallationGeneration) ||

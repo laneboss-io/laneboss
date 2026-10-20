@@ -131,6 +131,7 @@ func runDashboardOpen(ctx context.Context, call Invocation) error {
 	certificate := flags.String("certificate", "", "administrator TLS certificate")
 	key := flags.String("key", "", "administrator TLS private key")
 	wait := flags.Duration("wait", 30*time.Minute, "maximum entry lifetime")
+	credential := flags.String("credential-id", "", "active human credential for native staging")
 	if err := integrateParse(flags, call.Args); err != nil {
 		return err
 	}
@@ -145,14 +146,17 @@ func runDashboardOpen(ctx context.Context, call Invocation) error {
 	defer cancel()
 	switch *mode {
 	case "session":
-		return dashboardSession(runCtx, binding, bindingFile, *directory, *ready)
+		return dashboardSession(runCtx, binding, bindingFile, *directory, *ready, *credential)
 	case "host":
 		return dashboardHost(runCtx, binding, bindingFile, *origin, *listen, *certificate, *key, *ready)
 	}
 	return integrateInputError("dashboard open --mode must be host or session")
 }
 
-func dashboardSession(ctx context.Context, binding api.InstalledBinding, bindingFile, directory, ready string) error {
+func dashboardSession(ctx context.Context, binding api.InstalledBinding, bindingFile, directory, ready string, credential ...string) error {
+	if len(credential) > 1 || len(credential) == 1 && credential[0] != "" && !wire.ValidID(credential[0]) {
+		return integrateInputError("dashboard staging requires one active credential identifier")
+	}
 	physical, err := filepath.EvalSymlinks(directory)
 	if err != nil || !filepath.IsAbs(directory) || physical != directory {
 		return integrateInputError("dashboard session needs its physical private input directory")
@@ -172,7 +176,11 @@ func dashboardSession(ctx context.Context, binding api.InstalledBinding, binding
 	defer peer.Close()
 	stop := context.AfterFunc(ctx, func() { _ = peer.Close() })
 	defer stop()
-	open, err := json.Marshal(service.DashboardEntryRequest{Protocol: service.DashboardEntryProtocol, Action: "open"})
+	var selected api.ID
+	if len(credential) > 0 {
+		selected = api.ID(credential[0])
+	}
+	open, err := json.Marshal(service.DashboardEntryRequest{Protocol: service.DashboardEntryProtocol, Action: "open", CredentialID: selected})
 	if err != nil {
 		return err
 	}

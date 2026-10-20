@@ -44,7 +44,7 @@ func ValidateAdminEnrollmentFrame(frame AdminEnrollmentFrame, endpoint AdminEnro
 		{"generation", frame.Generation == endpoint.InstallationGeneration},
 		{"artifact_sha256", frame.ArtifactSHA256 == endpoint.Helper.SHA256},
 		{"nonce", launchID(frame.Nonce) && len(frame.Nonce) >= 32},
-		{"method", frame.Method == "enroll_begin" || frame.Method == "enroll_complete" || frame.Method == "initial_publish" || frame.Method == "spend_reconcile"},
+		{"method", frame.Method == "enroll_begin" || frame.Method == "enroll_complete" || frame.Method == "initial_publish" || frame.Method == "spend_reconcile" || frame.Method == "invite_begin" || frame.Method == "invite_complete"},
 	} {
 		if !check.ok {
 			return AdminEnrollmentFailure(check.field, &Error{Code: CodeForbidden, Owner: "lb-v2-admin",

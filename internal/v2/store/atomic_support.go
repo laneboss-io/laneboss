@@ -246,6 +246,10 @@ func (s *Service) writeState(ctx context.Context, tx *sql.Tx, input api.Transact
 			if err := s.enrollmentWrites(ctx, tx, input, operation); err != nil {
 				return err
 			}
+		case "HumanChanges":
+			if err := s.humanChanges(ctx, tx, input); err != nil {
+				return err
+			}
 		default:
 			return api.NotImplemented("lb-v2-service", "atomic state field "+name)
 		}
@@ -519,6 +523,10 @@ func (s *Service) finalReply(ctx context.Context, tx *sql.Tx, input api.Transact
 		}
 		if value != stored.Session || stored.PrincipalID != input.Scope.Actor.ID || stored.ConnectionID != input.Scope.Connection.ID() {
 			return nil, fault(api.CodeIntegrity, "session reply differs from committed connection session")
+		}
+	case "human.enroll":
+		if err := s.humanReply(ctx, tx, input, operation, reply.Result); err != nil {
+			return nil, err
 		}
 	case "ticket.issue":
 		var value api.Ticket

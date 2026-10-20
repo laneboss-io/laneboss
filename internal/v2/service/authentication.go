@@ -77,6 +77,21 @@ func (c *authenticationConnection) Close() error {
 	return c.ConnectionContext.Close()
 }
 
+func humanStaging(ctx context.Context, connection api.ConnectionContext) (api.HumanStaging, error) {
+	if source, ok := connection.(api.HumanStagingSource); ok {
+		return source.HumanStaging(ctx)
+	}
+	return api.HumanStaging{}, serviceError(api.CodeNotFound, "connection has no human staging selector")
+}
+
+func (c *authenticationConnection) HumanStaging(ctx context.Context) (api.HumanStaging, error) {
+	return humanStaging(ctx, c.ConnectionContext)
+}
+
+func (w *authenticationReplyWindow) HumanStaging(ctx context.Context) (api.HumanStaging, error) {
+	return humanStaging(ctx, w.ConnectionContext)
+}
+
 type authenticationReplyKey struct{}
 
 // Only a socket dispatcher creates this window and owns the deferred physical

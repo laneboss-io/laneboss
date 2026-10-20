@@ -200,6 +200,18 @@ func (s *Server) enrollmentResult(call *administratorCall, input enrollmentFrame
 			return nil, api.AdminEnrollmentFailure("params", err)
 		}
 		return s.BeginHumanEnrollment(call, request)
+	case "invite_begin":
+		var request api.InvitedEnrollmentRequest
+		if err := wire.Decode(input.Params, &request); err != nil {
+			return nil, api.AdminEnrollmentFailure("params", err)
+		}
+		return s.BeginInvitedHuman(call, request)
+	case "invite_complete":
+		var request api.EnrollmentValidationRequest
+		if err := wire.Decode(input.Params, &request); err != nil {
+			return nil, api.AdminEnrollmentFailure("params", err)
+		}
+		return s.CompleteInvitedHuman(call, request)
 	case "enroll_complete":
 		var request api.EnrollmentValidationRequest
 		if err := wire.Decode(input.Params, &request); err != nil {

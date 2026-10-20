@@ -181,6 +181,15 @@ func (s *Service) enrollmentWrites(ctx context.Context, tx *sql.Tx, input api.Tr
 	if !committed {
 		return fault(api.CodeForbidden, "enrollment evidence lacks its atomic blob.committed event")
 	}
+	var invited inviteChallenge
+	if err := storedProjection(ctx, tx, "invite_challenge", install.ChallengeID, &invited); err == nil {
+		if len(input.Guards) != 0 {
+			return fault(api.CodeForbidden, "pending registration cannot borrow an approval")
+		}
+		return s.pendingEnrollment(ctx, tx, install, challenge, invited)
+	} else if !absent(err) {
+		return err
+	}
 	var count int
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM projections WHERE kind='enrollment'").Scan(&count); err != nil {
 		return err
@@ -210,6 +219,9 @@ func (s *Service) enrollmentWrites(ctx context.Context, tx *sql.Tx, input api.Tr
 		return err
 	}
 	if err := put(ctx, tx, "enrollment_ceremony", challenge.Ceremony.CeremonyID, 2, challenge); err != nil {
+		return err
+	}
+	if err := put(ctx, tx, "human_rights", enrollment.PrincipalID, 1, humanRights{CanApprove: true}); err != nil {
 		return err
 	}
 	return put(ctx, tx, "enrollment", enrollment.PrincipalID, enrollment.Generation, enrollment)

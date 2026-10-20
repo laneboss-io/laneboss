@@ -32,6 +32,29 @@ func TestTaggedAttestation(t *testing.T) {
 	}
 }
 
+func TestInvitedAttestation(t *testing.T) {
+	s, store, _ := serviceFixture(t)
+	s.attestation = attestationTrust{}
+	f := newRegistration(t, s.deps.Clock.Now(), "ES256", api.SoftwareAuthenticatorAAGUID, api.SoftwareAuthenticatorAttestationMarker)
+	f.challenge.InviteID = "retained-invite"
+	delete(f.statement, "x5c")
+	f.encode(t, "packed")
+	store.ceremony = &f.challenge
+	install, err := s.ValidateEnrollment(context.Background(), f.request)
+	if err != nil || len(install.Enrollment.Credentials) != 1 {
+		t.Fatal("invited self-attestation failed actual verification", err)
+	}
+	c := install.Enrollment.Credentials[0]
+	if c.ID == api.SoftwareAuthenticatorCredentialID || c.ID != api.InvitedCredentialID(c.RawCredentialID) || !c.SimulatedPresence ||
+		c.AAGUID != api.SoftwareAuthenticatorAAGUID || c.AttestationMarker != api.SoftwareAuthenticatorAttestationMarker {
+		t.Fatal("invited test key lost its unique identity or software-presence markers")
+	}
+	f.request.AttestationObject[len(f.request.AttestationObject)-1] ^= 1
+	if _, err := s.ValidateEnrollment(context.Background(), f.request); err == nil {
+		t.Fatal("invited registration accepted a changed attestation")
+	}
+}
+
 // This tagged crypto/projection fixture traverses real registration and get
 // verification. Store callbacks are observed handoffs, not durable one-use or
 // hardware-presence evidence. No signer is compiled into a production binary.

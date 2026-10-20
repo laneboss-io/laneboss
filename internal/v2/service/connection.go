@@ -16,17 +16,20 @@ import (
 )
 
 type connectionContext struct {
-	mu        sync.Mutex
-	id        api.ID
-	conn      net.Conn
-	binding   api.InstalledBinding
-	clock     api.Clock
-	peer      api.VerifiedPeer
-	facts     api.PeerFacts
-	authority *api.ReadAuthority
-	closed    bool
-	cancel    context.CancelFunc
-	finished  chan struct{}
+	mu               sync.Mutex
+	id               api.ID
+	conn             net.Conn
+	binding          api.InstalledBinding
+	clock            api.Clock
+	peer             api.VerifiedPeer
+	facts            api.PeerFacts
+	authority        *api.ReadAuthority
+	staging          api.ID
+	stagingPrincipal api.ID
+	stagingFrame     api.FrameContext
+	closed           bool
+	cancel           context.CancelFunc
+	finished         chan struct{}
 }
 
 var _ api.ConnectionContext = (*connectionContext)(nil)
@@ -71,6 +74,23 @@ func (c *connectionContext) BindPeer(peer api.VerifiedPeer) error {
 	return nil
 }
 func (c *connectionContext) Peer() api.VerifiedPeer { c.mu.Lock(); defer c.mu.Unlock(); return c.peer }
+
+func (c *connectionContext) HumanStaging(ctx context.Context) (api.HumanStaging, error) {
+	c.mu.Lock()
+	bound := api.HumanStaging{Frame: c.stagingFrame, CredentialID: c.staging, PrincipalID: c.stagingPrincipal}
+	closed := c.closed
+	c.mu.Unlock()
+	if closed {
+		return api.HumanStaging{}, serviceError(api.CodeUnauthenticated, "human staging connection is closed")
+	}
+	if bound.Frame == nil || !wire.ValidID(string(bound.PrincipalID)) {
+		return api.HumanStaging{}, serviceError(api.CodeNotFound, "connection has no human staging selector")
+	}
+	if err := bound.Frame.Verify(ctx, c); err != nil {
+		return api.HumanStaging{}, err
+	}
+	return bound, nil
+}
 func (c *connectionContext) BindReadAuthority(a api.ReadAuthority) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -159,6 +179,9 @@ func (c *connectionContext) Close() error {
 	}
 	c.closed = true
 	c.authority = nil
+	c.staging = ""
+	c.stagingPrincipal = ""
+	c.stagingFrame = nil
 	peer := c.peer
 	cancel := c.cancel
 	c.mu.Unlock()

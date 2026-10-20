@@ -8,7 +8,6 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/binary"
@@ -25,6 +24,7 @@ import (
 	"laneboss.io/laneboss/internal/v2/client"
 	"laneboss.io/laneboss/internal/v2/client/wire"
 	"laneboss.io/laneboss/internal/v2/identity"
+	"laneboss.io/laneboss/internal/v2/identity/input"
 	"laneboss.io/laneboss/internal/v2/secrets"
 	"laneboss.io/laneboss/internal/v2/secrets/native"
 	"laneboss.io/laneboss/internal/v2/store"
@@ -92,19 +92,15 @@ func TestGrantsFlowDispatch(t *testing.T) {
 	if _, err := state.Transact(ctx, api.Transaction{Scope: setup, Internal: &intent, Writes: api.StateWrites{Policy: &policy}}); err != nil {
 		t.Fatal(err)
 	}
-	public, private, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer clear(private)
-	der, err := x509.MarshalPKIXPublicKey(public)
-	if err != nil {
-		t.Fatal(err)
-	}
-	credential := api.HumanCredential{ID: fixtureID(t), RawCredentialID: public, Algorithm: "Ed25519", PublicKeyDER: der, Generation: 1}
-	enrollment := api.HumanEnrollment{Config: binding.Config, PrincipalID: actor.ID, Origin: "https://upload.invalid", RPID: "upload.invalid",
-		Generation: 1, Credentials: []api.HumanCredential{credential}}
+	registration := testinput.EdRegistration(t, binding.Config, actor.ID, fixtureClock{})
+	private := registration.Private
+	enrollment := registration.Install.Enrollment
+	credential := enrollment.Credentials[0]
 	grantsFlowProjection(t, directory, "enrollment", actor.ID, enrollment)
+	installed, err := state.HumanEnrollments(ctx, binding.Config)
+	if err != nil || len(installed) != 1 || installed[0].PrincipalID != actor.ID {
+		t.Fatal("declared prior enrollment is not valid for production startup", err)
+	}
 	identities, err := identity.New(identity.Dependencies{Peers: &grantsFlowPorts{}, Registry: &grantsFlowPorts{}, Store: state, Sessions: state, Clock: fixtureClock{}})
 	if err != nil {
 		t.Fatal(err)

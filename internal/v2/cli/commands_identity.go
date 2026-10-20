@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	for _, identityMethod := range []api.Method{"identity.self", "human.challenge", "human.confirm", "human.session", "ticket.issue"} {
+	for _, identityMethod := range []api.Method{"identity.self", "human.challenge", "human.confirm", "human.session", "human.enroll", "human.pending", "ticket.issue"} {
 		identityValidate := func(raw json.RawMessage) error {
 			return identity.ValidateInput(identityMethod, raw)
 		}
@@ -33,6 +33,13 @@ func runHumanChallenge(ctx context.Context, call Invocation) error {
 
 func runHumanConfirm(ctx context.Context, call Invocation) error {
 	return identityCall(ctx, call, false)
+}
+
+func runHumanEnroll(ctx context.Context, call Invocation) error {
+	return identityCall(ctx, call, false)
+}
+func runHumanPending(ctx context.Context, call Invocation) error {
+	return identityCall(ctx, call, true)
 }
 
 func runHumanSession(ctx context.Context, call Invocation) error {

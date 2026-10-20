@@ -94,6 +94,44 @@ func TestRealVerifierAndCounter(t *testing.T) {
 	}
 }
 
+func TestInvitedDevice(t *testing.T) {
+	directory := t.TempDir()
+	if err := os.Chmod(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	root, err := openPrivate(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	input := options{Config: "invited-human", Origin: "https://localhost", RPID: "localhost", Invited: true}
+	public, err := create(root, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if public.CredentialID == api.SoftwareAuthenticatorCredentialID || public.CredentialID != api.InvitedCredentialID(public.RawCredentialID) {
+		t.Fatal("invited device reused the baseline identity")
+	}
+	input.Mode, input.Method, input.Target = "sign", "human.session", string(public.PrincipalID)
+	input.Origin, input.RPID, input.Invited = "", "", false
+	intent, err := operationIntent(input, []byte("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	challenge := api.HumanChallenge{ID: "invited-challenge", Config: input.Config, Method: intent.Method, TargetID: intent.TargetID,
+		RequestSHA256: intent.RequestSHA256, Origin: public.Origin, RPID: public.RPID, Challenge: make([]byte, 32), ExpiresAt: api.Timestamp(time.Now().Add(time.Minute).UTC().Format(time.RFC3339Nano))}
+	if _, err := rand.Read(challenge.Challenge); err != nil {
+		t.Fatal(err)
+	}
+	assertion, err := sign(root, input, intent, challengeBytes(t, challenge), time.Now())
+	if err != nil {
+		t.Fatal("invited device could not sign its own actual challenge", err)
+	}
+	if _, err := identity.VerifyAssertion(challenge, public.CredentialID, public.PublicKeyDER, 0, assertion, time.Now()); err != nil {
+		t.Fatal("invited device signature did not verify", err)
+	}
+}
+
 func TestSignerRejectsChangedIntent(t *testing.T) {
 	for _, field := range []string{"config", "method", "target", "digest", "base", "origin", "rp", "expired"} {
 		t.Run(field, func(t *testing.T) {
